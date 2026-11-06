@@ -14,7 +14,11 @@
 <section class="module" id="academy" hidden><div class="label">Certificação acadêmica</div><h1>Academy</h1><p class="lead">Solicitação, acompanhamento, emissão e verificação de certificados em um mesmo fluxo institucional.</p><div class="grid"><div class="card"><h2>Solicitação de certificados</h2><p>Emissão e cobrança ainda não habilitadas neste laboratório.</p><a class="btn" id="academyWa" target="_blank" rel="noopener noreferrer">Solicitar orientação</a></div><div class="card"><h2>Validação documental</h2><p>A checagem por QR e revogação serão conectadas ao emissor após homologação.</p><span class="status">Pendente</span></div></div></section>
 <section class="module" id="genius" hidden><div class="label">Ferramentas para pesquisadores</div><h1>ArticleGenius</h1><p class="lead">Faça uma conferência preliminar de metadados; a análise por IA ainda não foi conectada.</p><div class="cols"><div class="card"><h2>Verificador básico</h2><label>Título</label><input id="gTitle"><label>Resumo</label><textarea id="gAbstract"></textarea><label>Palavras-chave (separe por ;)</label><input id="gKeywords"><button class="btn" id="gCheck">Verificar texto de teste</button><div class="out" id="gResult" hidden></div></div><aside class="card"><h2>Próximos módulos</h2><div class="row">Revisão por IA</div><div class="row">Verificação documental</div><div class="row">Organização de autores</div><div class="row">Encaminhamento ao OJS</div><p class="small">Nenhuma análise externa é executada nesta página.</p></aside></div></section>
 <section class="module" id="contact" hidden><div class="label">Suporte</div><h1>Central de Atendimento</h1><p class="lead">Entre em contato com a Editora UJN para dúvidas sobre artigos, certificados e serviços.</p><div class="card"><h2>Atendimento por WhatsApp</h2><a class="btn" id="supportWa" target="_blank" rel="noopener noreferrer">Abrir conversa</a><p class="small">Respostas automáticas ainda dependem de homologação.</p></div></section>
-<section class="module" id="admin" hidden><div class="label">Área administrativa</div><h1>Administração do sistema</h1><div class="banner"><b>Protegida:</b> não insira chaves de APIs aqui. Os conectores devem ser administrados pelo backend com autenticação de operador e criptografia.</div><div class="grid"><div class="card"><h2>Conectores OJS</h2><p>Cadastro seguro das APIs das cinco revistas criado no Supabase LAB, aguardando autenticação e validação.</p><span class="status">Backend preparado</span></div><div class="card"><h2>Protocolos e auditoria</h2><p>Tabelas de atendimento, histórico e triagem criadas com controle de acesso. A interface administrativa final ainda precisa ser integrada a esta hospedagem.</p><span class="status">Interface pendente</span></div></div></section>
+<section class="module" id="admin" hidden><div class="label">Área administrativa</div><h1>Administração do sistema</h1><div class="banner"><b>Protegida:</b> não insira chaves de APIs aqui. Os conectores devem ser administrados pelo backend com autenticação de operador e criptografia.</div><div class="grid"><div class="card"><h2>Conectores OJS</h2><p>Cadastro seguro das APIs das cinco revistas criado no Supabase LAB, aguardando autenticação e validação.</p><span class="status">Backend preparado</span></div><div class="card"><h2>Protocolos e auditoria</h2><p>Tabelas de atendimento, histórico e triagem criadas com controle de acesso. A interface administrativa final ainda precisa ser integrada a esta hospedagem.</p><span class="status">Interface de operador abaixo</span></div></div>
+<div class="card"><h2>Entrar na Central UJN (LAB)</h2><p class="small">Somente operadores cadastrados no Supabase. Não use credenciais de produção. A sessão é mantida apenas enquanto esta página estiver aberta.</p>
+<form id="adminForm"><label for="adminEmail">E-mail do operador</label><input type="email" id="adminEmail" autocomplete="username" required><label for="adminPassword">Senha de homologação</label><input id="adminPassword" type="password" autocomplete="current-password" required><button class="btn" type="submit">Entrar e carregar protocolos</button><button class="btn alt" id="adminLogout" type="button">Sair</button></form>
+<div id="adminStatus" class="out" hidden></div><div id="adminTickets"></div>
+</div></section>
 </main><footer>Editora UJN · Homologação · Nenhuma operação editorial ou pagamento real será executado por esta página.</footer>
 <script>
 const phone="553189474110",wa=t=>"https://wa.me/"+phone+"?text="+encodeURIComponent(t);
@@ -26,5 +30,26 @@ document.getElementById("academyWa").href=wa("Olá! Gostaria de informações so
 document.getElementById("supportWa").href=wa("Olá! Gostaria de atendimento pela Editora UJN.");
 document.getElementById("track").onclick=()=>{let code=document.getElementById("trackCode").value.trim();if(!code)return alert("Informe o protocolo.");window.open(wa("Olá, UJN. Solicito acompanhamento de artigo na "+document.getElementById("trackJournal").value+". Protocolo "+code),"_blank","noopener,noreferrer")};
 document.getElementById("gCheck").onclick=()=>{const t=document.getElementById("gTitle").value.trim(),a=document.getElementById("gAbstract").value.trim(),k=document.getElementById("gKeywords").value.split(";").filter(x=>x.trim());let v=[];if(t.length<15)v.push("Título muito curto");if(a.length<150)v.push("Resumo com menos de 150 caracteres");if(k.length<3)v.push("Menos de três palavras-chave");const out=document.getElementById("gResult");out.hidden=false;out.textContent=v.length?v.join("\n"):"Conferência básica concluída. Verifique as normas específicas da revista."};
+const BASE="https://leytqsyfrmzhectatcqm.supabase.co",PUBLISHABLE="sb_publishable_d4F4MVCCYDMNZw0VzOsCKQ_q7pHO7JH";let labToken=null;
+const el=id=>document.getElementById(id);
+function adminMessage(message){el("adminStatus").hidden=false;el("adminStatus").textContent=message;}
+el("adminLogout").onclick=()=>{labToken=null;el("adminTickets").replaceChildren();el("adminPassword").value="";adminMessage("Sessão local encerrada.");};
+el("adminForm").onsubmit=async event=>{
+ event.preventDefault();el("adminTickets").replaceChildren();const email=el("adminEmail").value.trim(),password=el("adminPassword").value;el("adminPassword").value="";
+ try{
+  const login=await fetch(BASE+"/auth/v1/token?grant_type=password",{method:"POST",headers:{"apikey":PUBLISHABLE,"content-type":"application/json"},body:JSON.stringify({email,password}),cache:"no-store"});
+  const data=await login.json();if(!login.ok||!data.access_token)throw Error("Não foi possível autenticar.");
+  labToken=data.access_token;
+  const headers={"apikey":PUBLISHABLE,"authorization":"Bearer "+labToken};
+  const operator=await fetch(BASE+"/rest/v1/ujn_lab_operators?select=role,enabled&user_id=eq."+encodeURIComponent(data.user.id),{headers,cache:"no-store"});
+  if(!operator.ok)throw Error("Não foi possível confirmar permissão.");
+  const rows=await operator.json();if(!rows.some(x=>x.enabled)){labToken=null;throw Error("Esta conta não é operadora do laboratório.");}
+  const resp=await fetch(BASE+"/rest/v1/ujn_lab_tickets?select=protocol,subject,status,created_at&order=created_at.desc&limit=50",{headers,cache:"no-store"});
+  if(!resp.ok)throw Error("Não foi possível consultar os atendimentos.");
+  const tickets=await resp.json();adminMessage("Login concluído. "+tickets.length+" protocolo(s) visível(is).");
+  const root=el("adminTickets");root.replaceChildren();
+  tickets.forEach(t=>{const row=document.createElement("div");row.className="row";row.textContent=t.protocol+" — "+t.subject+" ("+t.status+")";root.appendChild(row);});
+ }catch(e){labToken=null;adminMessage("Erro: "+e.message);}
+};
 window.addEventListener("hashchange",()=>show(location.hash.slice(1)));show(location.hash.slice(1)||"home");
 </script></body></html>
