@@ -17,7 +17,7 @@
 <section class="module" id="admin" hidden><div class="label">Área administrativa</div><h1>Administração do sistema</h1><div class="banner"><b>Protegida:</b> não insira chaves de APIs aqui. Os conectores devem ser administrados pelo backend com autenticação de operador e criptografia.</div><div class="grid"><div class="card"><h2>Conectores OJS</h2><p>Cadastro seguro das APIs das cinco revistas criado no Supabase LAB, aguardando autenticação e validação.</p><span class="status">Backend preparado</span></div><div class="card"><h2>Protocolos e auditoria</h2><p>Tabelas de atendimento, histórico e triagem criadas com controle de acesso. A interface administrativa final ainda precisa ser integrada a esta hospedagem.</p><span class="status">Interface de operador abaixo</span></div></div>
 <div class="card"><h2>Entrar na Central UJN (LAB)</h2><p class="small">Somente operadores cadastrados no Supabase. Não use credenciais de produção. A sessão é mantida apenas enquanto esta página estiver aberta.</p>
 <form id="adminForm"><label for="adminEmail">E-mail do operador</label><input type="email" id="adminEmail" autocomplete="username" required><label for="adminPassword">Senha de homologação</label><input id="adminPassword" type="password" autocomplete="current-password" required><button class="btn" type="submit">Entrar e carregar protocolos</button><button class="btn alt" id="adminLogout" type="button">Sair</button></form>
-<div id="adminStatus" class="out" hidden></div><div id="adminTickets"></div>
+<div id="adminStatus" class="out" hidden></div><div id="adminTickets"></div><div class="card" style="margin-top:14px"><h3>Notificações — laboratório</h3><p class="small">Gere um evento de movimentação, registrado e bloqueado para envio. Nenhuma mensagem vai para o WhatsApp nesta etapa.</p><label>Protocolo para simular evento</label><select id="notifTicket"><option value="">Entre como operador para carregar protocolos</option></select><button class="btn alt" type="button" id="notifCreate" disabled>Simular notificação</button><div id="notifResult" class="out" hidden></div></div>
 </div></section>
 </main><footer>Editora UJN · Homologação · Nenhuma operação editorial ou pagamento real será executado por esta página.</footer>
 <script>
@@ -49,7 +49,22 @@ el("adminForm").onsubmit=async event=>{
   const tickets=await resp.json();adminMessage("Login concluído. "+tickets.length+" protocolo(s) visível(is).");
   const root=el("adminTickets");root.replaceChildren();
   tickets.forEach(t=>{const row=document.createElement("div");row.className="row";row.textContent=t.protocol+" — "+t.subject+" ("+t.status+")";root.appendChild(row);});
+  const optionSelect=el("notifTicket");optionSelect.replaceChildren();
+  tickets.forEach(t=>{const op=document.createElement("option");op.value=t.id;op.textContent=t.protocol+" · "+t.status;optionSelect.appendChild(op);});
+  el("notifCreate").disabled=tickets.length===0;
  }catch(e){labToken=null;adminMessage("Erro: "+e.message);}
+};
+
+el("notifCreate").onclick=async()=>{
+ const out=el("notifResult");out.hidden=false;out.textContent="Registrando notificação de teste...";
+ if(!labToken||!el("notifTicket").value){out.textContent="Entre como operador e selecione um protocolo.";return;}
+ try{
+  const r=await fetch(BASE+"/rest/v1/rpc/ujn_lab_queue_notification",{method:"POST",
+  headers:{"apikey":PUBLISHABLE,"authorization":"Bearer "+labToken,"content-type":"application/json"},
+  body:JSON.stringify({p_ticket_id:el("notifTicket").value,p_alias:"Contato Exemplo LAB"})});
+  const d=await r.json();if(!r.ok)throw Error(d.message||"HTTP "+r.status);
+  out.textContent="Evento criado no LAB. Estado: "+d.state+". Entrega externa: "+(d.external_delivery?"SIM":"NÃO")+".";
+ }catch(e){out.textContent="Erro na simulação: "+e.message;}
 };
 window.addEventListener("hashchange",()=>show(location.hash.slice(1)));show(location.hash.slice(1)||"home");
 </script></body></html>
