@@ -174,7 +174,7 @@ async function ojsCatalog(){
 
 const API_SETTINGS="https://leytqsyfrmzhectatcqm.supabase.co/functions/v1/ujn-ojs-lab-settings";
 const API_AUTHCHECK="https://leytqsyfrmzhectatcqm.supabase.co/functions/v1/ujn-ojs-lab-auth-read-check";
-const JOURNAL_BASES={REMUNOM:"https://remunom.ojsbr.com/multidisciplinar",JIRRS:"https://jirrs.org.uk/jirrs",NEXUS:"https://nexussr.org.uk/nexus",RSV:"https://rsv.ojsbr.com/rsv",RJNM:"https://jrnm.ojsbr.com/juridica"};
+const JOURNAL_BASES={REMUNOM:"https://remunom.ojsbr.com/multidisciplinar",JIRRS:"https://jirrs.org.uk/jirrs",NEXUS:"https://nexussr.org.uk/nexussr",RSV:"https://rsv.ojsbr.com/rsv",RJNM:"https://jrnm.ojsbr.com/juridica"};
 get("ojsSecretJournal").onchange=()=>{get("ojsSecretEndpoint").value=JOURNAL_BASES[get("ojsSecretJournal").value];};
 get("ojsSecretJournal").onchange();
 async function securedOjs(url,method="GET",payload){
@@ -206,7 +206,7 @@ get("ojsAuthTest").onclick=async()=>{
  const d=await securedOjs(API_AUTHCHECK,"POST",{journal:get("ojsSecretJournal").value});
  if(!d.credential_configured){area.textContent="Nenhuma nova chave cadastrada para esta revista. Não foi realizado teste autenticado.";}
  else area.textContent="Revista "+d.journal+" — "+(d.authenticated_read_checks||[]).map(x=>"HTTP "+(x.status??"sem resposta")+" ("+x.classification+", JSON: "+(x.json?"sim":"não")+")").join(" / ")+
- "\nNenhum artigo foi consultado, criado ou enviado.";
+ "\nPermissão de leitura de submissões: "+(d.conclusion==="submissions_read_verified"?"CONFIRMADA":"não confirmada")+". Nenhum artigo foi criado ou enviado.";
  }catch(e){area.textContent="Erro: "+e.message;}
  finally{btn.disabled=false;}
 };
