@@ -1,11 +1,19 @@
 <!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Administração UJN | Homologação</title><style>
 :root{font:14px/1.5 system-ui,Segoe UI,Arial,sans-serif;color:#173848;background:#f4f7f8}*{box-sizing:border-box}body{margin:0}.top{padding:18px 30px;background:#143448;color:white;display:flex;align-items:center;justify-content:space-between;gap:20px}.top b{font-size:22px}.top span{font-size:12px;color:#afcec7}button,input,textarea,select{font:inherit}button{cursor:pointer}.shell{display:grid;grid-template-columns:230px minmax(0,1fr);min-height:calc(100vh - 71px)}aside{background:#1e4052;color:#c4dbe0;padding:26px 18px}aside p{font-size:12px;margin-bottom:20px}aside a{display:block;color:white;text-decoration:none;padding:12px;border-radius:8px;background:#2e5765;margin:10px 0}main{padding:26px;max-width:1420px;width:100%;margin:0 auto}.head{display:flex;justify-content:space-between;align-items:center;gap:16px}h1{font-size:26px;margin:0 0 6px}h2{font-size:18px;margin:0 0 12px}h3{font-size:15px;margin:0 0 8px}p{color:#66808d;font-size:13px}.small{font-size:12px;color:#708591}.tag{font-size:11px;border-radius:20px;padding:6px 10px;background:#def2e7;color:#176956;font-weight:700}.columns{display:grid;grid-template-columns:minmax(290px,.8fr) minmax(400px,1.2fr);gap:16px}.card{border:1px solid #dce6e9;border-radius:13px;background:white;padding:22px;margin:15px 0;box-shadow:0 3px 14px #1537480a}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:13px}.stat b{font-size:26px;display:block}.stat span{font-size:12px;color:#64818c}input,textarea,select{background:white;border:1px solid #c6d7df;border-radius:8px;padding:10px;width:100%;color:#173848}textarea{min-height:100px}label{display:block;font-size:12px;color:#476773;font-weight:700;margin:12px 0 5px}.btn{border:0;border-radius:8px;background:#127b70;color:white;padding:10px 14px;font-weight:700;margin:8px 6px 6px 0}.btn.alt{background:#e8f2f1;color:#18675f}.btn:disabled{opacity:.5;cursor:not-allowed}.ticket{width:100%;background:white;color:#234454;border:1px solid #dae6e8;padding:12px;text-align:left;border-radius:8px;margin:5px 0}.ticket.active{background:#ebf8f3;border-color:#4cae94}.line{white-space:pre-wrap;overflow-wrap:anywhere;background:#f2f6f8;border-radius:8px;padding:12px;margin:8px 0}.line.out{background:#eaf7f1}.alert{background:#fff5df;border:1px solid #efdcab;padding:12px;border-radius:8px;font-size:13px;color:#6c5327;margin-top:15px}#app[hidden],#login[hidden]{display:none!important}.split{display:flex;gap:12px;flex-wrap:wrap;align-items:center}.notice{white-space:pre-wrap;background:#edf5f7;padding:12px;border-radius:8px;font-size:13px;margin:13px 0}@media(max-width:900px){.shell{display:block}aside{padding:15px}.columns{grid-template-columns:1fr}main{padding:16px}.stats{grid-template-columns:1fr 1fr}.top{padding:14px}}
-</style></head><body><header class="top"><div><b>Editora UJN</b> <span>· Administração</span></div><span>HOMOLOGAÇÃO · SOMENTE LEITURA</span></header>
+</style></head><body><header class="top"><div><b>Editora UJN</b> <span>· Administração</span></div><span>HOMOLOGAÇÃO · GESTÃO CONTROLADA</span></header>
 <div class="shell"><aside><strong>Central de Gestão</strong><p>Leitura protegida da Central Academy</p><a href="../">Portal público</a><a href="#atendimentos">Atendimentos</a><a href="#conversa">Conversas da Central</a><a href="#notificacoes">Entregas registradas</a></aside><main>
 <section id="login" class="card" style="max-width:450px"><h1>Entrar na Central UJN</h1><p>Entre com sua conta autorizada do Academy. A senha é enviada diretamente ao Supabase Auth do Academy; este painel não armazena credenciais.</p><form id="loginForm"><label>E-mail</label><input id="email" type="email" autocomplete="username" required><label>Senha</label><input id="password" type="password" autocomplete="current-password" required><button class="btn">Acessar painel</button></form><div id="loginMsg" class="notice" hidden></div></section>
 <div id="app" hidden><div class="head"><div><h1>Visão geral</h1><p>Conversas e mensagens registradas na Central Academy existente.</p></div><button id="logout" class="btn alt">Sair</button></div>
 <div class="stats"><div class="card stat"><span>Conversas</span><b id="total">—</b></div><div class="card stat"><span>Atendimento automático</span><b id="triage">—</b></div><div class="card stat"><span>Atendimento humano</span><b id="reviews">—</b></div></div>
 <div class="alert">Painel de homologação: visualização das conversas do Academy e devolução explícita de atendimento humano ao bot. Somente o comando confirmado de devolução altera o estado da conversa na produção. Nenhuma mensagem é enviada automaticamente por este painel.</div>
+<section class="card" id="whatsapp-menu-editor">
+ <div class="head"><div><h2>Editar mensagem inicial do WhatsApp</h2><p class="small">Somente superadministradores Academy. O menu salvo entra em vigor nas próximas mensagens; não reenvia textos antigos.</p></div><button type="button" class="btn alt" id="loadMenu">Carregar mensagem atual</button></div>
+ <label for="menuBody">Mensagem apresentada ao digitar MENU ou TROCAR SERVIÇO</label>
+ <textarea id="menuBody" rows="15" maxlength="3800" spellcheck="true" placeholder="Carregue a mensagem atual para editar"></textarea>
+ <p class="small">Mantenha obrigatoriamente as opções 1. a 5. Não inclua links de pagamento não autorizados. Alterações são auditadas e exigem superadministrador.</p>
+ <button type="button" class="btn" id="saveMenu" disabled>Salvar nova mensagem</button>
+ <div id="menuResult" class="notice" role="status">Carregue a mensagem para iniciar.</div>
+ </section>
 <section class="card" id="diagnostico"><div class="head"><h2>Diagnóstico do WhatsApp</h2><button id="diagnose" class="btn alt" type="button">Conferir mensagens</button></div><div id="diagnosis" class="notice">Faça login para verificar o último registro de mensagem recebida e de resposta do bot no Academy.</div><p class="small">Esta verificação consulta somente mensagens que sua conta de operador pode visualizar. Não testa a entrega da Meta nem envia WhatsApp.</p></section>
 <section class="card" id="ojs-readiness"><div class="head"><div><h2>Revistas OJS — Etapa 3</h2><p class="small">Diagnóstico técnico sem alterar revistas ou acessar manuscritos privados.</p></div><button type="button" id="ojsCatalogBtn" class="btn alt">Carregar revistas</button></div>
 <div id="ojsCatalog" class="small">Faça login como operador do Academy para conferir os cinco conectores.</div>
@@ -39,7 +47,7 @@ const ACADEMY_PUB="sb_publishable_Gw7GOqQKaGan1a-RnvHDhw_ePj9JLYY";
 const LAB_PUB="sb_publishable_d4F4MVCCYDMNZw0VzOsCKQ_q7pHO7JH";
 const LAB="https://leytqsyfrmzhectatcqm.supabase.co/functions/v1/ujn-lab-academy-readonly";
 const get=id=>document.getElementById(id);
-const session={jwt:null,items:[],selected:null,services:[]};
+const session={jwt:null,items:[],selected:null,services:[],superuser:false,menuVersion:null};
 function announce(message){get("notice").hidden=false;get("notice").textContent=message}
 function localDate(d){if(!d)return "—";try{return new Date(d).toLocaleString("pt-BR")}catch{return "—"}}
 async function read(action,id){
@@ -57,7 +65,7 @@ get("loginForm").onsubmit=async e=>{
   if(!resp.ok||!result.access_token)throw Error("Autenticação recusada pelo Academy.");
   session.jwt=result.access_token;
   const info=await read("bootstrap");
-  session.services=info.services||[];
+  session.services=info.services||[];session.superuser=info.superuser===true;
   if(!info.allowed?.length)throw Error("Esta conta não possui permissão de operador da Central Academy.");
   get("login").hidden=true;get("app").hidden=false;
   get("composer").hidden=true;get("composer").style.display="none";
@@ -66,7 +74,7 @@ get("loginForm").onsubmit=async e=>{
  }catch(error){session.jwt=null;get("loginMsg").hidden=false;get("loginMsg").textContent=error.message}
 };
 get("logout").onclick=()=>{
- session.jwt=null;session.items=[];session.selected=null;
+ session.jwt=null;session.items=[];session.selected=null;session.menuVersion=null;session.superuser=false;
  get("app").hidden=true;get("login").hidden=false;
  get("tickets").replaceChildren();get("chat").replaceChildren();
 };
@@ -136,6 +144,40 @@ async function diagnose(){
     "\n\nSe você enviou uma mensagem mais recente e ela não aparece aqui, investigue a entrega do webhook da Meta. Se a mensagem aparece sem resposta, investigue o processamento e a fila de saída.";
  }catch(e){out.textContent="Falha ao diagnosticar: "+e.message}
 }
+
+async function menuAction(body){
+ if(!session.jwt||!session.superuser)throw Error("Somente superadministrador Academy pode editar.");
+ const r=await fetch(LAB,{method:"POST",cache:"no-store",
+ headers:{"content-type":"application/json","authorization":"Bearer "+session.jwt,"apikey":LAB_PUB},
+ body:JSON.stringify(body)});
+ const data=await r.json().catch(()=>({}));
+ if(!r.ok)throw Error(data.error||"Erro "+r.status);
+ return data;
+}
+get("loadMenu").onclick=async()=>{
+ const area=get("menuResult");area.textContent="Carregando texto autorizado...";
+ try{
+  const d=await menuAction({action:"menu_get"});
+  if(!d.menu)throw Error("Menu não configurado.");
+  session.menuVersion=d.menu.version;
+  get("menuBody").value=d.menu.body;
+  get("saveMenu").disabled=false;
+  area.textContent="Versão "+d.menu.version+". Edite e salve para atualizar as próximas respostas.";
+ }catch(e){area.textContent="Falha: "+e.message;}
+};
+get("saveMenu").onclick=async()=>{
+ const area=get("menuResult"),body=get("menuBody").value;
+ if(!Number.isInteger(session.menuVersion))return;
+ if(!confirm("Publicar esta mensagem para os próximos atendimentos do WhatsApp UJN?"))return;
+ const btn=get("saveMenu");btn.disabled=true;
+ try{
+  const d=await menuAction({action:"menu_save",body,version:session.menuVersion});
+  session.menuVersion=d.version;
+  area.textContent="Mensagem publicada. Versão "+d.version+". Teste MENU no WhatsApp.";
+ }catch(e){area.textContent="Não foi possível salvar: "+e.message;}
+ finally{btn.disabled=false;}
+};
+
 get("diagnose").onclick=diagnose;
 
 const OJS="https://leytqsyfrmzhectatcqm.supabase.co/functions/v1/ujn-ojs-lab-readonly-probes";
