@@ -189,7 +189,7 @@ get("ojsSecretStatus").onclick=async()=>{
  try{
  const d=await securedOjs(API_SETTINGS);
  out.textContent="Armazenamento de chaves no LAB: "+(d.ready_to_store?"PRONTO":"BLOQUEADO — o Supabase Vault LAB não respondeu; não envie chaves")+"\nCredencial técnica do LAB: "+(d.service_role_available?"presente":"indisponível")+"\n"+
-  (d.journals||[]).map(x=>x.journal_code+" — "+x.state).join("\n");
+  (d.journals||[]).map(x=>x.journal_code+" — "+x.state+(x.last_check_result?" | último teste: "+x.last_check_result:"")).join("\n");
  }catch(e){out.textContent="Erro: "+e.message;}
 };
 get("ojsSecretsForm").onsubmit=async event=>{
