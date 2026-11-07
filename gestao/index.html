@@ -1,11 +1,12 @@
 <!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Administração UJN | Homologação</title><style>
 :root{font:14px/1.5 system-ui,Segoe UI,Arial,sans-serif;color:#173848;background:#f4f7f8}*{box-sizing:border-box}body{margin:0}.top{padding:18px 30px;background:#143448;color:white;display:flex;align-items:center;justify-content:space-between;gap:20px}.top b{font-size:22px}.top span{font-size:12px;color:#afcec7}button,input,textarea,select{font:inherit}button{cursor:pointer}.shell{display:grid;grid-template-columns:230px minmax(0,1fr);min-height:calc(100vh - 71px)}aside{background:#1e4052;color:#c4dbe0;padding:26px 18px}aside p{font-size:12px;margin-bottom:20px}aside a{display:block;color:white;text-decoration:none;padding:12px;border-radius:8px;background:#2e5765;margin:10px 0}main{padding:26px;max-width:1420px;width:100%;margin:0 auto}.head{display:flex;justify-content:space-between;align-items:center;gap:16px}h1{font-size:26px;margin:0 0 6px}h2{font-size:18px;margin:0 0 12px}h3{font-size:15px;margin:0 0 8px}p{color:#66808d;font-size:13px}.small{font-size:12px;color:#708591}.tag{font-size:11px;border-radius:20px;padding:6px 10px;background:#def2e7;color:#176956;font-weight:700}.columns{display:grid;grid-template-columns:minmax(290px,.8fr) minmax(400px,1.2fr);gap:16px}.card{border:1px solid #dce6e9;border-radius:13px;background:white;padding:22px;margin:15px 0;box-shadow:0 3px 14px #1537480a}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:13px}.stat b{font-size:26px;display:block}.stat span{font-size:12px;color:#64818c}input,textarea,select{background:white;border:1px solid #c6d7df;border-radius:8px;padding:10px;width:100%;color:#173848}textarea{min-height:100px}label{display:block;font-size:12px;color:#476773;font-weight:700;margin:12px 0 5px}.btn{border:0;border-radius:8px;background:#127b70;color:white;padding:10px 14px;font-weight:700;margin:8px 6px 6px 0}.btn.alt{background:#e8f2f1;color:#18675f}.btn:disabled{opacity:.5;cursor:not-allowed}.ticket{width:100%;background:white;color:#234454;border:1px solid #dae6e8;padding:12px;text-align:left;border-radius:8px;margin:5px 0}.ticket.active{background:#ebf8f3;border-color:#4cae94}.line{white-space:pre-wrap;overflow-wrap:anywhere;background:#f2f6f8;border-radius:8px;padding:12px;margin:8px 0}.line.out{background:#eaf7f1}.alert{background:#fff5df;border:1px solid #efdcab;padding:12px;border-radius:8px;font-size:13px;color:#6c5327;margin-top:15px}#app[hidden],#login[hidden]{display:none!important}.split{display:flex;gap:12px;flex-wrap:wrap;align-items:center}.notice{white-space:pre-wrap;background:#edf5f7;padding:12px;border-radius:8px;font-size:13px;margin:13px 0}@media(max-width:900px){.shell{display:block}aside{padding:15px}.columns{grid-template-columns:1fr}main{padding:16px}.stats{grid-template-columns:1fr 1fr}.top{padding:14px}}
 </style></head><body><header class="top"><div><b>Editora UJN</b> <span>· Administração</span></div><span>HOMOLOGAÇÃO · SEM ENVIOS REAIS</span></header>
-<div class="shell"><aside><strong>Central de Gestão</strong><p>Leitura protegida da Central Academy</p><a href="../">Portal público</a><a href="#atendimentos">Atendimentos</a><a href="#conversa">Conversa simulada</a><a href="#notificacoes">Notificações LAB</a></aside><main>
+<div class="shell"><aside><strong>Central de Gestão</strong><p>Leitura protegida da Central Academy</p><a href="../">Portal público</a><a href="#atendimentos">Atendimentos</a><a href="#conversa">Conversas da Central</a><a href="#notificacoes">Entregas registradas</a></aside><main>
 <section id="login" class="card" style="max-width:450px"><h1>Entrar na Central UJN</h1><p>Entre com sua conta autorizada do Academy. A senha é enviada diretamente ao Supabase Auth do Academy; este painel não armazena credenciais.</p><form id="loginForm"><label>E-mail</label><input id="email" type="email" autocomplete="username" required><label>Senha</label><input id="password" type="password" autocomplete="current-password" required><button class="btn">Acessar painel</button></form><div id="loginMsg" class="notice" hidden></div></section>
 <div id="app" hidden><div class="head"><div><h1>Visão geral</h1><p>Conversas e mensagens registradas na Central Academy existente.</p></div><button id="logout" class="btn alt">Sair</button></div>
 <div class="stats"><div class="card stat"><span>Protocolos</span><b id="total">—</b></div><div class="card stat"><span>Em triagem</span><b id="triage">—</b></div><div class="card stat"><span>Aguardando revisão</span><b id="reviews">—</b></div></div>
 <div class="alert">Painel de homologação em modo LEITURA. Exibe conversas existentes do Academy, sem enviar mensagens, aprovar rascunhos ou modificar produção. Os dados podem ser reais: preserve sua confidencialidade.</div>
+<section class="card" id="diagnostico"><div class="head"><h2>Diagnóstico do WhatsApp</h2><button id="diagnose" class="btn alt" type="button">Conferir mensagens</button></div><div id="diagnosis" class="notice">Faça login para verificar o último registro de mensagem recebida e de resposta do bot no Academy.</div><p class="small">Esta verificação consulta somente mensagens que sua conta de operador pode visualizar. Não testa a entrega da Meta nem envia WhatsApp.</p></section>
 <div id="notice" class="notice" hidden></div>
 <div class="columns">
 <section class="card" id="atendimentos"><div class="head"><h2>Conversas da Central Academy</h2><button class="btn alt" id="reload">Atualizar</button></div><input id="filter" placeholder="Buscar serviço ou identificador de conversa"><div id="tickets"></div></section>
@@ -96,6 +97,28 @@ async function openConversation(id){
   get("outbox").textContent=status||"Selecione uma conversa para visualizar o histórico de entregas.";
  }catch(e){announce("Falha ao consultar histórico: "+e.message)}
 }
+
+async function diagnose(){
+ const out=get("diagnosis");out.textContent="Consultando o histórico autorizado...";
+ try{
+  const items=session.items||[];
+  let newestIn=null,newestOut=null,reads=0;
+  for(const conv of items.slice(0,25)){
+   const d=await read("detail",conv.id);reads++;
+   for(const m of d.messages||[]){
+    const timestamp=Date.parse(m.created_at||"");
+    if(!Number.isFinite(timestamp))continue;
+    if(m.sender==="CUSTOMER"&&(!newestIn||timestamp>newestIn.time))newestIn={time:timestamp,service:conv.service_id};
+    if(["BOT","AGENT"].includes(m.sender)&&(!newestOut||timestamp>newestOut.time))newestOut={time:timestamp,service:conv.service_id};
+   }
+  }
+  const incoming=newestIn?new Date(newestIn.time).toLocaleString("pt-BR")+" ("+newestIn.service+")":"nenhum registro";
+  const outgoing=newestOut?new Date(newestOut.time).toLocaleString("pt-BR")+" ("+newestOut.service+")":"nenhum registro";
+  out.textContent="Conversas consultadas: "+reads+"\nÚltima mensagem do cliente: "+incoming+"\nÚltima mensagem do bot/equipe: "+outgoing+
+    "\n\nSe você enviou uma mensagem mais recente e ela não aparece aqui, investigue a entrega do webhook da Meta. Se a mensagem aparece sem resposta, investigue o processamento e a fila de saída.";
+ }catch(e){out.textContent="Falha ao diagnosticar: "+e.message}
+}
+get("diagnose").onclick=diagnose;
 get("reload").onclick=refresh;
 get("filter").oninput=renderList;
 get("loadOutbox").onclick=()=>{};
