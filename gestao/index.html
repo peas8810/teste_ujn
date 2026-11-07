@@ -5,7 +5,7 @@
 <section id="login" class="card" style="max-width:450px"><h1>Entrar na Central UJN</h1><p>Entre com sua conta autorizada do Academy. A senha é enviada diretamente ao Supabase Auth do Academy; este painel não armazena credenciais.</p><form id="loginForm"><label>E-mail</label><input id="email" type="email" autocomplete="username" required><label>Senha</label><input id="password" type="password" autocomplete="current-password" required><button class="btn">Acessar painel</button></form><div id="loginMsg" class="notice" hidden></div></section>
 <div id="app" hidden><div class="head"><div><h1>Visão geral</h1><p>Conversas e mensagens registradas na Central Academy existente.</p></div><button id="logout" class="btn alt">Sair</button></div>
 <div class="stats"><div class="card stat"><span>Conversas</span><b id="total">—</b></div><div class="card stat"><span>Atendimento automático</span><b id="triage">—</b></div><div class="card stat"><span>Atendimento humano</span><b id="reviews">—</b></div></div>
-<div class="alert">Painel de homologação em modo LEITURA. Exibe conversas existentes do Academy, sem enviar mensagens, aprovar rascunhos ou modificar produção. Os dados podem ser reais: preserve sua confidencialidade.</div>
+<div class="alert">Painel de homologação: visualização das conversas do Academy e devolução explícita de atendimento humano ao bot. Somente o comando confirmado de devolução altera o estado da conversa na produção. Nenhuma mensagem é enviada automaticamente por este painel.</div>
 <section class="card" id="diagnostico"><div class="head"><h2>Diagnóstico do WhatsApp</h2><button id="diagnose" class="btn alt" type="button">Conferir mensagens</button></div><div id="diagnosis" class="notice">Faça login para verificar o último registro de mensagem recebida e de resposta do bot no Academy.</div><p class="small">Esta verificação consulta somente mensagens que sua conta de operador pode visualizar. Não testa a entrega da Meta nem envia WhatsApp.</p></section>
 <section class="card" id="ojs-readiness"><div class="head"><div><h2>Revistas OJS — Etapa 3</h2><p class="small">Diagnóstico técnico sem alterar revistas ou acessar manuscritos privados.</p></div><button type="button" id="ojsCatalogBtn" class="btn alt">Carregar revistas</button></div>
 <div id="ojsCatalog" class="small">Faça login como operador do Academy para conferir os cinco conectores.</div>
@@ -14,7 +14,7 @@
 <div class="columns">
 <section class="card" id="atendimentos"><div class="head"><h2>Conversas da Central Academy</h2><button class="btn alt" id="reload">Atualizar</button></div><input id="filter" placeholder="Buscar serviço ou identificador de conversa"><div id="tickets"></div></section>
 <section class="card" id="conversa"><h2>Histórico da conversa (somente leitura)</h2><div id="ticketIntro"><p>Selecione um protocolo na fila.</p></div>
-<div id="chat" style="margin:14px 0"></div><div id="composer" hidden style="display:none">
+<div id="chat" style="margin:14px 0"></div><div id="resumeArea" hidden style="padding:12px;border:1px solid #e7d19c;border-radius:9px;background:#fff8e9;margin:12px 0"><p><b>Atendimento assumido por humano.</b> Enquanto estiver assim, o bot não responde automaticamente.</p><button id="resumeBot" type="button" class="btn alt">Devolver ao bot</button><p class="small">Exige confirmação. O comando altera o estado do atendimento no Academy; não envia mensagem por si só.</p></div><div id="composer" hidden style="display:none">
 <label for="direction">Tipo de registro</label><select id="direction"><option value="inbound_simulated">Mensagem recebida fictícia</option><option value="outbound_draft">Rascunho de resposta</option></select>
 <label for="message">Conteúdo fictício</label><textarea id="message" maxlength="4000" placeholder="Digite uma mensagem demonstrativa..."></textarea>
 <button class="btn" id="addMessage">Salvar no LAB</button></div></section>
@@ -84,6 +84,7 @@ async function openConversation(id){
  session.selected=session.items.find(x=>x.id===id)||null;if(!session.selected)return;
  renderList();
  get("ticketIntro").textContent="Conversa "+id.slice(0,8)+"… · "+session.selected.service_id;
+ get("resumeArea").hidden=session.selected.state!=="HUMAN";
  try{
   const data=await read("detail",id);
   const root=get("chat");root.replaceChildren();
@@ -159,6 +160,20 @@ async function ojsCatalog(){
  }catch(e){area.textContent="Não foi possível carregar os conectores: "+e.message}
 }
 get("ojsCatalogBtn").onclick=ojsCatalog;
+get("resumeBot").onclick=async()=>{
+ const convo=session.selected;
+ if(!session.jwt||!convo||convo.state!=="HUMAN")return announce("Selecione uma conversa em atendimento humano.");
+ if(!confirm("Devolver esta conversa ao BOT no Academy? O bot responderá às próximas mensagens do cliente. Esta ação altera a produção."))return;
+ const btn=get("resumeBot");btn.disabled=true;
+ try{
+  const r=await fetch(LAB,{method:"POST",cache:"no-store",headers:{"content-type":"application/json","authorization":"Bearer "+session.jwt,"apikey":LAB_PUB},body:JSON.stringify({action:"resume",id:convo.id,confirm:"DEVOLVER_AO_BOT"})});
+  const d=await r.json().catch(()=>({}));
+  if(!r.ok||d.ok!==true)throw Error(d.error||"Falha ao devolver atendimento");
+  announce("Atendimento devolvido ao bot. A próxima mensagem poderá receber resposta automática.");
+  get("resumeArea").hidden=true;session.selected=null;await refresh();
+ }catch(e){announce("Erro: "+e.message)}
+ finally{btn.disabled=false}
+};
 get("reload").onclick=refresh;
 get("filter").oninput=renderList;
 get("loadOutbox").onclick=()=>{};
