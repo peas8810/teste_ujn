@@ -146,10 +146,10 @@ async function ojsCatalog(){
     button.disabled=true;result.textContent="Testando acesso público sem credenciais...";
     try{
      const d=await ojsCall({action:"probe",code:c.code});
-     const x=d.homepage_probe,y=d.submissions_endpoint_probe;
+     const x=d.homepage_probe,y=d.submissions_endpoint_probe,z=d.alternate_submissions_endpoint_probe;
      result.textContent="Site: "+(x.status??"sem resposta")+" — "+x.access+
       " | API de submissões: "+(y.status??"sem resposta")+" — "+y.access+
-      ". Sem confirmação de autenticação ou operações de escrita.";
+      " | Rota OJS alternativa: "+(z?.status??"sem resposta")+" — "+(z?.access??"desconhecido")+". Sem confirmação de autenticação ou operações de escrita.";
     }catch(e){result.textContent="Falha na verificação: "+e.message}
     finally{button.disabled=false}
    };
