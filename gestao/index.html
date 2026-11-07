@@ -9,6 +9,18 @@
 <section class="card" id="diagnostico"><div class="head"><h2>Diagnóstico do WhatsApp</h2><button id="diagnose" class="btn alt" type="button">Conferir mensagens</button></div><div id="diagnosis" class="notice">Faça login para verificar o último registro de mensagem recebida e de resposta do bot no Academy.</div><p class="small">Esta verificação consulta somente mensagens que sua conta de operador pode visualizar. Não testa a entrega da Meta nem envia WhatsApp.</p></section>
 <section class="card" id="ojs-readiness"><div class="head"><div><h2>Revistas OJS — Etapa 3</h2><p class="small">Diagnóstico técnico sem alterar revistas ou acessar manuscritos privados.</p></div><button type="button" id="ojsCatalogBtn" class="btn alt">Carregar revistas</button></div>
 <div id="ojsCatalog" class="small">Faça login como operador do Academy para conferir os cinco conectores.</div>
+<div class="card" style="margin-top:12px;border-color:#bcd9d4;box-shadow:none">
+<h3>Configuração protegida das APIs (somente LAB)</h3>
+<p class="small">Administradores do Academy podem registrar novas chaves das revistas. As chaves serão criptografadas no Supabase LAB e nunca retornam ao navegador. Não use as credenciais antigas expostas na conversa.</p>
+<form id="ojsSecretsForm">
+<label for="ojsSecretJournal">Revista</label><select id="ojsSecretJournal"><option>REMUNOM</option><option>JIRRS</option><option>NEXUS</option><option>RSV</option><option>RJNM</option></select>
+<label for="ojsSecretEndpoint">Endereço-base OJS</label><input id="ojsSecretEndpoint" type="url" required>
+<label for="ojsSecretValue">Nova chave da API OJS</label><input id="ojsSecretValue" type="password" autocomplete="off" required minlength="40" maxlength="1024" placeholder="Não compartilhe sua chave por mensagem">
+<button class="btn alt" type="submit">Salvar chave criptografada no LAB</button>
+<button class="btn alt" type="button" id="ojsAuthTest">Testar leitura autenticada</button>
+<button class="btn alt" type="button" id="ojsSecretStatus">Ver configurações</button>
+</form><div id="ojsSecureResult" class="notice" aria-live="polite"></div>
+</div>
 <div class="notice">A submissão automática permanece desabilitada até testar chaves substituídas, permissões de autoria, metadados, arquivos, confirmação OJS e acompanhamento. Alternativa: <a href="https://www.articlerun.org/submeter" target="_blank" rel="noopener noreferrer">ArticleRun</a>.</div></section>
 <div id="notice" class="notice" hidden></div>
 <div class="columns">
@@ -159,6 +171,46 @@ async function ojsCatalog(){
   }
  }catch(e){area.textContent="Não foi possível carregar os conectores: "+e.message}
 }
+
+const API_SETTINGS="https://leytqsyfrmzhectatcqm.supabase.co/functions/v1/ujn-ojs-lab-settings";
+const API_AUTHCHECK="https://leytqsyfrmzhectatcqm.supabase.co/functions/v1/ujn-ojs-lab-auth-read-check";
+const JOURNAL_BASES={REMUNOM:"https://remunom.ojsbr.com/multidisciplinar",JIRRS:"https://jirrs.org.uk/jirrs",NEXUS:"https://nexussr.org.uk/nexus",RSV:"https://rsv.ojsbr.com/rsv",RJNM:"https://jrnm.ojsbr.com/juridica"};
+get("ojsSecretJournal").onchange=()=>{get("ojsSecretEndpoint").value=JOURNAL_BASES[get("ojsSecretJournal").value];};
+get("ojsSecretJournal").onchange();
+async function securedOjs(url,method="GET",payload){
+ if(!session.jwt)throw Error("Entre como administrador do Academy.");
+ const response=await fetch(url,{method,cache:"no-store",headers:{"authorization":"Bearer "+session.jwt,"apikey":LAB_PUB,"content-type":"application/json"},body:payload===undefined?undefined:JSON.stringify(payload)});
+ const data=await response.json().catch(()=>({}));
+ if(!response.ok)throw Error(data.code||data.error||"HTTP "+response.status);
+ return data;
+}
+get("ojsSecretStatus").onclick=async()=>{
+ const out=get("ojsSecureResult");out.textContent="Consultando status...";
+ try{
+ const d=await securedOjs(API_SETTINGS);
+ out.textContent="Chave de criptografia: "+(d.ready_to_store?"pronta":"pendente")+"\n"+
+  (d.journals||[]).map(x=>x.journal_code+" — "+x.state).join("\n");
+ }catch(e){out.textContent="Erro: "+e.message;}
+};
+get("ojsSecretsForm").onsubmit=async event=>{
+ event.preventDefault();const btn=event.submitter;btn.disabled=true;const key=get("ojsSecretValue").value;
+ try{
+ const d=await securedOjs(API_SETTINGS,"POST",{journal:get("ojsSecretJournal").value,endpoint:get("ojsSecretEndpoint").value.trim(),api_key:key});
+ get("ojsSecureResult").textContent=d.stored_encrypted?"Nova chave armazenada criptografada no LAB. Ainda não é autorização de envio editorial.":"Não confirmada.";
+ }catch(e){get("ojsSecureResult").textContent="Erro: "+e.message;}
+ finally{get("ojsSecretValue").value="";btn.disabled=false;}
+};
+get("ojsAuthTest").onclick=async()=>{
+ const btn=get("ojsAuthTest"),area=get("ojsSecureResult");btn.disabled=true;area.textContent="Testando resposta da API sem ler conteúdos privados...";
+ try{
+ const d=await securedOjs(API_AUTHCHECK,"POST",{journal:get("ojsSecretJournal").value});
+ if(!d.credential_configured){area.textContent="Nenhuma nova chave cadastrada para esta revista. Não foi realizado teste autenticado.";}
+ else area.textContent="Revista "+d.journal+" — "+(d.authenticated_read_checks||[]).map(x=>"HTTP "+(x.status??"sem resposta")+" ("+x.classification+", JSON: "+(x.json?"sim":"não")+")").join(" / ")+
+ "\nNenhum artigo foi consultado, criado ou enviado.";
+ }catch(e){area.textContent="Erro: "+e.message;}
+ finally{btn.disabled=false;}
+};
+
 get("ojsCatalogBtn").onclick=ojsCatalog;
 get("resumeBot").onclick=async()=>{
  const convo=session.selected;
