@@ -19,6 +19,7 @@
 <button class="btn alt" type="submit">Salvar chave criptografada no LAB</button>
 <button class="btn alt" type="button" id="ojsAuthTest">Testar leitura autenticada</button>
 <button class="btn alt" type="button" id="ojsSecretStatus">Ver configurações</button>
+<button class="btn alt" type="button" id="ojsReuseCredential">Usar chave da REMUNOM nas outras quatro</button>
 </form><div id="ojsSecureResult" class="notice" aria-live="polite"></div>
 </div>
 <div class="notice">A submissão automática permanece desabilitada até testar chaves substituídas, permissões de autoria, metadados, arquivos, confirmação OJS e acompanhamento. Alternativa: <a href="https://www.articlerun.org/submeter" target="_blank" rel="noopener noreferrer">ArticleRun</a>.</div></section>
@@ -184,6 +185,20 @@ async function securedOjs(url,method="GET",payload){
  if(!response.ok)throw Error((data.code==="ENCRYPTION_KEY_NOT_PROVISIONED"?"Chave de criptografia LAB ausente ou inválida (exige exatamente 64 dígitos hexadecimais)":data.code==="CONFIG_SAVE_FAILED"?"Erro no banco ao salvar o cadastro; nenhuma chave foi registrada":data.code==="SERVICE_ROLE_NOT_PROVISIONED"?"Chave do servidor LAB indisponível":data.code||data.error||"HTTP "+response.status));
  return data;
 }
+get("ojsReuseCredential").onclick=async()=>{
+ const btn=get("ojsReuseCredential");
+ if(!session.jwt){get("ojsSecureResult").textContent="Entre como administrador Academy.";return}
+ if(!confirm("Reutilizar a mesma credencial criptografada da REMUNOM para JIRRS, Nexus, RSV e RJNM no LAB? Cada revista será testada separadamente; nenhuma submissão será criada."))return;
+ btn.disabled=true;get("ojsSecureResult").textContent="Configurando credencial com criptografia individual por revista...";
+ try{
+ const d=await securedOjs(API_SETTINGS,"POST",{action:"reuse_remunom_credential",confirm:"COPY_TO_FOUR_LAB_JOURNALS"});
+ get("ojsSecureResult").textContent="Chave copiada para: "+(d.copied?.join(", ")||"nenhuma")+
+ "\\nJá configuradas (não alteradas): "+(d.already_configured?.join(", ")||"nenhuma")+
+ "\\nFalhas: "+(d.failed?.join(", ")||"nenhuma")+
+ "\\nPróximo passo: testar leitura autenticada de cada revista.";
+ }catch(e){get("ojsSecureResult").textContent="Não foi possível copiar: "+e.message}
+ finally{btn.disabled=false}
+};
 get("ojsSecretStatus").onclick=async()=>{
  const out=get("ojsSecureResult");out.textContent="Consultando status...";
  try{
