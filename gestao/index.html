@@ -11,7 +11,7 @@
 <div id="ojsCatalog" class="small">Faça login como operador do Academy para conferir os cinco conectores.</div>
 <div class="card" style="margin-top:12px;border-color:#bcd9d4;box-shadow:none">
 <h3>Configuração protegida das APIs (somente LAB)</h3>
-<p class="small">Administradores do Academy podem registrar novas chaves das revistas. As chaves serão criptografadas no Supabase LAB e nunca retornam ao navegador. Não use as credenciais antigas expostas na conversa.</p>
+<p class="small">O armazenamento usa agora o cofre Supabase Vault do LAB. Como as tentativas anteriores falharam com HTTP 503, será necessário salvar novamente cada nova chave. Elas são criptografadas no servidor e não aparecem neste painel. Não use credenciais antigas expostas na conversa.</p>
 <form id="ojsSecretsForm">
 <label for="ojsSecretJournal">Revista</label><select id="ojsSecretJournal"><option>REMUNOM</option><option>JIRRS</option><option>NEXUS</option><option>RSV</option><option>RJNM</option></select>
 <label for="ojsSecretEndpoint">Endereço-base OJS</label><input id="ojsSecretEndpoint" type="url" required>
@@ -188,7 +188,7 @@ get("ojsSecretStatus").onclick=async()=>{
  const out=get("ojsSecureResult");out.textContent="Consultando status...";
  try{
  const d=await securedOjs(API_SETTINGS);
- out.textContent="Armazenamento de chaves no LAB: "+(d.ready_to_store?"PRONTO":"BLOQUEADO — conferir UJN_LAB_OJS_ENCRYPTION_HEX (64 dígitos hexadecimais)")+"\nChave de serviço do LAB: "+(d.service_role_available?"presente":"indisponível")+"\n"+
+ out.textContent="Armazenamento de chaves no LAB: "+(d.ready_to_store?"PRONTO":"BLOQUEADO — o Supabase Vault LAB não respondeu; não envie chaves")+"\nCredencial técnica do LAB: "+(d.service_role_available?"presente":"indisponível")+"\n"+
   (d.journals||[]).map(x=>x.journal_code+" — "+x.state).join("\n");
  }catch(e){out.textContent="Erro: "+e.message;}
 };
