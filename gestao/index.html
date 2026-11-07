@@ -7,6 +7,9 @@
 <div class="stats"><div class="card stat"><span>Protocolos</span><b id="total">—</b></div><div class="card stat"><span>Em triagem</span><b id="triage">—</b></div><div class="card stat"><span>Aguardando revisão</span><b id="reviews">—</b></div></div>
 <div class="alert">Painel de homologação em modo LEITURA. Exibe conversas existentes do Academy, sem enviar mensagens, aprovar rascunhos ou modificar produção. Os dados podem ser reais: preserve sua confidencialidade.</div>
 <section class="card" id="diagnostico"><div class="head"><h2>Diagnóstico do WhatsApp</h2><button id="diagnose" class="btn alt" type="button">Conferir mensagens</button></div><div id="diagnosis" class="notice">Faça login para verificar o último registro de mensagem recebida e de resposta do bot no Academy.</div><p class="small">Esta verificação consulta somente mensagens que sua conta de operador pode visualizar. Não testa a entrega da Meta nem envia WhatsApp.</p></section>
+<section class="card" id="ojs-readiness"><div class="head"><div><h2>Revistas OJS — Etapa 3</h2><p class="small">Diagnóstico técnico sem alterar revistas ou acessar manuscritos privados.</p></div><button type="button" id="ojsCatalogBtn" class="btn alt">Carregar revistas</button></div>
+<div id="ojsCatalog" class="small">Faça login como operador do Academy para conferir os cinco conectores.</div>
+<div class="notice">A submissão automática permanece desabilitada até testar chaves substituídas, permissões de autoria, metadados, arquivos, confirmação OJS e acompanhamento. Alternativa: <a href="https://www.articlerun.org/submeter" target="_blank" rel="noopener noreferrer">ArticleRun</a>.</div></section>
 <div id="notice" class="notice" hidden></div>
 <div class="columns">
 <section class="card" id="atendimentos"><div class="head"><h2>Conversas da Central Academy</h2><button class="btn alt" id="reload">Atualizar</button></div><input id="filter" placeholder="Buscar serviço ou identificador de conversa"><div id="tickets"></div></section>
@@ -119,6 +122,42 @@ async function diagnose(){
  }catch(e){out.textContent="Falha ao diagnosticar: "+e.message}
 }
 get("diagnose").onclick=diagnose;
+
+const OJS="https://leytqsyfrmzhectatcqm.supabase.co/functions/v1/ujn-ojs-lab-readonly-probes";
+async function ojsCall(body){
+ if(!session.jwt)throw Error("Acesse sua conta de operador.");
+ const r=await fetch(OJS,{method:"POST",headers:{"authorization":"Bearer "+session.jwt,"content-type":"application/json","apikey":PUB},
+ body:JSON.stringify(body),cache:"no-store"});
+ const result=await r.json().catch(()=>({}));
+ if(!r.ok)throw Error(result.error||"Erro de diagnóstico: HTTP "+r.status);
+ return result;
+}
+async function ojsCatalog(){
+ const area=get("ojsCatalog");area.replaceChildren();
+ try{
+  const data=await ojsCall({action:"catalog"});
+  for(const c of data.journals||[]){
+   const line=document.createElement("div");line.className="row";
+   const title=document.createElement("strong");title.textContent=c.code+" · ";
+   const link=document.createElement("a");link.href=c.homepage;link.target="_blank";link.rel="noopener noreferrer";link.textContent="Abrir revista";
+   const button=document.createElement("button");button.type="button";button.className="btn alt";button.textContent="Verificar API";
+   const result=document.createElement("div");result.className="small";result.textContent="Leitura e submissão ainda não homologadas.";
+   button.onclick=async()=>{
+    button.disabled=true;result.textContent="Testando acesso público sem credenciais...";
+    try{
+     const d=await ojsCall({action:"probe",code:c.code});
+     const x=d.homepage_probe,y=d.submissions_endpoint_probe;
+     result.textContent="Site: "+(x.status??"sem resposta")+" — "+x.access+
+      " | API de submissões: "+(y.status??"sem resposta")+" — "+y.access+
+      ". Sem confirmação de autenticação ou operações de escrita.";
+    }catch(e){result.textContent="Falha na verificação: "+e.message}
+    finally{button.disabled=false}
+   };
+   line.append(title,link,document.createTextNode("  "),button,result);area.appendChild(line);
+  }
+ }catch(e){area.textContent="Não foi possível carregar os conectores: "+e.message}
+}
+get("ojsCatalogBtn").onclick=ojsCatalog;
 get("reload").onclick=refresh;
 get("filter").oninput=renderList;
 get("loadOutbox").onclick=()=>{};
