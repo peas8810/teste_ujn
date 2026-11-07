@@ -22,7 +22,8 @@
 </main></div><script>
 "use strict";
 const PROD="https://jufnkfyvqgkrxsbctqqk.supabase.co";
-const PUB="sb_publishable_Gw7GOqQKaGan1a-RnvHDhw_ePj9JLYY";
+const ACADEMY_PUB="sb_publishable_Gw7GOqQKaGan1a-RnvHDhw_ePj9JLYY";
+const LAB_PUB="sb_publishable_d4F4MVCCYDMNZw0VzOsCKQ_q7pHO7JH";
 const LAB="https://leytqsyfrmzhectatcqm.supabase.co/functions/v1/ujn-lab-academy-readonly";
 const get=id=>document.getElementById(id);
 const session={jwt:null,items:[],selected:null,services:[]};
@@ -30,15 +31,15 @@ function announce(message){get("notice").hidden=false;get("notice").textContent=
 function localDate(d){if(!d)return "—";try{return new Date(d).toLocaleString("pt-BR")}catch{return "—"}}
 async function read(action,id){
  if(!session.jwt)throw Error("Entre novamente.");
- const r=await fetch(LAB,{method:"POST",cache:"no-store",headers:{"content-type":"application/json","authorization":"Bearer "+session.jwt,"apikey":PUB},body:JSON.stringify(id?{action,id}:{action})});
+ const r=await fetch(LAB,{method:"POST",cache:"no-store",headers:{"content-type":"application/json","authorization":"Bearer "+session.jwt,"apikey":LAB_PUB},body:JSON.stringify(id?{action,id}:{action})});
  const result=await r.json().catch(()=>({}));
- if(!r.ok)throw Error(result.error||"Falha na leitura "+r.status);
+ if(!r.ok)throw Error(result.error||(r.status===401?"Autenticação recusada pelo gateway do laboratório (401)":r.status===403?"Conta sem permissão administrativa na Central Academy (403)":"Falha na leitura "+r.status));
  return result;
 }
 get("loginForm").onsubmit=async e=>{
  e.preventDefault();get("loginMsg").hidden=true;const pw=get("password").value;get("password").value="";
  try{
-  const resp=await fetch(PROD+"/auth/v1/token?grant_type=password",{method:"POST",headers:{"apikey":PUB,"content-type":"application/json"},cache:"no-store",body:JSON.stringify({email:get("email").value.trim(),password:pw})});
+  const resp=await fetch(PROD+"/auth/v1/token?grant_type=password",{method:"POST",headers:{"apikey":ACADEMY_PUB,"content-type":"application/json"},cache:"no-store",body:JSON.stringify({email:get("email").value.trim(),password:pw})});
   const result=await resp.json().catch(()=>({}));
   if(!resp.ok||!result.access_token)throw Error("Autenticação recusada pelo Academy.");
   session.jwt=result.access_token;
@@ -126,7 +127,7 @@ get("diagnose").onclick=diagnose;
 const OJS="https://leytqsyfrmzhectatcqm.supabase.co/functions/v1/ujn-ojs-lab-readonly-probes";
 async function ojsCall(body){
  if(!session.jwt)throw Error("Acesse sua conta de operador.");
- const r=await fetch(OJS,{method:"POST",headers:{"authorization":"Bearer "+session.jwt,"content-type":"application/json","apikey":PUB},
+ const r=await fetch(OJS,{method:"POST",headers:{"authorization":"Bearer "+session.jwt,"content-type":"application/json","apikey":LAB_PUB},
  body:JSON.stringify(body),cache:"no-store"});
  const result=await r.json().catch(()=>({}));
  if(!r.ok)throw Error(result.error||"Erro de diagnóstico: HTTP "+r.status);
