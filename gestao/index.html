@@ -181,14 +181,14 @@ async function securedOjs(url,method="GET",payload){
  if(!session.jwt)throw Error("Entre como administrador do Academy.");
  const response=await fetch(url,{method,cache:"no-store",headers:{"authorization":"Bearer "+session.jwt,"apikey":LAB_PUB,"content-type":"application/json"},body:payload===undefined?undefined:JSON.stringify(payload)});
  const data=await response.json().catch(()=>({}));
- if(!response.ok)throw Error(data.code||data.error||"HTTP "+response.status);
+ if(!response.ok)throw Error((data.code==="ENCRYPTION_KEY_NOT_PROVISIONED"?"Chave de criptografia LAB ausente ou inválida (exige exatamente 64 dígitos hexadecimais)":data.code==="CONFIG_SAVE_FAILED"?"Erro no banco ao salvar o cadastro; nenhuma chave foi registrada":data.code==="SERVICE_ROLE_NOT_PROVISIONED"?"Chave do servidor LAB indisponível":data.code||data.error||"HTTP "+response.status));
  return data;
 }
 get("ojsSecretStatus").onclick=async()=>{
  const out=get("ojsSecureResult");out.textContent="Consultando status...";
  try{
  const d=await securedOjs(API_SETTINGS);
- out.textContent="Chave de criptografia: "+(d.ready_to_store?"pronta":"pendente")+"\n"+
+ out.textContent="Armazenamento de chaves no LAB: "+(d.ready_to_store?"PRONTO":"BLOQUEADO — conferir UJN_LAB_OJS_ENCRYPTION_HEX (64 dígitos hexadecimais)")+"\nChave de serviço do LAB: "+(d.service_role_available?"presente":"indisponível")+"\n"+
   (d.journals||[]).map(x=>x.journal_code+" — "+x.state).join("\n");
  }catch(e){out.textContent="Erro: "+e.message;}
 };
