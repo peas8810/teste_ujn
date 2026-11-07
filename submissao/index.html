@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer">
+<title>Pré-submissão UJN | Envio pelo celular</title>
+<style>
+:root{font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#17394a;background:#f1f6f8}*{box-sizing:border-box}body{margin:0}header{background:#143849;color:#fff;padding:20px max(18px,calc((100vw - 920px)/2))}header strong{font-size:22px}main{max-width:920px;margin:auto;padding:24px 16px 60px}h1{font-size:clamp(26px,4vw,36px);margin:10px 0}.lead{color:#527180}.grid{display:grid;grid-template-columns:1.5fr 1fr;gap:18px}.card{background:white;border-radius:17px;padding:22px;border:1px solid #d9e5e9;box-shadow:0 4px 15px #1742560b;margin:14px 0}label{display:block;font-size:13px;font-weight:700;margin:14px 0 5px}input,select,textarea{width:100%;font:inherit;padding:12px;border-radius:8px;border:1px solid #c2d3dc;color:#163648;background:white}textarea{min-height:100px}button,.linkbutton{font:inherit;display:inline-block;border:0;border-radius:9px;padding:12px 17px;background:#087e72;color:white;text-decoration:none;font-weight:700;cursor:pointer;margin-top:12px}button:disabled{opacity:.45;cursor:not-allowed}.linkbutton{background:#214f65}.small{font-size:12px;color:#607a86;line-height:1.5}.alert{padding:13px;border-radius:10px;background:#fff6e6;border:1px solid #f0d8ab;font-size:13px;line-height:1.6}.success{background:#e8f8ed;border-color:#b3dfc0}#status{white-space:pre-wrap}.row{display:flex;gap:10px}.row>div{flex:1}@media(max-width:760px){.grid{display:block}.card{padding:17px}.row{display:block}}
+</style></head><body>
+<header><strong>UJN <span style="color:#8de0cf">Intelligence</span></strong><div class="small" style="color:#c8e6e3">Pré-submissão segura de artigos — acesso pelo celular</div></header>
+<main><h1>Envie seu artigo para triagem</h1><p class="lead">Escolha uma das cinco revistas, identifique os autores e envie o manuscrito PDF ou DOCX para a Central UJN.</p>
+<div class="alert"><strong>Importante:</strong> esta etapa registra o manuscrito na Central UJN para conferência, mas <strong>não conclui a submissão à revista no OJS</strong>. A submissão editorial continua pelo ArticleRun até a integração automática de escrita estar homologada. Não confunda protocolo UJN com identificador OJS.</div>
+<div class="grid"><div>
+<section class="card" id="loginArea"><h2>Acesse sua conta Academy</h2><p class="small">O envio exige uma conta identificada. Não envie senhas por WhatsApp.</p><form id="loginForm">
+<label for="email">E-mail da conta</label><input id="email" type="email" autocomplete="username" required>
+<label for="password">Senha</label><input id="password" type="password" autocomplete="current-password" required>
+<button type="submit">Entrar com segurança</button></form><p class="small">Precisa criar sua conta? <a href="https://www.protocolo.me/academy/" target="_blank" rel="noopener noreferrer">Acesse o Academy</a>.</p></section>
+<section class="card" id="submissionArea" hidden><h2>Dados do artigo</h2><div class="small">Conta autenticada <button type="button" id="logout" style="background:#e6f0ef;color:#28534f;padding:6px 10px">Sair</button></div><form id="submission">
+<label for="journal">Revista</label><select id="journal" required><option value="">Selecione a revista</option><option>REMUNOM</option><option>JIRRS</option><option>NEXUS</option><option>RSV</option><option>RJNM</option></select>
+<label for="title">Título do artigo</label><input id="title" required maxlength="350" minlength="8">
+<label for="authors">Autores em ordem, com afiliações</label><textarea id="authors" required maxlength="600" placeholder="Nome — instituição; Nome — instituição"></textarea>
+<div class="row"><div><label for="corresponding">E-mail do autor correspondente</label><input id="corresponding" type="email" required></div><div><label for="orcid">ORCID do correspondente (opcional)</label><input id="orcid" placeholder="0000-0000-0000-0000" maxlength="40"></div></div>
+<label for="abstract">Resumo (para triagem)</label><textarea id="abstract" required maxlength="800"></textarea>
+<label for="keywords">Palavras-chave</label><input id="keywords" maxlength="180" required placeholder="Separe com ponto e vírgula">
+<label for="language">Idioma</label><select id="language"><option value="pt_BR">Português</option><option value="en_US">Inglês</option><option value="es_ES">Espanhol</option></select>
+<label for="file">Manuscrito (PDF ou DOCX, máximo 10 MB)</label><input id="file" type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" required>
+<label><input id="consent" type="checkbox" style="width:auto;margin-right:6px" required>Autorizo a conferência dos dados pela UJN e entendo que isso ainda não constitui submissão editorial.</label>
+<button type="submit" id="submitBtn">Enviar dados e manuscrito para conferência UJN</button></form></section>
+<div class="card" id="status" aria-live="polite">Entre para iniciar a pré-submissão.</div>
+</div><aside><section class="card"><h2>O que acontece depois?</h2><p>1. Seus metadados e o manuscrito são recebidos pela Central UJN.</p><p>2. A equipe confere dados, arquivo e informações obrigatórias.</p><p>3. A submissão oficial deve ser concluída no ArticleRun.</p><p>4. O código editorial e as movimentações só serão confirmados após retorno do OJS.</p>
+<a class="linkbutton" href="https://www.articlerun.org/submeter" target="_blank" rel="noopener noreferrer">Submeter diretamente no ArticleRun</a>
+<p class="small">Se estiver com prazo, utilize o ArticleRun; não dependa apenas da triagem UJN.</p></section><section class="card"><h2>Precisa de ajuda?</h2><p class="small">O atendimento WhatsApp UJN possui a opção 3 — Submissões. Para voltar ao menu, digite MENU.</p><a href="../" class="linkbutton">Portal UJN</a></section></aside></div></main>
+<script>
+"use strict";
+const PROD="https://jufnkfyvqgkrxsbctqqk.supabase.co";
+const PUBLISHABLE="sb_publishable_Gw7GOqQKaGan1a-RnvHDhw_ePj9JLYY";
+const $=id=>document.getElementById(id);
+let jwt=null,account=null;
+const say=(m,success=false)=>{$("status").textContent=m;$("status").className=success?"card success":"card";};
+$("loginForm").onsubmit=async ev=>{
+ ev.preventDefault();let password=$("password").value;$("password").value="";
+ try{
+  const r=await fetch(PROD+"/auth/v1/token?grant_type=password",{method:"POST",headers:{"apikey":PUBLISHABLE,"content-type":"application/json"},body:JSON.stringify({email:$("email").value.trim(),password}),cache:"no-store"});
+  const d=await r.json().catch(()=>({}));password="";
+  if(!r.ok||!d.access_token)throw Error("Não foi possível autenticar com essa conta.");
+  jwt=d.access_token;account=d.user?.id||null;
+  $("loginArea").hidden=true;$("submissionArea").hidden=false;
+  say("Conta autenticada. Preencha os dados do artigo.");
+ }catch(e){password="";say(e.message)}
+};
+$("logout").onclick=()=>{jwt=null;account=null;$("submissionArea").hidden=true;$("loginArea").hidden=false;$("submission").reset();say("Sessão encerrada.");};
+async function central(payload,form=false){
+ const r=await fetch(PROD+"/functions/v1/ujn-central",{method:"POST",headers:form?{"authorization":"Bearer "+jwt,"apikey":PUBLISHABLE}:{"authorization":"Bearer "+jwt,"apikey":PUBLISHABLE,"content-type":"application/json"},body:form?payload:JSON.stringify(payload),cache:"no-store"});
+ const d=await r.json().catch(()=>({}));
+ if(!r.ok||d.error)throw Error(d.error||"Falha de recebimento: HTTP "+r.status);
+ return d;
+}
+$("submission").onsubmit=async ev=>{
+ ev.preventDefault();
+ if(!jwt)return say("Sua sessão expirou. Entre novamente.");
+ const file=$("file").files[0];
+ if(!file||file.size<1||file.size>10485760)return say("Selecione PDF/DOCX com até 10 MB.");
+ const allowed=file.name.toLowerCase().endsWith(".pdf")||file.name.toLowerCase().endsWith(".docx");
+ if(!allowed)return say("O arquivo precisa ser PDF ou DOCX.");
+ const data={journal:$("journal").value,title:$("title").value.trim(),authors:$("authors").value.trim(),corresponding:$("corresponding").value.trim(),orcid:$("orcid").value.trim(),abstract:$("abstract").value.trim(),keywords:$("keywords").value.trim(),language:$("language").value};
+ if(!["REMUNOM","JIRRS","NEXUS","RSV","RJNM"].includes(data.journal))return say("Escolha uma revista válida.");
+ const text="PRÉ-SUBMISSÃO UJN (NÃO É SUBMISSÃO OJS)\nRevista: "+data.journal+"\nTítulo: "+data.title+"\nAutores: "+data.authors+"\nAutor correspondente: "+data.corresponding+"\nORCID: "+data.orcid+"\nResumo: "+data.abstract+"\nPalavras-chave: "+data.keywords+"\nIdioma: "+data.language;
+ if(text.length>2500)return say("Os dados excedem o limite de 2.500 caracteres. Reduza o resumo e a lista de autores.");
+ const button=$("submitBtn");button.disabled=true;say("Registrando dados na Central UJN...");
+ try{
+  const first=await central({action:"message",service:"articlerun",text,event_id:crypto.randomUUID()});
+  if(!first.conversation)throw Error("A Central não confirmou o registro dos metadados.");
+  say("Metadados recebidos. Enviando o arquivo de forma protegida...");
+  const form=new FormData();form.set("service","articlerun");form.set("event_id",crypto.randomUUID());form.set("file",file,file.name);
+  const uploaded=await central(form,true);
+  if(uploaded.conversation!==first.conversation)throw Error("O arquivo não foi vinculado à mesma conversa. Contate o suporte.");
+  say("Pré-recebimento UJN confirmado.\nReferência interna: "+first.conversation+"\nArquivo registrado na conversa.\nATENÇÃO: não foi criado identificador editorial no OJS. Para concluir a submissão use o ArticleRun.",true);
+  $("submission").reset();
+ }catch(e){say("Não foi possível concluir: "+e.message+"\nSe os metadados foram registrados, não repita o envio sem consultar a equipe. Você pode utilizar o ArticleRun para a submissão oficial.");}
+ finally{button.disabled=false;}
+};
+</script></body></html>
