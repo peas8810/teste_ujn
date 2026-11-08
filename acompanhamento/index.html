@@ -1,0 +1,64 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><title>Meus atendimentos UJN</title>
+<style>:root{font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:#f2f6f7;color:#193c4b}*{box-sizing:border-box}body{margin:0}header{background:#143849;color:#fff;padding:22px max(18px,calc((100vw - 880px)/2))}header b{font-size:22px}main{max-width:880px;margin:auto;padding:20px 16px 60px}.card{background:#fff;border:1px solid #d6e4e8;border-radius:14px;padding:22px;margin:15px 0;box-shadow:0 3px 11px #17394808}input{font:inherit;padding:12px;width:100%;border-radius:8px;border:1px solid #bcd2da;margin:7px 0}button{font:inherit;border:0;border-radius:8px;padding:12px 16px;background:#0d7d72;color:#fff;font-weight:700;cursor:pointer;margin-top:10px}.secondary{background:#e4f0ed;color:#1a5e55}.muted{color:#66818c;font-size:13px}#result{white-space:pre-wrap}.conversation{padding:13px;border-radius:8px;border:1px solid #d4e1e4;margin:10px 0;cursor:pointer;width:100%;text-align:left;background:#fff;color:#173c4a}.conversation:hover{background:#eff9f5}.message{white-space:pre-wrap;overflow-wrap:anywhere;border-radius:9px;background:#eff5f6;padding:12px;margin:10px 0;font-size:13px}.message.bot{background:#ecf7f1}.notice{border-radius:9px;background:#fff5dd;border:1px solid #edd9aa;padding:12px;font-size:13px;line-height:1.55}a{color:#08675b}h1{font-size:clamp(24px,5vw,32px)}</style></head>
+<body><header><b>UJN Intelligence</b><div style="opacity:.75;font-size:12px">Acompanhamento dos atendimentos e pré-submissões</div></header>
+<main><h1>Meus atendimentos na UJN</h1><p class="muted">Consulte o que foi recebido na Central UJN com sua própria conta Academy. Não exibimos manuscritos de outros autores.</p>
+<div class="notice"><b>Importante:</b> o status abaixo é o da Central UJN, e <b>não é o estágio editorial do OJS</b>. Acompanhamento editorial automático depende de vincular sua identidade à submissão da revista.</div>
+<section class="card" id="login"><h2>Entrar</h2><form id="loginForm"><label for="email">E-mail Academy</label><input type="email" id="email" autocomplete="username" required><label for="password">Senha</label><input type="password" id="password" autocomplete="current-password" required><button>Entrar</button></form></section>
+<section id="panel" hidden><div class="card"><button type="button" id="reload" class="secondary">Atualizar atendimentos</button> <button type="button" id="logout" class="secondary">Sair</button><div id="list"></div></div><section class="card" id="detail"><h2>Mensagens</h2><p>Selecione um atendimento.</p></section></section>
+<div id="result" class="card" role="status">Faça login para consultar.</div>
+<p><a href="../submissao/">Iniciar pré-submissão pelo celular</a> · <a href="https://www.articlerun.org/submeter" target="_blank" rel="noopener noreferrer">ArticleRun — submissão editorial</a></p></main>
+<script>"use strict";
+const BASE="https://jufnkfyvqgkrxsbctqqk.supabase.co",PUB="sb_publishable_Gw7GOqQKaGan1a-RnvHDhw_ePj9JLYY",$=id=>document.getElementById(id);
+let jwt=null;
+async function api(body){
+ if(!jwt)throw Error("Entre novamente.");
+ const r=await fetch(BASE+"/functions/v1/ujn-central",{method:"POST",headers:{"authorization":"Bearer "+jwt,"apikey":PUB,"content-type":"application/json"},body:JSON.stringify(body),cache:"no-store"});
+ const d=await r.json().catch(()=>({}));
+ if(!r.ok||d.error)throw Error(d.error||"HTTP "+r.status);
+ return d;
+}
+function status(t){$("result").textContent=t}
+function date(t){return t?new Date(t).toLocaleString("pt-BR"):"—"}
+const types={revistas:"Revistas",escrita:"ArticleGenius",articlerun:"Submissão de artigos",academy:"Academy",suporte:"Suporte"};
+$("loginForm").onsubmit=async e=>{
+ e.preventDefault();let password=$("password").value;$("password").value="";
+ try{
+  const r=await fetch(BASE+"/auth/v1/token?grant_type=password",{method:"POST",headers:{"apikey":PUB,"content-type":"application/json"},body:JSON.stringify({email:$("email").value.trim(),password}),cache:"no-store"});
+  const d=await r.json().catch(()=>({}));password="";
+  if(!r.ok||!d.access_token)throw Error("E-mail ou senha não reconhecidos.");
+  jwt=d.access_token;$("login").hidden=true;$("panel").hidden=false;await reload();
+ }catch(err){status(err.message)}
+};
+async function reload(){
+ status("Consultando atendimentos vinculados à sua conta...");
+ try{
+  const data=await api({action:"list",operator:false});
+  const root=$("list");root.replaceChildren();
+  if(!data.conversations?.length){status("Nenhum atendimento associado a esta conta.");return}
+  for(const c of data.conversations){
+   const btn=document.createElement("button");btn.className="conversation";
+   const heading=document.createElement("b");heading.textContent=(types[c.service_id]||c.service_id)+" · "+c.state;
+   const info=document.createElement("div");info.className="muted";info.textContent="Atualizado em "+date(c.updated_at)+" · Referência UJN "+c.id.slice(0,8)+"…";
+   btn.append(heading,info);btn.onclick=()=>detail(c.id);
+   root.appendChild(btn);
+  }
+  status(data.conversations.length+" atendimento(s) vinculado(s) à sua conta.");
+ }catch(err){status("Erro: "+err.message)}
+}
+async function detail(id){
+ const area=$("detail");area.replaceChildren();const h=document.createElement("h2");h.textContent="Histórico";area.appendChild(h);
+ try{
+  const data=await api({action:"detail",id});
+  for(const item of data.messages||[]){
+   const div=document.createElement("div");div.className="message"+(item.sender==="BOT"?" bot":"");
+   const strong=document.createElement("strong");strong.textContent=item.sender+" · "+date(item.created_at);
+   const text=document.createElement("p");text.textContent=item.body||"(arquivo)";
+   div.append(strong,text);area.appendChild(div);
+  }
+  const files=document.createElement("p");files.className="muted";files.textContent=(data.attachments?.length||0)+" arquivo(s) registrado(s) nesta conversa.";
+  area.appendChild(files);
+ }catch(err){status("Não foi possível consultar o histórico: "+err.message)}
+}
+$("reload").onclick=reload;
+$("logout").onclick=()=>{jwt=null;$("login").hidden=false;$("panel").hidden=true;$("list").replaceChildren();$("detail").replaceChildren();status("Sessão encerrada.");};
+</script></body></html>
