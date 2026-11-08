@@ -40,7 +40,7 @@
 <section class="card" id="ojs-status"><div class="head"><div><h2>Consultar manuscrito no OJS</h2><p class="small">Exclusivo para superadministrador. Informe o número real de submissão e a revista. O resultado não será enviado automaticamente ao autor.</p></div></div>
 <form id="ojsStatusForm"><label for="ojsStatusJournal">Revista</label><select id="ojsStatusJournal"><option>REMUNOM</option><option>JIRRS</option><option>NEXUS</option><option>RSV</option><option>RJNM</option></select><label for="ojsSubmissionId">Número da submissão no OJS</label><input id="ojsSubmissionId" type="text" inputmode="numeric" pattern="[1-9][0-9]*" maxlength="9" required placeholder="Ex.: 12345"><button type="submit" class="btn alt">Consultar metadados e estágio editorial</button></form><div id="ojsStatusResult" class="notice" role="status">Nenhuma submissão consultada.</div></section><section class="card" id="academy-stage4">
 <div class="head"><div><h2>Etapa 4 — Homologação Academy</h2><p class="small">Auditoria de documentos, aprovação, pagamentos, emissão, QR, revogação, eventos e notificações. Não cria cobranças nem certificados.</p></div><button type="button" class="btn alt" id="academyAuditLoad">Atualizar diagnóstico</button></div>
-<div id="academyAuditResult" class="notice" role="status">Entre com um superadministrador e consulte os indicadores Academy.</div><div style="margin:16px 0"><div class="head"><h3>Roteiro de homologação (10 controles)</h3><button type="button" id="academyChecklistLoad" class="btn alt">Mostrar testes</button></div>
+<div id="academyAuditResult" class="notice" role="status">Entre com um superadministrador e consulte os indicadores Academy.</div><div class="head" style="margin-top:12px"><h3>Serviços e credenciais essenciais</h3><button type="button" class="btn alt" id="providerHealth">Verificar bloqueios</button></div><div id="providerHealthResult" class="notice" role="status">Não foram consultados segredos; somente presença e modos de operação serão mostrados.</div><div style="margin:16px 0"><div class="head"><h3>Roteiro de homologação (10 controles)</h3><button type="button" id="academyChecklistLoad" class="btn alt">Mostrar testes</button></div>
 <div id="academyChecklist" class="small">Os testes são registrados no LAB; nenhum deles cria pagamentos ou certificados.</div></div>
 <div class="alert"><b>Critério de conclusão:</b> passar por um pedido fictício completo em ambiente de teste, com análise documental, aprovação por operador, checkout sandbox, confirmação assinada, PDF com QR validável, revogação e mensagens automáticas comprovadas. Nenhum passo de produção será disparado por este diagnóstico.</div></section><section class="card" id="unified-operations">
 <div class="head"><div><h2>Central de Operações — Filas e notificações</h2><p class="small">Visão consolidada da Central WhatsApp, e-mail e notificações Academy. Não envia mensagens nem modifica cobranças.</p></div>
@@ -261,6 +261,30 @@ get("opsRefresh").onclick=async()=>{
    "Este monitor é somente leitura. A ausência de registros não significa que a entrega esteja homologada."
   ].join("\n");
  }catch(e){output.textContent="Não foi possível consultar filas: "+e.message}
+ finally{btn.disabled=false}
+};
+
+
+get("providerHealth").onclick=async()=>{
+ const target=get("providerHealthResult"),btn=get("providerHealth");
+ btn.disabled=true;target.textContent="Verificando apenas modos e presença de credenciais...";
+ try{
+  const d=await menuAction({action:"provider_health"}),p=d.providers||{};
+  const checks=[
+   ["Mercado Pago: token",p.mp_token_set],
+   ["Mercado Pago: assinatura de webhook",p.mp_webhook_secret_set],
+   ["Mercado Pago: recebedor",p.mp_collector_set],
+   ["Assinatura dos certificados",p.certificate_signing_set],
+   ["Provedor de e-mail",p.resend_set],
+   ["Token WhatsApp Academy",p.meta_wa_token_set],
+   ["Segredo de agendamento das notificações",p.dispatch_cron_set]
+  ];
+  target.textContent="Pagamento: "+(p.payments_mode||"disabled")+
+   "\nEmissão: "+(p.issuance_mode||"disabled")+
+   "\nLiberação comercial: "+(p.commercial_ready?"APROVADA":"NÃO APROVADA")+
+   "\n\n"+checks.map(([n,ok])=>n+": "+(ok?"configurado":"não configurado")).join("\n")+
+   "\n\nEste diagnóstico não revela chaves e não ativa nenhum serviço. Configure segredos somente em ambiente protegido.";
+ }catch(e){target.textContent="Falha ao verificar configurações: "+e.message}
  finally{btn.disabled=false}
 };
 
