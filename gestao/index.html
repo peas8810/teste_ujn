@@ -359,7 +359,28 @@ get("academyChecklistLoad").onclick=async()=>{
    const article=document.createElement("div");article.className="notice";article.style.margin="8px 0";
    const title=document.createElement("strong");title.textContent=t.position+". "+t.phase+" — "+t.status;
    const desc=document.createElement("div");desc.textContent=t.criterion;
-   article.append(title,desc);output.appendChild(article);
+   const controls=document.createElement("div");controls.style.marginTop="9px";
+   const state=document.createElement("select");
+   for(const status of ["PENDING","IN_PROGRESS","BLOCKED","FAIL","PASS"]){
+     const option=document.createElement("option");option.value=status;option.textContent=status;
+     if(status===t.status)option.selected=true;state.appendChild(option);
+   }
+   const note=document.createElement("textarea");note.rows=2;note.maxLength=1800;
+   note.placeholder="Descreva a evidência, usuário de teste, referência do sandbox e resultado. Para aprovar, mínimo 80 caracteres; não cole senhas nem dados pessoais.";
+   const save=document.createElement("button");save.type="button";save.className="btn alt";save.textContent="Registrar evidência";
+   const message=document.createElement("div");message.className="small";
+   save.onclick=async()=>{
+     if(!confirm("Registrar estado e evidência deste teste no LAB? Isto não ativa produção."))return;
+     save.disabled=true;
+     try{
+       const r=await menuAction({action:"academy_test_record",test_code:t.test_code,status:state.value,note:note.value.trim()});
+       title.textContent=t.position+". "+t.phase+" — "+r.status;
+       message.textContent="Evidência salva. Para atualizar a contagem, recarregue os testes.";
+     }catch(e){message.textContent="Não foi possível registrar: "+e.message}
+     finally{save.disabled=false}
+   };
+   controls.append(state,note,save,message);
+   article.append(title,desc,controls);output.appendChild(article);
   }
  }catch(e){output.textContent="Erro ao consultar roteiro: "+e.message}
  finally{btn.disabled=false}
