@@ -46,6 +46,12 @@
 <div class="head"><div><h2>Central de Operações — Filas e notificações</h2><p class="small">Visão consolidada da Central WhatsApp, e-mail e notificações Academy. Não envia mensagens nem modifica cobranças.</p></div>
 <button type="button" class="btn alt" id="opsRefresh">Atualizar monitor</button></div>
 <div id="opsSummary" class="notice" role="status">Faça login como superadministrador para consultar as filas.</div>
+</section><section class="card" id="editorial-verification">
+<div class="head"><div><h2>Verificação de autoria e monitoramento OJS</h2><p class="small">Autor solicita vínculo pelo portal. O superadministrador deve verificar a identidade e a autoria no OJS antes de liberar dados privados.</p></div>
+<button type="button" class="btn alt" id="editorialRequests">Ver solicitações de vínculo</button></div>
+<div id="editorialVerifyList" class="small" role="status">Nenhuma solicitação carregada.</div>
+<div class="head" style="margin-top:16px"><h3>Movimentações detectadas</h3><button type="button" class="btn alt" id="editorialDrafts">Ver rascunhos de aviso</button></div>
+<div id="editorialDraftList" class="small">Nenhum rascunho consultado. O envio automático permanece desabilitado.</div>
 </section><div id="notice" class="notice" hidden></div>
 <div class="columns">
 <section class="card" id="atendimentos"><div class="head"><h2>Conversas da Central Academy</h2><button class="btn alt" id="reload">Atualizar</button></div><input id="filter" placeholder="Buscar serviço ou identificador de conversa"><div id="tickets"></div></section>
@@ -286,6 +292,56 @@ get("providerHealth").onclick=async()=>{
    "\n\nEste diagnóstico não revela chaves e não ativa nenhum serviço. Configure segredos somente em ambiente protegido.";
  }catch(e){target.textContent="Falha ao verificar configurações: "+e.message}
  finally{btn.disabled=false}
+};
+
+
+const EDITORIAL_LAB="https://leytqsyfrmzhectatcqm.supabase.co/functions/v1/ujn-lab-editorial-follow";
+async function editorialLab(body){
+ if(!session.jwt||!session.superuser)throw Error("Superadministrador Academy necessário");
+ const r=await fetch(EDITORIAL_LAB,{method:"POST",cache:"no-store",headers:{"authorization":"Bearer "+session.jwt,"content-type":"application/json"},body:JSON.stringify(body)});
+ const data=await r.json().catch(()=>({}));
+ if(!r.ok)throw Error(data.error||"Falha no monitor editorial");
+ return data;
+}
+get("editorialRequests").onclick=async()=>{
+ const area=get("editorialVerifyList");area.textContent="Carregando solicitações...";
+ try{
+  const d=await editorialLab({action:"pending"});area.replaceChildren();
+  if(!d.items?.length){area.textContent="Nenhuma vinculação aguardando verificação.";return}
+  for(const request of d.items){
+   const wrap=document.createElement("div");wrap.className="notice";wrap.style.margin="9px 0";
+   const info=document.createElement("p");
+   info.textContent=request.journal_code+" · Submissão OJS "+request.submission_id+" · Conta Academy: "+request.user_id;
+   const note=document.createElement("textarea");note.rows=2;note.maxLength=1000;note.placeholder="Registre como confirmou autoria e identidade no OJS (mín. 20 caracteres). Não cole documentos ou dados pessoais.";
+   const approve=document.createElement("button");approve.textContent="Confirmar autoria verificada";approve.className="btn";
+   const reject=document.createElement("button");reject.textContent="Recusar vínculo";reject.className="btn alt";
+   const result=document.createElement("div");result.className="small";
+   const decide=async decision=>{
+    if(note.value.trim().length<20){result.textContent="Informe a evidência da conferência (20 caracteres ou mais).";return}
+    if(!confirm(decision==="VERIFIED"?"Você verificou a autoria na revista e confirma que o titular Academy é o autor?":"Recusar esta vinculação editorial?"))return;
+    approve.disabled=true;reject.disabled=true;
+    try{await editorialLab({action:"verify",id:request.id,decision,note:note.value.trim()});result.textContent="Decisão registrada: "+decision;wrap.remove()}
+    catch(e){result.textContent="Falha: "+e.message;approve.disabled=false;reject.disabled=false}
+   };
+   approve.onclick=()=>decide("VERIFIED");reject.onclick=()=>decide("REJECTED");
+   wrap.append(info,note,approve,document.createTextNode(" "),reject,result);area.append(wrap);
+  }
+ }catch(e){area.textContent="Não foi possível consultar os vínculos: "+e.message}
+};
+get("editorialDrafts").onclick=async()=>{
+ const area=get("editorialDraftList");area.textContent="Consultando rascunhos (nenhum envio)...";
+ try{
+  const data=await editorialLab({action:"draft_summary"});
+  area.replaceChildren();
+  if(!data.drafts?.length){area.textContent="Sem movimentações detectadas. Avisos não estão habilitados.";return}
+  for(const d of data.drafts){
+   const item=document.createElement("div");item.className="notice";item.style.margin="8px 0";
+   item.textContent="Vínculo "+d.follow_id.slice(0,8)+" · Etapa "+(d.old_stage??"—")+" → "+(d.new_stage??"—")+
+      " · Status "+(d.old_status??"—")+" → "+(d.new_status??"—")+" · "+d.state+
+      " · "+new Date(d.change_detected_at).toLocaleString("pt-BR");
+   area.append(item);
+  }
+ }catch(e){area.textContent="Erro: "+e.message}
 };
 
 get("academyChecklistLoad").onclick=async()=>{
