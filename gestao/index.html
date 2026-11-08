@@ -37,7 +37,8 @@
 </form><div id="ojsSecureResult" class="notice" aria-live="polite"></div>
 </div>
 <div class="notice">A submissão automática permanece desabilitada até testar chaves substituídas, permissões de autoria, metadados, arquivos, confirmação OJS e acompanhamento. Alternativa: <a href="https://www.articlerun.org/submeter" target="_blank" rel="noopener noreferrer">ArticleRun</a>.</div></section>
-<div id="notice" class="notice" hidden></div>
+<section class="card" id="ojs-status"><div class="head"><div><h2>Consultar manuscrito no OJS</h2><p class="small">Exclusivo para superadministrador. Informe o número real de submissão e a revista. O resultado não será enviado automaticamente ao autor.</p></div></div>
+<form id="ojsStatusForm"><label for="ojsStatusJournal">Revista</label><select id="ojsStatusJournal"><option>REMUNOM</option><option>JIRRS</option><option>NEXUS</option><option>RSV</option><option>RJNM</option></select><label for="ojsSubmissionId">Número da submissão no OJS</label><input id="ojsSubmissionId" type="text" inputmode="numeric" pattern="[1-9][0-9]*" maxlength="9" required placeholder="Ex.: 12345"><button type="submit" class="btn alt">Consultar metadados e estágio editorial</button></form><div id="ojsStatusResult" class="notice" role="status">Nenhuma submissão consultada.</div></section><div id="notice" class="notice" hidden></div>
 <div class="columns">
 <section class="card" id="atendimentos"><div class="head"><h2>Conversas da Central Academy</h2><button class="btn alt" id="reload">Atualizar</button></div><input id="filter" placeholder="Buscar serviço ou identificador de conversa"><div id="tickets"></div></section>
 <section class="card" id="conversa"><h2>Histórico da conversa (somente leitura)</h2><div id="ticketIntro"><p>Selecione um protocolo na fila.</p></div>
@@ -300,6 +301,30 @@ get("ojsSecretsForm").onsubmit=async event=>{
  }catch(e){get("ojsSecureResult").textContent="Erro: "+e.message;}
  finally{get("ojsSecretValue").value="";btn.disabled=false;}
 };
+
+get("ojsStatusForm").onsubmit=async event=>{
+ event.preventDefault();const btn=event.submitter,output=get("ojsStatusResult");
+ const journal=get("ojsStatusJournal").value,id=get("ojsSubmissionId").value.trim();
+ if(!/^[1-9][0-9]{0,8}$/.test(id)){output.textContent="Número OJS inválido.";return}
+ btn.disabled=true;output.textContent="Consultando API autenticada do OJS com acesso administrativo...";
+ try{
+  const d=await securedOjs(API_AUTHCHECK,"POST",{action:"submission_status",journal,submission_id:id});
+  output.textContent=[
+   "Revista: "+d.journal,
+   "Submissão OJS: "+d.submission_id,
+   "Título: "+(d.title||"não retornado"),
+   "Stage ID: "+(d.stage_id??"não retornado"),
+   "Status bruto OJS: "+(d.editorial_status??"não retornado"),
+   "Envio: "+(d.submitted_at||"não retornado"),
+   "Última modificação: "+(d.last_modified||"não retornado"),
+   "DOI (se disponível): "+(d.public_doi||"não retornado"),
+   "",
+   "Não compartilhe informações privadas sem comprovação de autoria. Nenhuma submissão ou arquivo foi alterado."
+  ].join("\n");
+ }catch(e){output.textContent="Consulta não concluída: "+e.message}
+ finally{btn.disabled=false}
+};
+
 get("ojsAuthTest").onclick=async()=>{
  const btn=get("ojsAuthTest"),area=get("ojsSecureResult");btn.disabled=true;area.textContent="Testando resposta da API sem ler conteúdos privados...";
  try{
