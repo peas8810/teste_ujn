@@ -4,6 +4,13 @@
 <main><h1>Meus atendimentos na UJN</h1><p class="muted">Consulte o que foi recebido na Central UJN com sua própria conta Academy. Não exibimos manuscritos de outros autores.</p>
 <div class="notice"><b>Importante:</b> o status abaixo é o da Central UJN, e <b>não é o estágio editorial do OJS</b>. Acompanhamento editorial automático depende de vincular sua identidade à submissão da revista.</div>
 <section class="card" id="login"><h2>Entrar</h2><form id="loginForm"><label for="email">E-mail Academy</label><input type="email" id="email" autocomplete="username" required><label for="password">Senha</label><input type="password" id="password" autocomplete="current-password" required><button>Entrar</button></form></section>
+<section class="card" id="editorialFollow" hidden><h2>Acompanhar minha submissão no OJS</h2>
+<p class="muted">Cadastre o número editorial informado pelo ArticleRun/OJS. Para proteger os manuscritos, um administrador precisará confirmar sua autoria antes de liberar os detalhes.</p>
+<form id="followForm"><label for="followJournal">Revista</label><select id="followJournal" required style="width:100%;padding:12px"><option>REMUNOM</option><option>JIRRS</option><option>NEXUS</option><option>RSV</option><option>RJNM</option></select>
+<label for="followNumber">Número da submissão OJS</label><input id="followNumber" type="text" inputmode="numeric" pattern="[1-9][0-9]*" maxlength="9" required>
+<label><input type="checkbox" id="followConsent" style="width:auto"> Autorizo receber avisos de movimentações editoriais, quando esse recurso for ativado e homologado.</label>
+<button type="submit">Solicitar vinculação ao artigo</button></form><div id="followList" class="muted" aria-live="polite">Nenhuma consulta realizada.</div>
+<button type="button" id="followRefresh" class="secondary">Atualizar minhas submissões vinculadas</button></section>
 <section id="panel" hidden><div class="card"><button type="button" id="reload" class="secondary">Atualizar atendimentos</button> <button type="button" id="logout" class="secondary">Sair</button><div id="list"></div></div><section class="card" id="detail"><h2>Mensagens</h2><p>Selecione um atendimento.</p></section></section>
 <div id="result" class="card" role="status">Faça login para consultar.</div>
 <p><a href="../submissao/">Iniciar pré-submissão pelo celular</a> · <a href="https://www.articlerun.org/submeter" target="_blank" rel="noopener noreferrer">ArticleRun — submissão editorial</a></p></main>
@@ -26,7 +33,7 @@ $("loginForm").onsubmit=async e=>{
   const r=await fetch(BASE+"/auth/v1/token?grant_type=password",{method:"POST",headers:{"apikey":PUB,"content-type":"application/json"},body:JSON.stringify({email:$("email").value.trim(),password}),cache:"no-store"});
   const d=await r.json().catch(()=>({}));password="";
   if(!r.ok||!d.access_token)throw Error("E-mail ou senha não reconhecidos.");
-  jwt=d.access_token;$("login").hidden=true;$("panel").hidden=false;await reload();
+  jwt=d.access_token;$("login").hidden=true;$("panel").hidden=false;$("editorialFollow").hidden=false;await reload();await myArticles();
  }catch(err){status(err.message)}
 };
 async function reload(){
@@ -60,5 +67,49 @@ async function detail(id){
  }catch(err){status("Não foi possível consultar o histórico: "+err.message)}
 }
 $("reload").onclick=reload;
-$("logout").onclick=()=>{jwt=null;$("login").hidden=false;$("panel").hidden=true;$("list").replaceChildren();$("detail").replaceChildren();status("Sessão encerrada.");};
+
+const LAB="https://leytqsyfrmzhectatcqm.supabase.co/functions/v1/ujn-lab-editorial-follow";
+async function editorial(payload){
+ if(!jwt)throw Error("Faça login novamente.");
+ const r=await fetch(LAB,{method:"POST",cache:"no-store",headers:{"authorization":"Bearer "+jwt,"content-type":"application/json"},body:JSON.stringify(payload)});
+ const d=await r.json().catch(()=>({}));
+ if(!r.ok)throw Error(d.error||"Falha no acompanhamento");
+ return d;
+}
+async function myArticles(){
+ const area=$("followList");area.textContent="Consultando solicitações de vínculo...";
+ try{
+  const d=await editorial({action:"mine"});area.replaceChildren();
+  if(!d.items?.length){area.textContent="Nenhum artigo vinculado ainda.";return}
+  for(const article of d.items){
+   const item=document.createElement("div");item.className="message";
+   const label=document.createElement("b");label.textContent=article.journal_code+" · OJS "+article.submission_id+" · "+article.state;
+   const info=document.createElement("p");info.textContent=article.state==="VERIFIED"?
+      "Estágio OJS (código): "+(article.last_stage_id??"não consultado")+" · Status: "+(article.last_status??"não consultado")+" · Atualizado: "+date(article.last_checked_at):
+      "Aguardando verificação da autoria pela administração. Nenhum dado editorial privado foi disponibilizado.";
+   item.append(label,info);
+   if(article.state==="VERIFIED"){
+    const button=document.createElement("button");button.type="button";button.className="secondary";button.textContent="Consultar status OJS";
+    button.onclick=async()=>{button.disabled=true;try{
+     const result=await editorial({action:"refresh",id:article.id});
+     info.textContent="Estágio OJS (código): "+(result.stage??"não retornado")+" · Status: "+(result.status??"não retornado")+" · Verificado: "+date(result.checked_at)+(result.changed?" · MOVIMENTAÇÃO DETECTADA":"");
+    }catch(e){info.textContent="Não foi possível consultar: "+e.message}finally{button.disabled=false}};
+    item.appendChild(button);
+   }
+   area.appendChild(item);
+  }
+ }catch(e){area.textContent="Não foi possível consultar artigos: "+e.message}
+}
+$("followForm").onsubmit=async event=>{
+ event.preventDefault();const code=$("followNumber").value.trim(),journal=$("followJournal").value;
+ const area=$("followList");
+ if(!/^[1-9][0-9]{0,8}$/.test(code)){area.textContent="Número OJS inválido";return}
+ try{
+  await editorial({action:"request_link",journal,submission_id:code,consent:$("followConsent").checked});
+  $("followForm").reset();await myArticles();
+ }catch(e){area.textContent="Não foi possível solicitar vínculo: "+e.message}
+};
+$("followRefresh").onclick=myArticles;
+
+$("logout").onclick=()=>{jwt=null;$("login").hidden=false;$("panel").hidden=true;$("editorialFollow").hidden=true;$("list").replaceChildren();$("detail").replaceChildren();status("Sessão encerrada.");};
 </script></body></html>
