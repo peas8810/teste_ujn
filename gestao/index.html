@@ -38,7 +38,10 @@
 </div>
 <div class="notice">A submissão automática permanece desabilitada até testar chaves substituídas, permissões de autoria, metadados, arquivos, confirmação OJS e acompanhamento. Alternativa: <a href="https://www.articlerun.org/submeter" target="_blank" rel="noopener noreferrer">ArticleRun</a>.</div></section>
 <section class="card" id="ojs-status"><div class="head"><div><h2>Consultar manuscrito no OJS</h2><p class="small">Exclusivo para superadministrador. Informe o número real de submissão e a revista. O resultado não será enviado automaticamente ao autor.</p></div></div>
-<form id="ojsStatusForm"><label for="ojsStatusJournal">Revista</label><select id="ojsStatusJournal"><option>REMUNOM</option><option>JIRRS</option><option>NEXUS</option><option>RSV</option><option>RJNM</option></select><label for="ojsSubmissionId">Número da submissão no OJS</label><input id="ojsSubmissionId" type="text" inputmode="numeric" pattern="[1-9][0-9]*" maxlength="9" required placeholder="Ex.: 12345"><button type="submit" class="btn alt">Consultar metadados e estágio editorial</button></form><div id="ojsStatusResult" class="notice" role="status">Nenhuma submissão consultada.</div></section><div id="notice" class="notice" hidden></div>
+<form id="ojsStatusForm"><label for="ojsStatusJournal">Revista</label><select id="ojsStatusJournal"><option>REMUNOM</option><option>JIRRS</option><option>NEXUS</option><option>RSV</option><option>RJNM</option></select><label for="ojsSubmissionId">Número da submissão no OJS</label><input id="ojsSubmissionId" type="text" inputmode="numeric" pattern="[1-9][0-9]*" maxlength="9" required placeholder="Ex.: 12345"><button type="submit" class="btn alt">Consultar metadados e estágio editorial</button></form><div id="ojsStatusResult" class="notice" role="status">Nenhuma submissão consultada.</div></section><section class="card" id="academy-stage4">
+<div class="head"><div><h2>Etapa 4 — Homologação Academy</h2><p class="small">Auditoria de documentos, aprovação, pagamentos, emissão, QR, revogação, eventos e notificações. Não cria cobranças nem certificados.</p></div><button type="button" class="btn alt" id="academyAuditLoad">Atualizar diagnóstico</button></div>
+<div id="academyAuditResult" class="notice" role="status">Entre com um superadministrador e consulte os indicadores Academy.</div>
+<div class="alert"><b>Critério de conclusão:</b> passar por um pedido fictício completo em ambiente de teste, com análise documental, aprovação por operador, checkout sandbox, confirmação assinada, PDF com QR validável, revogação e mensagens automáticas comprovadas. Nenhum passo de produção será disparado por este diagnóstico.</div></section><div id="notice" class="notice" hidden></div>
 <div class="columns">
 <section class="card" id="atendimentos"><div class="head"><h2>Conversas da Central Academy</h2><button class="btn alt" id="reload">Atualizar</button></div><input id="filter" placeholder="Buscar serviço ou identificador de conversa"><div id="tickets"></div></section>
 <section class="card" id="conversa"><h2>Histórico da conversa (somente leitura)</h2><div id="ticketIntro"><p>Selecione um protocolo na fila.</p></div>
@@ -219,6 +222,27 @@ get("flowSave").onclick=async()=>{
   flow.welcome=welcome;flow.knowledge=knowledge;flow.version=d.version;
   status.textContent="Atualização publicada. Versão "+d.version+"; conversas em repouso atualizadas: "+d.refreshed_conversations+".";
  }catch(e){status.textContent="Não foi possível salvar: "+e.message}
+ finally{btn.disabled=false}
+};
+
+
+get("academyAuditLoad").onclick=async()=>{
+ const el=get("academyAuditResult"),btn=get("academyAuditLoad");
+ btn.disabled=true;el.textContent="Consultando apenas indicadores agregados do Academy...";
+ try{
+  const d=await menuAction({action:"academy_audit"}),m=d.metrics||{};
+  const rows=[
+   ["Solicitações",m.requests],["Documentos recebidos",m.documents],["Revisões de documentos",m.document_reviews],
+   ["Aprovações",m.approvals],["Transações Mercado Pago",m.payments],["Certificados",m.certificates],
+   ["Certificados revogados",m.revoked_certificates],["Notificações criadas",m.notifications],
+   ["Notificações entregues",m.delivered_notifications],["Eventos",m.events],
+   ["Fluxos institucionais",m.workflow_instances],["Checagens de lançamento",m.test_checks_total],
+   ["Checagens aprovadas",m.test_checks_passed]
+  ];
+  el.textContent="Indicadores atuais (não representam aprovação de homologação):\n"+
+   rows.map(([label,n])=>label+": "+(Number.isInteger(n)?n:"—")).join("\n")+
+   "\n\nPróximos testes: documento PDF/JPG/PNG → avaliação → decisão administrativa → pagamento sandbox → certificado PDF + QR → validação/revogação → notificações por e-mail e WhatsApp.";
+ }catch(e){el.textContent="Não foi possível carregar indicadores: "+e.message}
  finally{btn.disabled=false}
 };
 
