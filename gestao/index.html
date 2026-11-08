@@ -14,6 +14,12 @@
  <button type="button" class="btn" id="saveMenu" disabled>Salvar nova mensagem</button>
  <div id="menuResult" class="notice" role="status">Carregue a mensagem para iniciar.</div>
  </section>
+<section class="card" id="flow-editor"><div class="head"><div><h2>Editar respostas de cada serviço</h2><p class="small">Altere a apresentação e a orientação de Revistas, ArticleGenius, Submissões, Academy ou Suporte.</p></div><button type="button" id="flowsLoad" class="btn alt">Carregar setores</button></div>
+<label for="flowSelect">Serviço</label><select id="flowSelect" aria-label="Serviço"><option value="">Carregue os setores</option></select>
+<label for="flowWelcome">Mensagem de boas-vindas do serviço</label><textarea id="flowWelcome" maxlength="2000" rows="4"></textarea>
+<label for="flowKnowledge">Informações e links apresentados quando o cliente escreve INFORMAÇÕES</label><textarea id="flowKnowledge" maxlength="8000" rows="10"></textarea>
+<p class="small">As perguntas guiadas atuais são preservadas. As alterações exigem superadministrador e atualizam as conversas automáticas que não estão respondendo um formulário.</p>
+<button type="button" id="flowSave" class="btn" disabled>Salvar resposta do serviço</button><div class="notice" id="flowResult" role="status">Faça login e carregue os setores.</div></section>
 <section class="card" id="diagnostico"><div class="head"><h2>Diagnóstico do WhatsApp</h2><button id="diagnose" class="btn alt" type="button">Conferir mensagens</button></div><div id="diagnosis" class="notice">Faça login para verificar o último registro de mensagem recebida e de resposta do bot no Academy.</div><p class="small">Esta verificação consulta somente mensagens que sua conta de operador pode visualizar. Não testa a entrega da Meta nem envia WhatsApp.</p></section>
 <section class="card" id="ojs-readiness"><div class="head"><div><h2>Revistas OJS — Etapa 3</h2><p class="small">Diagnóstico técnico sem alterar revistas ou acessar manuscritos privados.</p></div><button type="button" id="ojsCatalogBtn" class="btn alt">Carregar revistas</button></div>
 <div id="ojsCatalog" class="small">Faça login como operador do Academy para conferir os cinco conectores.</div>
@@ -176,6 +182,43 @@ get("saveMenu").onclick=async()=>{
   area.textContent="Mensagem publicada. Versão "+d.version+". Teste MENU no WhatsApp.";
  }catch(e){area.textContent="Não foi possível salvar: "+e.message;}
  finally{btn.disabled=false;}
+};
+
+
+let editableFlows={};
+function showFlow(){
+ const data=editableFlows[get("flowSelect").value];
+ get("flowSave").disabled=!data;
+ get("flowWelcome").value=data?.welcome||"";
+ get("flowKnowledge").value=data?.knowledge||"";
+ get("flowResult").textContent=data?"Versão "+data.version+". Edite e salve para publicar.":"Selecione um setor.";
+}
+get("flowSelect").onchange=showFlow;
+get("flowsLoad").onclick=async()=>{
+ const status=get("flowResult");status.textContent="Carregando respostas...";
+ try{
+  const d=await menuAction({action:"flow_get"});editableFlows={};
+  const list=get("flowSelect");list.replaceChildren();
+  for(const flow of d.flows||[]){
+   editableFlows[flow.id]=flow;
+   const o=document.createElement("option");o.value=flow.id;o.textContent=flow.name;list.appendChild(o);
+  }
+  if(!Object.keys(editableFlows).length)throw Error("Nenhum serviço disponível");
+  showFlow();
+ }catch(e){status.textContent="Falha: "+e.message}
+};
+get("flowSave").onclick=async()=>{
+ const id=get("flowSelect").value,flow=editableFlows[id],status=get("flowResult");
+ if(!flow)return;
+ const welcome=get("flowWelcome").value,knowledge=get("flowKnowledge").value;
+ if(!confirm("Publicar a resposta atualizada para o setor "+flow.name+"?"))return;
+ const btn=get("flowSave");btn.disabled=true;
+ try{
+  const d=await menuAction({action:"flow_save",service:id,welcome,knowledge,questions:flow.questions||[],version:flow.version});
+  flow.welcome=welcome;flow.knowledge=knowledge;flow.version=d.version;
+  status.textContent="Atualização publicada. Versão "+d.version+"; conversas em repouso atualizadas: "+d.refreshed_conversations+".";
+ }catch(e){status.textContent="Não foi possível salvar: "+e.message}
+ finally{btn.disabled=false}
 };
 
 get("diagnose").onclick=diagnose;
