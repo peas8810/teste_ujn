@@ -42,7 +42,11 @@
 <div class="head"><div><h2>Etapa 4 — Homologação Academy</h2><p class="small">Auditoria de documentos, aprovação, pagamentos, emissão, QR, revogação, eventos e notificações. Não cria cobranças nem certificados.</p></div><button type="button" class="btn alt" id="academyAuditLoad">Atualizar diagnóstico</button></div>
 <div id="academyAuditResult" class="notice" role="status">Entre com um superadministrador e consulte os indicadores Academy.</div><div style="margin:16px 0"><div class="head"><h3>Roteiro de homologação (10 controles)</h3><button type="button" id="academyChecklistLoad" class="btn alt">Mostrar testes</button></div>
 <div id="academyChecklist" class="small">Os testes são registrados no LAB; nenhum deles cria pagamentos ou certificados.</div></div>
-<div class="alert"><b>Critério de conclusão:</b> passar por um pedido fictício completo em ambiente de teste, com análise documental, aprovação por operador, checkout sandbox, confirmação assinada, PDF com QR validável, revogação e mensagens automáticas comprovadas. Nenhum passo de produção será disparado por este diagnóstico.</div></section><div id="notice" class="notice" hidden></div>
+<div class="alert"><b>Critério de conclusão:</b> passar por um pedido fictício completo em ambiente de teste, com análise documental, aprovação por operador, checkout sandbox, confirmação assinada, PDF com QR validável, revogação e mensagens automáticas comprovadas. Nenhum passo de produção será disparado por este diagnóstico.</div></section><section class="card" id="unified-operations">
+<div class="head"><div><h2>Central de Operações — Filas e notificações</h2><p class="small">Visão consolidada da Central WhatsApp, e-mail e notificações Academy. Não envia mensagens nem modifica cobranças.</p></div>
+<button type="button" class="btn alt" id="opsRefresh">Atualizar monitor</button></div>
+<div id="opsSummary" class="notice" role="status">Faça login como superadministrador para consultar as filas.</div>
+</section><div id="notice" class="notice" hidden></div>
 <div class="columns">
 <section class="card" id="atendimentos"><div class="head"><h2>Conversas da Central Academy</h2><button class="btn alt" id="reload">Atualizar</button></div><input id="filter" placeholder="Buscar serviço ou identificador de conversa"><div id="tickets"></div></section>
 <section class="card" id="conversa"><h2>Histórico da conversa (somente leitura)</h2><div id="ticketIntro"><p>Selecione um protocolo na fila.</p></div>
@@ -227,6 +231,38 @@ get("flowSave").onclick=async()=>{
 };
 
 
+
+
+get("opsRefresh").onclick=async()=>{
+ const output=get("opsSummary"),btn=get("opsRefresh");btn.disabled=true;
+ output.textContent="Consultando estado agregado das filas...";
+ try{
+  const d=await menuAction({action:"operations_health"});
+  const v=d.health||{};
+  const describe=(rows,key)=>Array.isArray(rows)&&rows.length?rows.map(r=>
+   (r.channel? r.channel+" · ":"")+(r.service?r.service+" · ":"")+(r[key]||"sem estado")+": "+r.count).join("\n"):"Nenhum registro";
+  output.textContent=[
+   "Monitor UJN atualizado: "+(v.at?new Date(v.at).toLocaleString("pt-BR"):"—"),
+   "",
+   "WhatsApp — fila UJN:",
+   describe(v.whatsapp_outbox,"state"),
+   "",
+   "WhatsApp e e-mail — notificações Academy:",
+   describe(v.academy_notifications,"status"),
+   "",
+   "E-mail — fila dedicada Academy:",
+   describe(v.academy_email,"status"),
+   "",
+   "Conversas por serviço:",
+   describe(v.conversations,"state"),
+   "",
+   "Eventos Academy registrados: "+(v.academy_events_total??"—"),
+   "",
+   "Este monitor é somente leitura. A ausência de registros não significa que a entrega esteja homologada."
+  ].join("\n");
+ }catch(e){output.textContent="Não foi possível consultar filas: "+e.message}
+ finally{btn.disabled=false}
+};
 
 get("academyChecklistLoad").onclick=async()=>{
  const output=get("academyChecklist"),btn=get("academyChecklistLoad");
