@@ -40,7 +40,8 @@
 <section class="card" id="ojs-status"><div class="head"><div><h2>Consultar manuscrito no OJS</h2><p class="small">Exclusivo para superadministrador. Informe o número real de submissão e a revista. O resultado não será enviado automaticamente ao autor.</p></div></div>
 <form id="ojsStatusForm"><label for="ojsStatusJournal">Revista</label><select id="ojsStatusJournal"><option>REMUNOM</option><option>JIRRS</option><option>NEXUS</option><option>RSV</option><option>RJNM</option></select><label for="ojsSubmissionId">Número da submissão no OJS</label><input id="ojsSubmissionId" type="text" inputmode="numeric" pattern="[1-9][0-9]*" maxlength="9" required placeholder="Ex.: 12345"><button type="submit" class="btn alt">Consultar metadados e estágio editorial</button></form><div id="ojsStatusResult" class="notice" role="status">Nenhuma submissão consultada.</div></section><section class="card" id="academy-stage4">
 <div class="head"><div><h2>Etapa 4 — Homologação Academy</h2><p class="small">Auditoria de documentos, aprovação, pagamentos, emissão, QR, revogação, eventos e notificações. Não cria cobranças nem certificados.</p></div><button type="button" class="btn alt" id="academyAuditLoad">Atualizar diagnóstico</button></div>
-<div id="academyAuditResult" class="notice" role="status">Entre com um superadministrador e consulte os indicadores Academy.</div>
+<div id="academyAuditResult" class="notice" role="status">Entre com um superadministrador e consulte os indicadores Academy.</div><div style="margin:16px 0"><div class="head"><h3>Roteiro de homologação (10 controles)</h3><button type="button" id="academyChecklistLoad" class="btn alt">Mostrar testes</button></div>
+<div id="academyChecklist" class="small">Os testes são registrados no LAB; nenhum deles cria pagamentos ou certificados.</div></div>
 <div class="alert"><b>Critério de conclusão:</b> passar por um pedido fictício completo em ambiente de teste, com análise documental, aprovação por operador, checkout sandbox, confirmação assinada, PDF com QR validável, revogação e mensagens automáticas comprovadas. Nenhum passo de produção será disparado por este diagnóstico.</div></section><div id="notice" class="notice" hidden></div>
 <div class="columns">
 <section class="card" id="atendimentos"><div class="head"><h2>Conversas da Central Academy</h2><button class="btn alt" id="reload">Atualizar</button></div><input id="filter" placeholder="Buscar serviço ou identificador de conversa"><div id="tickets"></div></section>
@@ -225,6 +226,28 @@ get("flowSave").onclick=async()=>{
  finally{btn.disabled=false}
 };
 
+
+
+get("academyChecklistLoad").onclick=async()=>{
+ const output=get("academyChecklist"),btn=get("academyChecklistLoad");
+ btn.disabled=true;output.textContent="Carregando roteiro de homologação...";
+ try{
+  const d=await menuAction({action:"academy_test_list"});
+  const tests=d.tests||[];
+  output.replaceChildren();
+  const summary=document.createElement("p");
+  const passed=tests.filter(t=>t.status==="PASS").length;
+  summary.textContent=passed+" de "+tests.length+" testes aprovados — somente evidências confirmadas no LAB.";
+  output.appendChild(summary);
+  for(const t of tests){
+   const article=document.createElement("div");article.className="notice";article.style.margin="8px 0";
+   const title=document.createElement("strong");title.textContent=t.position+". "+t.phase+" — "+t.status;
+   const desc=document.createElement("div");desc.textContent=t.criterion;
+   article.append(title,desc);output.appendChild(article);
+  }
+ }catch(e){output.textContent="Erro ao consultar roteiro: "+e.message}
+ finally{btn.disabled=false}
+};
 
 get("academyAuditLoad").onclick=async()=>{
  const el=get("academyAuditResult"),btn=get("academyAuditLoad");
