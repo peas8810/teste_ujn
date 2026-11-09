@@ -13,7 +13,7 @@
 <button type="button" id="followRefresh" class="secondary">Atualizar minhas submissões vinculadas</button></section>
 <section id="panel" hidden><div class="card"><button type="button" id="reload" class="secondary">Atualizar atendimentos</button> <button type="button" id="logout" class="secondary">Sair</button><div id="list"></div></div><section class="card" id="detail"><h2>Mensagens</h2><p>Selecione um atendimento.</p></section></section>
 <div id="result" class="card" role="status">Faça login para consultar.</div>
-<p><a href="../submissao/">Iniciar pré-submissão pelo celular</a> · <a href="https://www.articlerun.org/submeter" target="_blank" rel="noopener noreferrer">ArticleRun — submissão editorial</a></p></main>
+<p><a href="../submissao/">Ir para submissão no ArticleRun</a> · <a href="https://www.articlerun.org/submeter" target="_blank" rel="noopener noreferrer">ArticleRun — submissão editorial</a></p></main>
 <script>"use strict";
 const BASE="https://jufnkfyvqgkrxsbctqqk.supabase.co",PUB="sb_publishable_Gw7GOqQKaGan1a-RnvHDhw_ePj9JLYY",$=id=>document.getElementById(id);
 let jwt=null;
@@ -69,6 +69,9 @@ async function detail(id){
 $("reload").onclick=reload;
 
 const LAB="https://leytqsyfrmzhectatcqm.supabase.co/functions/v1/ujn-lab-editorial-follow";
+const selectedJournal=new URLSearchParams(location.search).get("journal");
+if(["REMUNOM","JIRRS","NEXUS","RSV","RJNM"].includes(selectedJournal))document.getElementById("followJournal").value=selectedJournal;
+
 async function editorial(payload){
  if(!jwt)throw Error("Faça login novamente.");
  const r=await fetch(LAB,{method:"POST",cache:"no-store",headers:{"authorization":"Bearer "+jwt,"content-type":"application/json"},body:JSON.stringify(payload)});
