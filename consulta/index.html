@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Consulta Editorial | Brain UJN</title>
+<style>
+:root{font-family:Inter,system-ui,Arial,sans-serif;color:#183046;background:#f3f6f9}*{box-sizing:border-box}body{margin:0}
+header{background:#132d45;color:#fff;padding:24px max(18px,calc((100vw - 1060px)/2))}header b{font-size:20px}header p{color:#bbcfdd;margin:7px 0 0}
+main{max-width:1060px;margin:32px auto;padding:0 18px}.panel{background:#fff;border:1px solid #d8e1e9;border-radius:16px;padding:27px;margin-bottom:20px;box-shadow:0 8px 28px #22374c0b}
+h1{font-size:25px;margin:0 0 22px;text-align:center}h2{font-size:20px;margin:0 0 16px}
+label{display:block;font-size:14px;font-weight:650;margin:0 0 8px}select,input,button{font:inherit}select,input{width:100%;height:46px;padding:0 12px;border:1px solid #cbd8e2;border-radius:8px;background:#fff}
+.group{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px}button{border:0;border-radius:8px;padding:13px 22px;cursor:pointer;background:#197c7d;color:#fff;font-weight:700;width:100%}button:disabled{opacity:.65;cursor:wait}
+.muted{color:#5c6f80;font-size:13px;line-height:1.6}#status{margin-top:14px}.item{border:1px solid #dbe4ea;border-radius:11px;padding:19px;margin-top:14px}.item h3{font-size:17px;margin:0 0 10px}.meta{line-height:1.8;font-size:14px}a{color:#0b7779;overflow-wrap:anywhere}.links{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}.links a{border:1px solid #cde4e2;border-radius:6px;padding:7px 10px;text-decoration:none;font-size:13px}
+.note{background:#edf6f6;border-left:3px solid #197c7d;padding:13px 16px;border-radius:4px}
+@media(max-width:650px){.group{grid-template-columns:1fr}.panel{padding:19px}main{margin-top:18px}h1{font-size:21px}}
+</style></head>
+<body><header><b>Brain UJN</b><p>Consulta de artigos científicos · REMUNOM, RSV e RJNM</p></header>
+<main><section class="panel"><h1>Pesquisar artigo</h1>
+<form id="form"><div class="group"><div><label for="journal">Revista</label><select id="journal"><option value="REMUNOM">REMUNOM</option><option value="RSV">RSV</option><option value="RJNM">RJNM</option></select></div>
+<div><label for="type">Pesquisar por</label><select id="type"><option value="doi">DOI</option><option value="title">Título</option><option value="author">Autor</option></select></div></div>
+<label for="term">Dados da pesquisa</label><input id="term" maxlength="120" required placeholder="Ex.: 10.66104/7y0mwb41">
+<div style="margin-top:19px"><button id="submit" type="submit">Pesquisar</button></div></form>
+<p class="muted">A pesquisa espelha os resultados públicos do formulário oficial. Manuscritos não publicados e o fluxo editorial exigem acesso autorizado à revista; não são expostos neste formulário.</p>
+<div class="note muted">Para acompanhar uma submissão privada no WhatsApp, vincule sua conta ACADEMY e solicite a validação de autoria.</div></section>
+<section class="panel" aria-live="polite"><h2>Resultado</h2><div id="status" class="muted">Informe os dados e clique em Pesquisar.</div><div id="results"></div></section></main>
+<script>
+const $=id=>document.getElementById(id), endpoint="https://leytqsyfrmzhectatcqm.supabase.co/functions/v1/ujn-ojsbr-mirror";
+const text=(tag,content,klass)=>{const e=document.createElement(tag);e.textContent=content;if(klass)e.className=klass;return e};
+const link=(href,label)=>{const a=document.createElement("a");a.href=href;a.textContent=label;a.target="_blank";a.rel="noopener noreferrer";return a};
+$("type").onchange=()=>{$("term").placeholder=$("type").value==="doi"?"Ex.: 10.66104/7y0mwb41":$("type").value==="title"?"Digite palavras do título":"Digite o nome do autor"};
+$("form").onsubmit=async event=>{
+ event.preventDefault();$("submit").disabled=true;$("status").textContent="Consultando a página oficial…";$("results").replaceChildren();
+ try{
+  const r=await fetch(endpoint,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({journal:$("journal").value,type:$("type").value,query:$("term").value.trim()})});
+  const data=await r.json();
+  if(!r.ok||!Array.isArray(data.items))throw new Error("A consulta oficial não respondeu com dados verificáveis.");
+  $("status").textContent=data.items.length?data.items.length+" resultado(s) público(s) encontrado(s).":"Nenhum artigo publicado foi confirmado. Isso não descarta uma submissão ainda em avaliação.";
+  for(const item of data.items){
+   const box=text("article","","item");box.append(text("h3",item.title||"Artigo"));
+   const m=text("div","ID: "+item.id+" · "+item.status,"meta");box.append(m);
+   if(item.authors)box.append(text("div","Autores: "+item.authors,"meta"));
+   if(item.doi_url){const d=text("div","DOI: ","meta");d.append(link(item.doi_url,item.doi));box.append(d)}
+   const links=text("div","","links");for(const l of item.links||[])if(l.url)links.append(link(l.url,l.label||"Abrir publicação"));box.append(links);
+   $("results").append(box);
+  }
+ }catch(e){$("status").textContent=e.message||"Falha na consulta."}
+ finally{$("submit").disabled=false}
+};
+</script></body></html>
