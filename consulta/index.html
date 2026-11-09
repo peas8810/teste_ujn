@@ -15,11 +15,11 @@ label{display:block;font-size:14px;font-weight:650;margin:0 0 8px}select,input,b
 <body><header><b>Brain UJN</b><p>Consulta de artigos científicos · REMUNOM, RSV, RJNM, JIRRS e NEXUS</p></header>
 <main><section class="panel"><h1>Pesquisar artigo</h1>
 <form id="form"><div class="group"><div><label for="journal">Revista</label><select id="journal"><option value="REMUNOM">REMUNOM</option><option value="RSV">RSV</option><option value="RJNM">RJNM</option><option value="JIRRS">JIRRS</option><option value="NEXUS">NEXUS</option></select></div>
-<div><label for="type">Pesquisar por</label><select id="type"><option value="doi">DOI</option><option value="title">Título</option><option value="author">Autor</option></select></div></div>
+<div><label for="type">Pesquisar por</label><select id="type"><option value="doi">DOI</option><option value="author">Autor</option></select></div></div>
 <label for="term">Dados da pesquisa</label><input id="term" maxlength="120" required placeholder="Ex.: 10.66104/7y0mwb41">
 <div style="margin-top:19px"><button id="submit" type="submit">Pesquisar</button></div></form>
-<p class="muted">A pesquisa espelha os resultados públicos do formulário oficial. Manuscritos não publicados e o fluxo editorial exigem acesso autorizado à revista; não são expostos neste formulário.</p>
-<div class="note muted">Para acompanhar uma submissão privada no WhatsApp, vincule sua conta ACADEMY e solicite a validação de autoria.</div></section>
+<p class="muted">Busca exclusivamente por DOI ou autor nos resultados acessíveis pelo formulário oficial. Quando houver registro ainda não publicado visível nessa consulta, será exibido com a situação correspondente. Dados de acesso restrito ao Editor não são divulgados.</p>
+<div class="note muted">ACADEMY é um sistema independente. Esta página consulta exclusivamente os formulários oficiais das revistas.</div></section>
 <section class="panel" aria-live="polite"><h2>Resultado</h2><div id="status" class="muted">Informe os dados e clique em Pesquisar.</div><div id="results"></div></section></main>
 <script>
 const $=id=>document.getElementById(id), endpoint="https://leytqsyfrmzhectatcqm.supabase.co/functions/v1/ujn-ojsbr-mirror";
@@ -32,7 +32,7 @@ $("form").onsubmit=async event=>{
   const r=await fetch(endpoint,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({journal:$("journal").value,type:$("type").value,query:$("term").value.trim()})});
   const data=await r.json();
   if(!r.ok||!Array.isArray(data.items))throw new Error("A consulta oficial não respondeu com dados verificáveis.");
-  $("status").textContent=data.items.length?data.items.length+" resultado(s) público(s) encontrado(s).":"Nenhum artigo publicado foi confirmado. Isso não descarta uma submissão ainda em avaliação.";
+  $("status").textContent=data.items.length?data.items.length+" registro(s) visível(is) encontrado(s).":"Nenhum registro foi confirmado na consulta acessível. O registro pode exigir sessão editorial autorizada.";
   for(const item of data.items){
    const box=text("article","","item");box.append(text("h3",item.title||"Artigo"));
    const m=text("div","ID: "+item.id+" · "+item.status,"meta");box.append(m);
