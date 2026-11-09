@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Consulta Editorial Restrita | Brain UJN</title>
+<style>
+*{box-sizing:border-box}body{font-family:Inter,Arial,sans-serif;margin:0;background:#f2f5f8;color:#183048}
+header{padding:22px 5%;background:#132d45;color:white}header strong{font-size:23px}header small{display:block;color:#c2d4e2;margin-top:6px}
+main{max-width:1000px;margin:30px auto;padding:0 16px}.panel{background:white;border:1px solid #d9e3ed;border-radius:15px;margin-bottom:18px;padding:25px;box-shadow:0 8px 25px #162b4108}
+h1{font-size:23px;margin:0 0 22px;text-align:center}h2{font-size:20px;margin:0 0 15px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:15px}label{display:block;font-size:14px;font-weight:650;margin-bottom:7px}
+input,select,button{font:inherit}input,select{width:100%;padding:12px;border:1px solid #c9d6e1;border-radius:8px;background:#fff}
+button{border:0;border-radius:8px;padding:12px 18px;background:#157f80;color:white;font-weight:700;cursor:pointer}button:disabled{opacity:.5}
+.full{width:100%;margin-top:17px}.muted{font-size:13px;color:#526b7d;line-height:1.6}
+#search{display:none}.record{border:1px solid #dae3ec;border-radius:10px;padding:18px;margin-top:15px}.record h3{margin:0 0 10px;font-size:18px}
+.record p{margin:6px 0;line-height:1.5;overflow-wrap:anywhere}a{color:#097b80;overflow-wrap:anywhere}
+.tag{display:inline-block;background:#e1edf1;border-radius:6px;padding:5px 9px;margin-top:6px;font-weight:600;font-size:12px}
+.notice{padding:12px 15px;background:#eef6f7;border-left:3px solid #157f80;margin:15px 0;font-size:14px}
+@media(max-width:650px){.grid{grid-template-columns:1fr}.panel{padding:18px}h1{font-size:20px}}
+</style></head><body>
+<header><strong>Brain UJN</strong><small>Consulta editorial administrativa · Acesso restrito</small></header>
+<main>
+<section id="login" class="panel">
+<h1>Acesso à consulta editorial</h1>
+<p class="notice">Use sua conta administrativa ACADEMY. A consulta inclui registros não publicados somente quando as permissões OJS autorizarem.</p>
+<form id="loginForm"><div class="grid"><div><label for="email">E-mail</label><input id="email" type="email" autocomplete="username" required></div>
+<div><label for="password">Senha</label><input id="password" type="password" autocomplete="current-password" required></div></div>
+<button class="full" type="submit">Entrar</button></form><p class="muted" id="loginState">A autorização administrativa será validada no servidor.</p></section>
+<section id="search" class="panel"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h1>Buscar artigo</h1><button id="logout" type="button">Sair</button></div>
+<form id="searchForm"><div class="grid"><div><label for="journal">Revista</label><select id="journal">
+<option>REMUNOM</option><option>RSV</option><option>RJNM</option><option>JIRRS</option><option>NEXUS</option>
+</select></div><div><label for="type">Tipo de pesquisa</label><select id="type"><option value="id">ID OJS</option><option value="author">Autor</option><option value="title">Título</option><option value="doi">DOI</option></select></div></div>
+<div style="margin-top:15px"><label for="query">Termo de pesquisa</label><input id="query" maxlength="120" required placeholder="Ex.: 8344"></div>
+<button class="full" type="submit">Consultar OJS</button></form>
+<p class="notice">Os resultados incluem artigos em avaliação quando a API OJS autorizar. Não encaminhe informações editoriais a terceiros. O link do fluxo editorial exige sessão e autorização no OJS.</p>
+</section><section class="panel"><h2>Resultado</h2><p id="status" class="muted">Entre com sua conta administrativa para iniciar.</p><div id="results"></div></section>
+</main>
+<script type="module">
+import {createClient} from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+const BASE="https://jufnkfyvqgkrxsbctqqk.supabase.co";
+const KEY="sb_publishable_Gw7GOqQKaGan1a-RnvHDhw_ePj9JLYY";
+const sb=createClient(BASE,KEY,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
+const el=x=>document.getElementById(x);
+const setStatus=s=>{el("status").textContent=s};
+const setLogged=v=>{el("login").style.display=v?"none":"block";el("search").style.display=v?"block":"none"};
+const node=(tag,value)=>{const e=document.createElement(tag);e.textContent=value;return e};
+const addLine=(parent,txt)=>parent.append(node("p",txt));
+const link=(href,label)=>{const a=document.createElement("a");a.href=href;a.textContent=label;a.target="_blank";a.rel="noopener noreferrer";return a};
+const ROOTS={REMUNOM:"https://remunom.ojsbr.com/multidisciplinar",RSV:"https://rsv.ojsbr.com/rsv",RJNM:"https://jrnm.ojsbr.com/juridica",JIRRS:"https://jirrs.org.uk/jirrs",NEXUS:"https://nexussr.org.uk/nexussr"};
+let session=null;
+el("loginForm").onsubmit=async e=>{
+ e.preventDefault();el("loginState").textContent="Validando acesso...";
+ const {data,error}=await sb.auth.signInWithPassword({email:el("email").value.trim(),password:el("password").value});
+ el("password").value="";
+ if(error||!data.session){el("loginState").textContent="Não foi possível autenticar a conta.";return}
+ try{
+ const r=await fetch(BASE+"/functions/v1/ujn-central",{method:"POST",headers:{"apikey":KEY,"authorization":"Bearer "+data.session.access_token,"content-type":"application/json"},body:JSON.stringify({action:"bootstrap"})});
+ const b=await r.json();
+ if(!r.ok||b.superuser!==true)throw new Error("Conta sem permissão de administrador UJN.");
+ session=data.session;setLogged(true);setStatus("Informe um ID, autor, título ou DOI.");
+ }catch(err){await sb.auth.signOut();el("loginState").textContent=err.message}
+};
+el("logout").onclick=async()=>{session=null;await sb.auth.signOut();setLogged(false);el("results").replaceChildren();setStatus("Sessão encerrada.")};
+el("type").onchange=()=>{el("query").placeholder=({id:"Ex.: 8344",author:"Nome completo do autor",title:"Palavras do título",doi:"Ex.: 10.66104/7y0mwb41"})[el("type").value]};
+el("searchForm").onsubmit=async e=>{
+ e.preventDefault();if(!session)return;
+ const form=e.currentTarget,button=form.querySelector("button");button.disabled=true;
+ el("results").replaceChildren();setStatus("Consultando o OJS...");
+ try{
+ const r=await fetch(BASE+"/functions/v1/ujn-central",{method:"POST",headers:{"apikey":KEY,"authorization":"Bearer "+session.access_token,"content-type":"application/json"},body:JSON.stringify({action:"editorial_search",journal:el("journal").value,query:el("query").value.trim()})});
+ const data=await r.json();
+ if(!r.ok||!Array.isArray(data.items))throw new Error(data.error||"Não foi possível consultar o OJS.");
+ const q=el("query").value.trim().toLocaleLowerCase();
+ const matches=data.items.filter(a=>{
+  const t=el("type").value;
+  return t==="id"?String(a.id)===q:t==="author"?String(a.authors||"").toLocaleLowerCase().includes(q):t==="title"?String(a.title||"").toLocaleLowerCase().includes(q):String(a.doi||"").toLocaleLowerCase().includes(q);
+ });
+ setStatus(matches.length+" registro(s) encontrado(s) na resposta da API OJS."+(data.more_possible?" Refine a busca para resultados adicionais.":""));
+ for(const a of matches){
+  const div=node("article","");div.className="record";div.append(node("h3",a.title||"Título não informado"));
+  addLine(div,"ID: "+a.id);if(a.authors)addLine(div,"Autoria: "+a.authors);
+  addLine(div,"Situação: "+(a.status||"Não informada")+" · Etapa: "+(a.stage||"Não informada"));
+  if(a.date_submitted)addLine(div,"Data de submissão: "+a.date_submitted);
+  if(a.doi){const p=node("p","DOI: ");p.append(link("https://doi.org/"+encodeURI(a.doi),a.doi));div.append(p)}
+  if(a.public_url){const p=node("p","Artigo publicado: ");p.append(link(a.public_url,"Abrir publicação"));div.append(p)}
+  if(a.status!=="PUBLICADO")addLine(div,"Fluxo editorial: requer login com permissão diretamente no OJS.");
+  el("results").append(div);
+ }
+ }catch(err){setStatus("Consulta não concluída: "+err.message)}finally{button.disabled=false}
+};
+</script></body></html>
