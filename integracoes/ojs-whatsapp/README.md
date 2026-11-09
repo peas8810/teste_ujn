@@ -89,3 +89,27 @@ Esses dois hooks são compatíveis com os nomes documentados do OJS. Entretanto,
 `polling_enabled=true`; `delivery_enabled=false`. Fila do dispatcher ativa a cada 5 minutos, mas com envio bloqueado. A API editorial possui cinco chaves de webhook distintas. Não há assinantes cadastrados na fila nova. Não foram enviados WhatsApps automáticos editoriais.
 
 **Atenção a produção:** o plugin é um ponto inicial para homologação e não substitui os testes de instalação no OJS. Não expõe identidades de pareceristas nem o conteúdo dos pareceres. Para entregar “cada movimentação”, ainda é necessária a conexão dos eventos de correspondência internos em todas as revistas.
+
+
+## Alternativa sem plugin: Webmail/SMTP → IMAP → WhatsApp
+
+Foi criado um coletor independente: imap_collector.py. Requer Python 3.11+, IMAPS na porta 993, HTTPS e agendamento na hospedagem, mas não altera OJS nem Academy.
+
+Atenção: SMTP não significa que a caixa do remetente guarde uma cópia da mensagem enviada ao autor. Configure BCC/roteamento de mensagens editoriais com o provedor, preservando o destinatário original no campo To. Se encaminhar de modo que o To fique como a caixa monitorada, o coletor rejeita, por não saber quem é o autor.
+
+Endpoint ativo: https://leytqsyfrmzhectatcqm.supabase.co/functions/v1/ujn-editorial-email-ingest
+
+Configuração necessária em servidor seguro:
+- UJN_JOURNAL = RJNM, REMUNOM, RSV, JIRRS ou NEXUS
+- UJN_IMAP_HOST = hostname da caixa de monitoramento
+- UJN_IMAP_USER = usuário da caixa
+- UJN_IMAP_PASSWORD = senha de aplicativo guardada no servidor
+- UJN_IMAP_FOLDER = INBOX
+- UJN_EMAIL_INGEST_HMAC = chave do Vault Supabase obtida por administrador autorizado
+- UJN_DRY_RUN = 1 para teste sem gravação
+
+Configuração do Supabase: em ujn_editorial_email_sources, habilitar revista e cadastrar o endereço exato do remetente autorizado; sem isso a função rejeita mensagens. Associação do destinatário exige hash SHA-256 do e-mail, ID de submissão, telefone E.164, consentimento registrado e vínculo verificado. Nome do autor isolado não é suficiente.
+
+Teste confirmado: payload de e-mail fictício assinado com HMAC identificou revisão solicitada na submissão 8267 (HTTP 200, zero mensagens enviadas). O coletor ainda não foi executado em IMAP real: falta host, usuário e credenciais locais. O corpo completo e assunto não são salvos no banco.
+
+O sistema gera apenas rascunhos de entrega PENDING_APPROVAL para destinatários confirmados. delivery_enabled permanece false. A Meta precisa aprovar o template editorial Utility antes da ativação de disparos. Mensagens desconhecidas e IDs ambíguos exigem revisão.
