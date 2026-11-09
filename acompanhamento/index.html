@@ -2,7 +2,7 @@
 <style>:root{font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:#f2f6f7;color:#193c4b}*{box-sizing:border-box}body{margin:0}header{background:#143849;color:#fff;padding:22px max(18px,calc((100vw - 880px)/2))}header b{font-size:22px}main{max-width:880px;margin:auto;padding:20px 16px 60px}.card{background:#fff;border:1px solid #d6e4e8;border-radius:14px;padding:22px;margin:15px 0;box-shadow:0 3px 11px #17394808}input{font:inherit;padding:12px;width:100%;border-radius:8px;border:1px solid #bcd2da;margin:7px 0}button{font:inherit;border:0;border-radius:8px;padding:12px 16px;background:#0d7d72;color:#fff;font-weight:700;cursor:pointer;margin-top:10px}.secondary{background:#e4f0ed;color:#1a5e55}.muted{color:#66818c;font-size:13px}#result{white-space:pre-wrap}.conversation{padding:13px;border-radius:8px;border:1px solid #d4e1e4;margin:10px 0;cursor:pointer;width:100%;text-align:left;background:#fff;color:#173c4a}.conversation:hover{background:#eff9f5}.message{white-space:pre-wrap;overflow-wrap:anywhere;border-radius:9px;background:#eff5f6;padding:12px;margin:10px 0;font-size:13px}.message.bot{background:#ecf7f1}.notice{border-radius:9px;background:#fff5dd;border:1px solid #edd9aa;padding:12px;font-size:13px;line-height:1.55}a{color:#08675b}h1{font-size:clamp(24px,5vw,32px)}</style></head>
 <body><header><b>UJN Intelligence</b><div style="opacity:.75;font-size:12px">Acompanhamento dos atendimentos e pré-submissões</div></header>
 <main><h1>Meus atendimentos na UJN</h1><p class="muted">Consulte o que foi recebido na Central UJN com sua própria conta Academy. Não exibimos manuscritos de outros autores.</p>
-<div class="notice"><b>Importante:</b> o status abaixo é o da Central UJN, e <b>não é o estágio editorial do OJS</b>. Acompanhamento editorial automático depende de vincular sua identidade à submissão da revista.</div>
+<div class="notice"><b>Importante:</b> o status dos atendimentos UJN é separado do andamento editorial OJS. Após comprovar a autoria, a seção “Acompanhar minha submissão” exibe a etapa OJS de forma indicativa; decisões e pareceres oficiais permanecem na revista.</div>
 <section class="card" id="login"><h2>Entrar</h2><form id="loginForm"><label for="email">E-mail Academy</label><input type="email" id="email" autocomplete="username" required><label for="password">Senha</label><input type="password" id="password" autocomplete="current-password" required><button>Entrar</button></form></section>
 <section class="card" id="editorialFollow" hidden><h2>Acompanhar minha submissão no OJS</h2>
 <p class="muted">Cadastre o número editorial informado pelo ArticleRun/OJS. Para proteger os manuscritos, um administrador precisará confirmar sua autoria antes de liberar os detalhes.</p>
@@ -27,6 +27,8 @@ async function api(body){
 function status(t){$("result").textContent=t}
 function date(t){return t?new Date(t).toLocaleString("pt-BR"):"—"}
 const types={revistas:"Revistas",escrita:"ArticleGenius",articlerun:"Submissão de artigos",academy:"Academy",suporte:"Suporte"};
+const editorialStage=(v)=>({1:"Submissão e triagem",2:"Análise interna",3:"Avaliação por pares",4:"Edição",5:"Produção"}[v]||"Etapa não identificada");
+
 $("loginForm").onsubmit=async e=>{
  e.preventDefault();let password=$("password").value;$("password").value="";
  try{
@@ -90,14 +92,14 @@ async function myArticles(){
    const item=document.createElement("div");item.className="message";
    const label=document.createElement("b");label.textContent=article.journal_code+" · OJS "+article.submission_id+" · "+article.state;
    const info=document.createElement("p");info.textContent=article.state==="VERIFIED"?
-      "Estágio OJS (código): "+(article.last_stage_id??"não consultado")+" · Status: "+(article.last_status??"não consultado")+" · Atualizado: "+date(article.last_checked_at):
+      "Etapa indicativa: "+editorialStage(article.last_stage_id)+" (código "+(article.last_stage_id??"—")+") · Status técnico: "+(article.last_status??"não consultado")+" · Atualizado: "+date(article.last_checked_at):
       "Aguardando verificação da autoria pela administração. Nenhum dado editorial privado foi disponibilizado.";
    item.append(label,info);
    if(article.state==="VERIFIED"){
     const button=document.createElement("button");button.type="button";button.className="secondary";button.textContent="Consultar status OJS";
     button.onclick=async()=>{button.disabled=true;try{
      const result=await editorial({action:"refresh",id:article.id});
-     info.textContent="Estágio OJS (código): "+(result.stage??"não retornado")+" · Status: "+(result.status??"não retornado")+" · Verificado: "+date(result.checked_at)+(result.changed?" · MOVIMENTAÇÃO DETECTADA":"");
+     info.textContent="Etapa indicativa: "+editorialStage(result.stage)+" (código "+(result.stage??"—")+") · Status técnico: "+(result.status??"não retornado")+" · Verificado: "+date(result.checked_at)+(result.changed?" · MOVIMENTAÇÃO DETECTADA":"");
     }catch(e){info.textContent="Não foi possível consultar: "+e.message}finally{button.disabled=false}};
     item.appendChild(button);
    }
