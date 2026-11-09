@@ -113,3 +113,15 @@ Configuração do Supabase: em ujn_editorial_email_sources, habilitar revista e 
 Teste confirmado: payload de e-mail fictício assinado com HMAC identificou revisão solicitada na submissão 8267 (HTTP 200, zero mensagens enviadas). O coletor ainda não foi executado em IMAP real: falta host, usuário e credenciais locais. O corpo completo e assunto não são salvos no banco.
 
 O sistema gera apenas rascunhos de entrega PENDING_APPROVAL para destinatários confirmados. delivery_enabled permanece false. A Meta precisa aprovar o template editorial Utility antes da ativação de disparos. Mensagens desconhecidas e IDs ambíguos exigem revisão.
+
+### Webmail informado — 09/11/2026
+
+Captura de configuração cPanel/Webmail: conta contato@ujn.ojsbr.com; IMAPS mail.ujn.ojsbr.com:993 (SSL/TLS); SMTP mail.ujn.ojsbr.com:465. A senha não foi gravada nem usada na implantação. Por ter sido compartilhada no chat, é necessário trocá-la antes de usar o coletor.
+
+Arquivo de exemplo sem segredos: imap.env.example. Rodar o coletor em servidor seguro com senha e chave HMAC inseridas por meio de variáveis de ambiente (não importar arquivo público).
+
+**Pré-requisito ainda não verificado:** confirmar se a caixa recebe cópias dos e-mails que o OJS envia aos autores. A configuração de SMTP não demonstra que a caixa de entrada contém mensagens enviadas. Se necessário, pedir ao provedor da hospedagem uma regra de cópia de saída / journaling / BCC que preserve o endereço do autor. A caixa normal de enviados também só funciona se o sistema SMTP salvar cópia com o destinatário original.
+
+Não ativar a ingestão para as cinco revistas apenas porque foi informada uma conta central: confirmar quais remetentes são usados em cada revista, se a caixa é de monitoramento e quais eventos serão copiados. Os registros em ujn_editorial_email_sources devem permanecer com enabled=false até homologação.
+
+Requisitos para disparos: template Meta aprovado, opt-in e telefone do autor verificados, testes de deduplicação e entrega, e a flag delivery_enabled somente depois da validação.
