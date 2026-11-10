@@ -125,3 +125,25 @@ Arquivo de exemplo sem segredos: imap.env.example. Rodar o coletor em servidor s
 Não ativar a ingestão para as cinco revistas apenas porque foi informada uma conta central: confirmar quais remetentes são usados em cada revista, se a caixa é de monitoramento e quais eventos serão copiados. Os registros em ujn_editorial_email_sources devem permanecer com enabled=false até homologação.
 
 Requisitos para disparos: template Meta aprovado, opt-in e telefone do autor verificados, testes de deduplicação e entrega, e a flag delivery_enabled somente depois da validação.
+
+
+## Leitura direta da caixa institucional por IMAP — 10/11/2026
+
+A implementação atual não depende do filtro do cPanel ou da conta notificacoes@ujn.ojsbr.com. O script direct_inbox_collector.py utiliza mail.ujn.ojsbr.com:993, pasta INBOX, somente leitura, e identifica mensagens ao autor pela revista, assunto, URL e destinatário original.
+
+### Instalação segura no cPanel
+
+1. Remover o filtro Brain_UJN_Notificacoes da caixa contato@ujn.ojsbr.com, após confirmar que nada depende dele, porque não é usado nesta solução.
+2. Substituir a senha antiga de contato@ujn.ojsbr.com (foi exposta na conversa). Nunca adicionar a senha nova ao GitHub/chat.
+3. Criar no Gerenciador de Arquivos /home/ujn/brain-ujn e /home/ujn/brain-ujn/state fora de public_html. Colocar direct_inbox_collector.py no primeiro diretório.
+4. Criar arquivo privado de configuração (permissões 0600) a partir de direct-imap.env.example. Guardar UJN_IMAP_PASSWORD e UJN_EMAIL_INGEST_HMAC somente no servidor; obter a chave HMAC do Vault Supabase administrativamente, sem divulgá-la.
+5. Confirmar Python 3.11+ na hospedagem. Executar primeiro com UJN_DRY_RUN=1. Nesse modo a API somente classifica exemplos sem gravar ou enviar WhatsApp.
+6. Depois, manter delivery_enabled=false no Supabase e passar a UJN_DRY_RUN=0 para estabelecer o cursor da caixa (baseline) sem processar o histórico. As próximas execuções processam somente mensagens novas.
+7. Programar em cPanel → Avançado → Tarefas Cron a cada 5 minutos, com wrapper privado que carrega as variáveis sem expor a senha na linha Cron. Use flock para evitar jobs simultâneos.
+8. Habilitar cada fonte de e-mail no Supabase somente depois de confirmar o remetente autorizado de cada revista, a entrega real no IMAP e o vínculo do destinatário com uma submissão.
+
+### Segurança e limites
+
+Mensagens com destinatário editor/institucional são ignoradas, assim como e-mails de remetente desconhecido ou revista ambígua. Sem ID único e autor correspondente validado, não há envio. O script não altera flags de leitura, não apaga, não move e não salva conteúdo integral no banco. Telefone, opt-in e template da Meta continuam pré-requisitos.
+
+Teste já efetuado: endpoint de classificação recebeu um evento fictício REMUNOM com link workflowSubmissionId=8363 e retornou HTTP 200, submission_received, ID reconhecido e zero envios. A conexão IMAP real NÃO foi executada: é necessário configurar senha substituída no servidor do cPanel.
