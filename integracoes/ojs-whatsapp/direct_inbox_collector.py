@@ -193,8 +193,28 @@ def run():
  print(json.dumps(summary))
  database.close()
 
+def self_test():
+ # Testa parsing MIME/URL e bloqueio de aviso administrativo; sem IMAP/HTTPS.
+ sample=("From: REMUNOM <ujn@journals.ojsbr.com>\n"
+         "To: Test Author <autora@example.org>\n"
+         "Subject: Obrigado pela sua submissao para REMUNOM\n"
+         "Message-ID: <fixture-8363@example.org>\n"
+         "Content-Type: text/plain; charset=utf-8\n\n"
+         "Sua submissao: https://remunom.ojsbr.com/multidisciplinar/dashboard/mySubmissions?workflowSubmissionId=8363")
+ message=email.message_from_string(sample,policy=email.policy.default)
+ data,reason=classify_message(message)
+ assert reason=="ok" and data["journal"]=="REMUNOM" and data["recipient"]=="autora@example.org"
+ sample_editor=sample.replace("autora@example.org","contato@ujn.ojsbr.com")
+ editor=email.message_from_string(sample_editor,policy=email.policy.default)
+ d,r=classify_message(editor)
+ assert d is None and r=="not_author_recipient"
+ print(json.dumps({"python":"{}.{}.{}".format(*sys.version_info[:3]),"self_test":"ok",
+                   "network_calls":0,"whatsapp_sent":0}))
+
 if __name__=="__main__":
- try:run()
+ try:
+  if "--self-test" in sys.argv:self_test()
+  else:run()
  except Exception as err:
   print("IMAP collector failed: "+type(err).__name__,file=sys.stderr)
   sys.exit(1)
