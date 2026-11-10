@@ -162,3 +162,18 @@ O autoteste realiza parsing de uma mensagem fictícia, verifica o bloqueio de de
 **Não habilitar o Cron de produção ainda.** Para IMAP real faltam: senha renovada e configuração privada, chave HMAC do Vault, um modo de carregamento seguro de variáveis, baseline confirmada e autorização de destinatários. Nenhuma chave/senha deve ser enviada pelo chat, inserida no código Python ou escrita na linha do Cron.
 
 A função Supabase de classificação foi testada com mensagem fictícia de submissão REMUNOM e retornou HTTP 200 com ID correto; não representa um teste IMAP autenticado.
+
+
+## Verificacao IMAP com Python 3.6.8 (sem ativar WhatsApp)
+
+Foi adicionado [imap_probe.py](imap_probe.py) e [imap_config.example.json](imap_config.example.json). A ferramenta confirma a autenticacao IMAP e conta mensagens, mas nao le conteudo e nao envia notificacoes.
+
+Copie o script para /home/ujn/brain-ujn/imap_probe.py. Crie /home/ujn/brain-ujn/imap_config.json copiando o exemplo e preencha a senha **somente pelo editor do cPanel**, fora de public_html. Defina permissao 0600 para esse arquivo privado. Nao envie senha pelo chat nem registre em GitHub.
+
+Execute em tarefa Cron TEMPORARIA (uma vez por minuto):
+
+    /usr/bin/python3 /home/ujn/brain-ujn/imap_probe.py > /home/ujn/brain-ujn/state/imap-probe.log 2>&1
+
+Leia /home/ujn/brain-ujn/state/imap-diagnostico.json. Quando o status for OK, o login e a leitura INBOX estao confirmados. Exclua a tarefa temporaria apos obter o resultado.
+
+A rotina de envio WhatsApp permanece desligada no Supabase. O diagnostico nao equivale a integrar os cinco OJS, aprovar destinatarios ou agendar o coletor definitivo.
