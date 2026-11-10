@@ -3,7 +3,9 @@
 """Brain UJN - monitor local sem envio (Python 3.6.8+).
 Primeira execucao estabelece cursor; as proximas verificam mensagens novas.
 Diagnostica motivos agregados de exclusao sem registrar dados pessoais.
-Sem acesso ao Supabase/WhatsApp. IMAP read-only / BODY.PEEK[].
+Com ingest_config.json (600), envia eventos assinados ao Supabase.
+Sem a chave, mantem candidatos em fila SQLite para envio posterior.
+Nenhum disparo direto de WhatsApp. IMAP read-only / BODY.PEEK[].
 """
 import email
 import email.policy
@@ -16,13 +18,14 @@ import ssl
 import sys
 from pathlib import Path
 
-from direct_inbox_collector import classify_message
+from direct_inbox_collector import classify_message, call_service
 
 BASE = Path('/home/ujn/brain-ujn')
 CONF = BASE / 'imap_config.json'
 STATE = BASE / 'state'
 DB = STATE / 'brain-ujn-imap.sqlite'
 REPORT = STATE / 'monitor-status.json'
+INGEST_CONF = BASE / 'ingest_config.json'
 
 
 def output(status, counters, error=None):
@@ -39,9 +42,25 @@ def output(status, counters, error=None):
     print(json.dumps(result, ensure_ascii=False))
 
 
+def load_ingest_key():
+    """No key => retain pending UIDs without remote transfer."""
+    if not INGEST_CONF.exists():
+        return None
+    if INGEST_CONF.stat().st_mode & 0o077:
+        raise ValueError('UNSAFE_INGEST_KEY_PERMISSIONS')
+    with INGEST_CONF.open(encoding='utf-8') as fp:
+        data = json.load(fp)
+    key = data.get('hmac_key', '')
+    if not isinstance(key, str) or len(key) != 64 or any(c not in '0123456789abcdefABCDEF' for c in key):
+        raise ValueError('INVALID_INGEST_KEY')
+    return key
+
+
 def main():
     counters = {'examined': 0, 'author_candidates': 0, 'ignored': 0,
                 'new_messages': 0, 'baseline_initialized': False,
+                'ingest_configured': False, 'ingest_queued': 0,
+                'ingest_ok': 0, 'ingest_failed': 0, 'pending_backlog': 0,
                 'reasons': {}, 'journals': {'REMUNOM': 0, 'RJNM': 0,
                             'JIRRS': 0, 'NEXUS': 0, 'RSV': 0}}
     try:
@@ -58,6 +77,8 @@ def main():
             return 1
         STATE.mkdir(parents=True, exist_ok=True)
         db = sqlite3.connect(str(DB), timeout=10)
+        db.execute('CREATE TABLE IF NOT EXISTS pending_mail '
+                   '(uid INTEGER PRIMARY KEY, uidvalidity TEXT NOT NULL)')
         db.execute('CREATE TABLE IF NOT EXISTS mailbox_cursor '
                    '(id TEXT PRIMARY KEY, uidvalidity TEXT NOT NULL, last_uid INTEGER NOT NULL)')
         key = hashlib.sha256((host + '|' + username + '|INBOX').encode('utf-8')).hexdigest()
@@ -79,6 +100,7 @@ def main():
             current = db.execute('SELECT uidvalidity,last_uid FROM mailbox_cursor WHERE id=?',
                                  (key,)).fetchone()
             if current is None or current[0] != validity:
+                db.execute('DELETE FROM pending_mail')
                 db.execute('INSERT OR REPLACE INTO mailbox_cursor(id,uidvalidity,last_uid) '
                            'VALUES (?,?,?)', (key, validity, last_available))
                 db.commit()
@@ -100,6 +122,9 @@ def main():
                     if record:
                         counters['author_candidates'] += 1
                         counters['journals'][record['journal']] += 1
+                        db.execute('INSERT OR IGNORE INTO pending_mail(uid,uidvalidity) VALUES (?,?)',
+                                   (uid, validity))
+                        counters['ingest_queued'] += 1
                     else:
                         counters['ignored'] += 1
                         counters['reasons'][reason] = counters['reasons'].get(reason, 0) + 1
@@ -108,7 +133,42 @@ def main():
                     counters['reasons']['oversized_or_empty'] = counters['reasons'].get('oversized_or_empty', 0) + 1
                 db.execute('UPDATE mailbox_cursor SET last_uid=? WHERE id=?', (uid, key))
                 db.commit()
-            output('OK', counters)
+            # Flush queued candidates AFTER saving the mailbox cursor.
+            # A failed HTTPS call leaves its UID in pending_mail for retry.
+            key_secret = load_ingest_key()
+            counters['ingest_configured'] = bool(key_secret)
+            if key_secret:
+                pending = db.execute(
+                    'SELECT uid FROM pending_mail WHERE uidvalidity=? ORDER BY uid LIMIT 20',
+                    (validity,)).fetchall()
+                for (pending_uid,) in pending:
+                    typ, fetched = con.uid('fetch', str(pending_uid), '(BODY.PEEK[])')
+                    if typ != 'OK' or not fetched or not isinstance(fetched[0], tuple):
+                        # Deleted email or transient IMAP error; review rather than silently dropping.
+                        counters['ingest_failed'] += 1
+                        break
+                    raw = fetched[0][1]
+                    if not raw or len(raw) > 250000:
+                        counters['ingest_failed'] += 1
+                        break
+                    message = email.message_from_bytes(raw, policy=email.policy.default)
+                    record, reason = classify_message(message)
+                    if record is None:
+                        # A previously queued message no longer qualifies.
+                        db.execute('DELETE FROM pending_mail WHERE uid=?', (pending_uid,))
+                        db.commit()
+                        continue
+                    code, result = call_service(record, key_secret, False)
+                    if code == 200 and result.get('ok') is True:
+                        db.execute('DELETE FROM pending_mail WHERE uid=?', (pending_uid,))
+                        db.commit()
+                        counters['ingest_ok'] += 1
+                    else:
+                        counters['ingest_failed'] += 1
+                        break
+            counters['pending_backlog'] = db.execute(
+                'SELECT count(*) FROM pending_mail').fetchone()[0]
+            output('OK' if not counters['ingest_failed'] else 'INGEST_RETRY', counters)
             return 0
         finally:
             try:
