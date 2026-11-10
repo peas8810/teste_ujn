@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Brain UJN: coleta IMAP somente leitura da caixa editorial institucional.
 
-Python 3.11+; biblioteca padrão. Não altera, apaga nem marca mensagens como lidas.
+Compatível com Python 3.6.8+; biblioteca padrão. Não altera, apaga nem marca mensagens como lidas.
 Começa da posição atual (sem disparar histórico retroativo).
 Não registra assunto, e-mail, corpo ou credenciais em logs.
 Por padrão executa somente testes de classificação (UJN_DRY_RUN=1).
@@ -123,7 +123,7 @@ def call_service(data,secret,dry_run):
  },method="POST")
  try:
   with urlopen(req,timeout=25) as res:
-   return res.status,json.loads(res.read(4000))
+   return res.getcode(),json.loads(res.read(4000))
  except HTTPError as exc:
   return exc.code,{"error":"HTTP_"+str(exc.code)}
 
@@ -143,7 +143,7 @@ def run():
  database.execute("CREATE TABLE IF NOT EXISTS processed (id TEXT PRIMARY KEY, created_at TEXT DEFAULT CURRENT_TIMESTAMP)")
  summary={"dry_run":dry_run,"checked":0,"eligible":0,"review":0,"skipped":0,"failed":0,"baseline":False}
  boxid=hashlib.sha256((host+"|"+user+"|"+folder).encode()).hexdigest()
- with imaplib.IMAP4_SSL(host,port=993,ssl_context=ssl.create_default_context(),timeout=30) as client:
+ with imaplib.IMAP4_SSL(host,port=993,ssl_context=ssl.create_default_context()) as client:
   client.login(user,password)
   status,response=client.select(folder,readonly=True)
   if status!="OK":raise RuntimeError("IMAP folder unavailable")
