@@ -16,6 +16,7 @@ import os
 import sqlite3
 import ssl
 import sys
+from urllib.error import URLError
 from pathlib import Path
 
 from direct_inbox_collector import classify_message, call_service
@@ -137,6 +138,7 @@ def main():
             # A failed HTTPS call leaves its UID in pending_mail for retry.
             key_secret = load_ingest_key()
             counters['ingest_configured'] = bool(key_secret)
+            counters['dry_run'] = not bool(key_secret)
             if key_secret:
                 pending = db.execute(
                     'SELECT uid FROM pending_mail WHERE uidvalidity=? ORDER BY uid LIMIT 20',
@@ -177,7 +179,7 @@ def main():
                 pass
             db.close()
     except (OSError, ssl.SSLError, imaplib.IMAP4.error, ValueError, TypeError,
-            UnicodeError, sqlite3.Error):
+            UnicodeError, sqlite3.Error, URLError, TimeoutError):
         output('ERROR', counters, 'IMAP_OR_CONFIGURATION_ERROR')
         return 1
 
