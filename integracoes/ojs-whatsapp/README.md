@@ -147,3 +147,18 @@ A implementação atual não depende do filtro do cPanel ou da conta notificacoe
 Mensagens com destinatário editor/institucional são ignoradas, assim como e-mails de remetente desconhecido ou revista ambígua. Sem ID único e autor correspondente validado, não há envio. O script não altera flags de leitura, não apaga, não move e não salva conteúdo integral no banco. Telefone, opt-in e template da Meta continuam pré-requisitos.
 
 Teste já efetuado: endpoint de classificação recebeu um evento fictício REMUNOM com link workflowSubmissionId=8363 e retornou HTTP 200, submission_received, ID reconhecido e zero envios. A conexão IMAP real NÃO foi executada: é necessário configurar senha substituída no servidor do cPanel.
+
+
+## Atualização 10/11/2026 — Python 3.6.8 do cPanel
+
+O servidor da UJN tem /usr/bin/python3 = 3.6.8. O script **direct_inbox_collector.py foi atualizado** para suportar essa versão (o argumento timeout da biblioteca IMAP foi removido). O arquivo que estava instalado antes da atualização precisa ser substituído pelo arquivo atual do GitHub.
+
+Primeiro, testar sem configurar credenciais nem acessar e-mails. Agendar TEMPORARIAMENTE uma execução via Cron de:
+
+    /usr/bin/python3 /home/ujn/brain-ujn/direct_inbox_collector.py --self-test > /home/ujn/brain-ujn/state/self-test.txt 2>&1
+
+O autoteste realiza parsing de uma mensagem fictícia, verifica o bloqueio de destinatários administrativos e produz JSON com self_test: ok, network_calls: 0 e whatsapp_sent: 0. Remover a tarefa temporária imediatamente depois de ler o resultado.
+
+**Não habilitar o Cron de produção ainda.** Para IMAP real faltam: senha renovada e configuração privada, chave HMAC do Vault, um modo de carregamento seguro de variáveis, baseline confirmada e autorização de destinatários. Nenhuma chave/senha deve ser enviada pelo chat, inserida no código Python ou escrita na linha do Cron.
+
+A função Supabase de classificação foi testada com mensagem fictícia de submissão REMUNOM e retornou HTTP 200 com ID correto; não representa um teste IMAP autenticado.
