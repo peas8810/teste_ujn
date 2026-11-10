@@ -177,3 +177,32 @@ Execute em tarefa Cron TEMPORARIA (uma vez por minuto):
 Leia /home/ujn/brain-ujn/state/imap-diagnostico.json. Quando o status for OK, o login e a leitura INBOX estao confirmados. Exclua a tarefa temporaria apos obter o resultado.
 
 A rotina de envio WhatsApp permanece desligada no Supabase. O diagnostico nao equivale a integrar os cinco OJS, aprovar destinatarios ou agendar o coletor definitivo.
+
+
+## Fechamento auditado em 10/11/2026 — monitor e fila editorial
+
+O Cron `*/5 * * * *` do cPanel está operacional em Python 3.6.8, com leitura IMAP da caixa institucional em modo somente leitura. A baseline foi estabelecida e um e-mail novo foi examinado sem envio (status OK; ignored=1).
+
+O arquivo [imap_monitor.py](imap_monitor.py) agora inclui contadores agregados `reasons` para descartes e `journals` para candidatos identificados; continua sem registrar endereço ou corpo nos logs. Substituir o arquivo do cPanel pelo atual **sem apagar a pasta state ou o banco SQLite**, preservando o cursor e evitando reprocessar histórico. Não é necessário recriar o Cron.
+
+### Integração do Supabase confirmada
+
+- `ujn-editorial-email-ingest`: recebe eventos com HMAC; classifica e evita duplicidade, prepara rascunhos somente quando há correspondência inequívoca revista + submissão + hash do e-mail e opt-in verificado.
+- `ujn-editorial-wa-poll`: existe para consulta OJS por API de submissões consentidas e criação de rascunhos em mudanças de status.
+- `ujn-editorial-wa-dispatch`: exige flag `delivery_enabled=true`, registro aprovado (`READY`), consentimento, verificação e template; a flag continua **false**.
+- Auditoria SQL: as cinco fontes `ujn_editorial_email_sources` continuam `enabled=false` e `allowed_sender_addresses=[]`; `ujn_editorial_wa_recipients` continua vazia. Não ativar envios antes da homologação.
+
+### Bloqueadores reais para produção
+
+1. **Cobertura**: `contato@ujn.ojsbr.com` não recebe necessariamente as notificações direcionadas aos autores; ler esta caixa isoladamente não captura automaticamente todas as movimentações dos cinco OJS. É necessário evento gerado pelo OJS para autores, cópia legítima de cada notificação ou sondagem API autenticada por submissão; não afirmar cobertura integral a partir de e-mails ao editor.
+2. **Identidade**: cadastrar autores consentidos, com telefone E.164, revista, ID OJS, hash de e-mail, evidência do consentimento e verificação. Não inferir telefone da assinatura de um e-mail ou cruzar nomes iguais.
+3. **Template Meta**: aprovar `ujn_editorial_update_ptbr`, mapear variáveis permitidas e validar número oficial em homologação. Não incluir pareceres ou links internos administrativos nas mensagens.
+4. **HMAC e execução**: usar secret privado apenas no cPanel, sem publicá-lo em GitHub. A rotina atual `imap_monitor.py` é monitor local; não faz POST para ingest. Habilitar e testar a ponte assinada separadamente antes de ativar fontes.
+5. **Governança**: manter eventos como `PENDING_APPROVAL` até aprovação explícita, impedir duplicidades, acompanhar falhas e opt-out; somente então considerar liberar `delivery_enabled`.
+
+### Critérios de aceite
+
+- Teste real de cada uma das cinco revistas com submissão de homologação e destinatário autorizado; sem envio a terceiros não autorizados.
+- Simular os estados submissão, revisão, nova comunicação, decisão, edição e publicação; garantir que uma única mudança gera no máximo um rascunho por autor elegível.
+- Confirmar os dois caminhos: IMAP (somente mensagens efetivamente recebidas) e polling OJS (para submissões monitoradas), sem dados privados no WhatsApp.
+- Auditar entrega com recibos da Meta, erros, revogação e descadastro.
