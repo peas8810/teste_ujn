@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 """Brain UJN - monitor local sem envio (Python 3.6.8+).
 Primeira execucao estabelece cursor; as proximas verificam mensagens novas.
+Diagnostica motivos agregados de exclusao sem registrar dados pessoais.
 Sem acesso ao Supabase/WhatsApp. IMAP read-only / BODY.PEEK[].
 """
 import email
@@ -40,7 +41,9 @@ def output(status, counters, error=None):
 
 def main():
     counters = {'examined': 0, 'author_candidates': 0, 'ignored': 0,
-                'new_messages': 0, 'baseline_initialized': False}
+                'new_messages': 0, 'baseline_initialized': False,
+                'reasons': {}, 'journals': {'REMUNOM': 0, 'RJNM': 0,
+                            'JIRRS': 0, 'NEXUS': 0, 'RSV': 0}}
     try:
         if CONF.stat().st_mode & 0o077:
             output('ERROR', counters, 'UNSAFE_PERMISSIONS')
@@ -96,10 +99,13 @@ def main():
                     counters['examined'] += 1
                     if record:
                         counters['author_candidates'] += 1
+                        counters['journals'][record['journal']] += 1
                     else:
                         counters['ignored'] += 1
+                        counters['reasons'][reason] = counters['reasons'].get(reason, 0) + 1
                 else:
                     counters['ignored'] += 1
+                    counters['reasons']['oversized_or_empty'] = counters['reasons'].get('oversized_or_empty', 0) + 1
                 db.execute('UPDATE mailbox_cursor SET last_uid=? WHERE id=?', (uid, key))
                 db.commit()
             output('OK', counters)
