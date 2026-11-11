@@ -127,7 +127,7 @@ async function aiDash(){
 }
 async function aiSuggest(request){
  const dest=$("aiSuggestion");dest.classList.remove("hidden");dest.textContent="Gerando rascunho supervisionado...";
- try{const r=await insight(INSIGHTS_AI,"suggest_reply",request);dest.replaceChildren(elem("strong","Resposta sugerida — não enviada"),elem("p",r.draft.suggested_reply),elem("p","Revisão humana obrigatória. Dados pessoais mascarados antes da análise.","hint"));aiDash()}catch(e){dest.textContent="Não foi possível gerar: "+e.message}
+ try{const r=await insight(INSIGHTS_AI,"suggest_reply",request);dest.replaceChildren(elem("strong",(r.engine==="modelo_ia"?"IA generativa":"Triagem por regras")+" · Rascunho não enviado"),elem("p",r.draft.suggested_reply),elem("p","Revisão humana obrigatória. Dados pessoais mascarados antes da análise.","hint"));aiDash()}catch(e){dest.textContent="Não foi possível gerar: "+e.message}
 }
 async function menuLoad(){try{if(!role?.superuser)throw Error("Somente superadministrador.");const d=await call({action:"menu_get"});if(!d.menu)throw Error("Menu indisponível");menuVersion=d.menu.version;$("menuText").value=d.menu.body;$("saveMenu").disabled=false;say("Mensagem carregada. Versão "+menuVersion)}catch(e){say(e.message,true)}}
 async function menuSave(){if(!Number.isInteger(menuVersion))return;if(!confirm("Publicar esta mensagem como menu de produção no WhatsApp?"))return;try{const d=await call({action:"menu_save",version:menuVersion,body:$("menuText").value});menuVersion=d.version;say("Menu atualizado. Versão "+menuVersion)}catch(e){say(e.message,true)}}
