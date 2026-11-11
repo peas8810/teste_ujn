@@ -77,7 +77,8 @@ const INSIGHTS_AI=BASE+"/functions/v1/ujn-brain-ai-insights";
 let marketingCache=null,aiCache=null;
 async function insight(url,action,params={}){
  if(!token||!role?.superuser)throw Error("Acesso restrito ao superadministrador.");
- const r=await fetch(url,{method:"POST",cache:"no-store",headers:{apikey:PUB,authorization:"Bearer "+token,"content-type":"application/json"},body:JSON.stringify({action,...params})});
+ const headers={authorization:"Bearer "+token,"content-type":"application/json"};if(url===INSIGHTS_AI)headers.apikey=PUB;
+ const r=await fetch(url,{method:"POST",cache:"no-store",headers,body:JSON.stringify({action,...params})});
  const d=await r.json().catch(()=>({}));if(!r.ok)throw Error(d.error||"Falha ao consultar insights");return d;
 }
 function titleText(text){return elem("strong",text)}
