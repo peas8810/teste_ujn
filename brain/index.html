@@ -146,7 +146,7 @@
     <div><div class="crm-next-eyebrow">CENTRAL EDITORIAL · WHATSAPP BUSINESS</div><h1>Mensagens e atendimento</h1><p>Histórico completo por autor e artigo, respostas e confirmações da Meta.</p></div>
     <div class="crm-next-header-actions"><span class="crm-next-live"><i></i> OJS conectado</span><span id="crmNextLastSync" style="font-size:11px;color:#657b8b">Sincronização pendente</span><button class="btn" id="crmNextRefresh">↻ Atualizar</button></div>
   </header>
-  <div class="crm-next-templatebar" id="crmTemplateBar">
+  <div class="crm-next-templatebar hidden" id="crmTemplateBar" aria-hidden="true">
     <div><strong>Modelo de notificação com link para o artigo</strong><span id="crmTemplateState">Consultando situação na Meta…</span></div>
     <div class="crm-next-templateactions">
       <input id="crmWabaId" inputmode="numeric" placeholder="ID da conta WhatsApp Business (WABA)" aria-label="ID da conta WhatsApp Business" maxlength="30">
@@ -728,7 +728,7 @@ function crmNextExportAudit(){
 async function editorialWa(){
  const root=$("editorialStats");root.replaceChildren(elem("p","Consultando registros…"));
  try{
-  const d=await editorialCall("?data=1");editorialCache=d;renderEditorial(d);crmNextRender(d);crmTemplateUpdate("get_status").catch(e=>{$("crmTemplateState").textContent="Não foi possível consultar a situação do modelo: "+e.message});
+  const d=await editorialCall("?data=1");editorialCache=d;renderEditorial(d);crmNextRender(d);
  }catch(e){root.replaceChildren(elem("p",e.message,"notice error"));$("editorialContacts").replaceChildren();$("editorialDeliveries").replaceChildren();$("editorialReplies").replaceChildren()}
 }
 function renderEditorial(d){
