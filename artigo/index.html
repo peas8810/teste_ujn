@@ -1,0 +1,19 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><title>Acompanhar artigo — Editora UJN</title><style>body{margin:0;background:#f1f5f6;color:#143447;font:16px system-ui,-apple-system,Segoe UI,sans-serif;display:grid;min-height:100vh;place-items:center}.card{background:white;padding:36px;border-radius:18px;max-width:530px;margin:18px;box-shadow:0 9px 40px #17384b10}h1{margin:9px 0 15px;font-size:25px}p{line-height:1.65;color:#4c6674}.brand{color:#087c67;font-size:12px;font-weight:800;letter-spacing:1px}a{display:inline-block;margin-top:12px;background:#087c67;color:white;padding:12px 19px;border-radius:9px;text-decoration:none;font-weight:bold}</style></head><body><main class="card"><div class="brand">EDITORA UJN · ACOMPANHAMENTO EDITORIAL</div><h1>Abrir submissão no OJS</h1><p id="message">Verificando o link do artigo…</p><a id="go" hidden rel="noopener noreferrer">Acessar meu artigo</a><p style="font-size:12px">Para acompanhar sua submissão, faça login com sua conta de autor no sistema da revista. A Editora UJN não solicita sua senha pelo WhatsApp.</p></main><script>
+(function(){
+ const bases=Object.freeze({
+  REMUNOM:"https://remunom.ojsbr.com/multidisciplinar",
+  RSV:"https://rsv.ojsbr.com/rsv",
+  RJNM:"https://jrnm.ojsbr.com/juridica",
+  JIRRS:"https://jirrs.org.uk/jirrs",
+  NEXUS:"https://nexussr.org.uk/nexussr"
+ });
+ const ref=new URLSearchParams(location.search).get("ref")||"";
+ const m=/^(REMUNOM|RSV|RJNM|JIRRS|NEXUS)-([1-9][0-9]{0,8})$/.exec(ref);
+ const label=document.getElementById("message"),a=document.getElementById("go");
+ if(!m||!Object.prototype.hasOwnProperty.call(bases,m[1])){label.textContent="Este link não identifica um artigo válido da Editora UJN. Solicite um novo link à revista.";return}
+ const url=bases[m[1]]+"/dashboard/mySubmissions?workflowSubmissionId="+m[2];
+ a.href=url;a.hidden=false;
+ label.textContent="Você será direcionado à "+m[1]+", manuscrito #"+m[2]+". Se necessário, entre com seu usuário e senha do OJS.";
+ setTimeout(()=>location.replace(url),650);
+})();
+</script></body></html>
