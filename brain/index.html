@@ -431,10 +431,227 @@ async function crmSaveContact(){
   await editorialWa();
  }catch(e){$("crmContactSaved").textContent="Não foi possível salvar: "+e.message}
 }
+
+const crmNextLabels={
+ activation_confirmed:"Notificações editoriais ativadas",
+ submission_received:"Submissão recebida",editor_assigned:"Editor designado",
+ review_started:"Avaliação iniciada",review_round_created:"Nova rodada de avaliação",
+ review_requested:"Revisão solicitada",review_completed:"Avaliação atualizada",
+ revision_requested:"Correções solicitadas",revision_submitted:"Correções recebidas",
+ editor_message_available:"Nova comunicação editorial",author_message_available:"Nova mensagem disponível",
+ editorial_decision:"Decisão editorial registrada",accepted:"Artigo aceito",declined:"Decisão editorial registrada",
+ copyediting_started:"Editoração iniciada",production_started:"Produção iniciada",
+ proof_requested:"Prova disponível",published:"Artigo publicado",other_activity:"Movimentação editorial"};
+let crmNextSelectedPhone=null,crmNextTab="inbox",crmNextData=null,crmNextSetup=false;
+const crmNextPhone=x=>String(x||"").replace(/\D/g,"");
+const crmNextStatus=d=>d.read_at?"LIDA":d.delivered_at?"ENTREGUE":d.state==="SENT"?"ACEITA META":d.state||"PENDENTE";
+const crmNextStatusClass=s=>s==="LIDA"||s==="ENTREGUE"?"good":/FAILED|BLOCKED|CANCELLED|ERRO/.test(s)?"bad":s==="ACEITA META"?"blue":"warn";
+const crmNextLocal=t=>t?new Date(t).toLocaleString("pt-BR",{timeZone:"America/Sao_Paulo",day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit",second:"2-digit"}):"Não confirmado";
+const crmNextDate=t=>t?new Date(t).toLocaleDateString("pt-BR",{timeZone:"America/Sao_Paulo"}):"";
+function crmNextNode(tag,text,className){
+ const n=document.createElement(tag);if(text!==undefined&&text!==null)n.textContent=String(text);if(className)n.className=className;return n;
+}
+function crmNextSetupSections(){
+ if(crmNextSetup)return;crmNextSetup=true;
+ const legacy=$("crmNextLegacyReports"),report=$("crmNextReports"),records=$("crmNextRecords");
+ if(!legacy||!report||!records)return;
+ for(const id of ["editorialStats","crmVolumeChart","crmDeliveryProgress","crmQueueTable"]){
+  const node=$(id);if(!node)continue;
+  const wrapper=id==="editorialStats"?node:id==="crmVolumeChart"||id==="crmDeliveryProgress"?node.closest(".crm-surface"):node.closest(".crm-surface");
+  if(wrapper&&wrapper.parentElement)report.append(wrapper);
+ }
+ const two=legacy.querySelector(".crm-two-col");if(two&&two.children.length)report.append(two);
+ for(const id of ["editorialContacts","editorialDeliveries","editorialReplies","editorialContactService"]){
+  const node=$(id);if(!node)continue;const wrapper=node.closest(".card");
+  if(wrapper)records.append(wrapper);
+ }
+ // Keep hidden filters and SLA controls in the document, so the existing
+ // CRM reporting logic remains intact even when another tab is selected.
+}
+function crmNextSwitchTab(tab){
+ crmNextTab=tab;
+ for(const button of document.querySelectorAll("[data-crm-view]"))button.classList.toggle("active",button.dataset.crmView===tab);
+ $("crmNextOverview").classList.toggle("hidden",tab!=="inbox");
+ $("crmNextReports").classList.toggle("hidden",tab!=="report");
+ $("crmNextRecords").classList.toggle("hidden",tab!=="records");
+ $("crmNextLegacyReports").classList.add("hidden");
+ if(tab==="report"&&crmNextData)crmRender(crmNextData);
+}
+function crmNextContacts(d){
+ const map=new Map();
+ const join=(p)=>{const key=crmNextPhone(p);if(!key)return null;if(!map.has(key))map.set(key,{phone:key,requests:[],recipients:[],messages:[],inbound:[],chats:[],crm:[]});return map.get(key)};
+ for(const x of d.requests||[]){const o=join(x.phone_e164);if(o)o.requests.push(x)}
+ for(const x of d.recipients||[]){const o=join(x.phone_e164);if(o)o.recipients.push(x)}
+ for(const x of d.inbound||[]){const o=join(x.phone);if(o)o.inbound.push({...x,time:x.created_at})}
+ for(const x of d.replies||[]){
+  const o=join(x.phone_e164);if(!o)continue;
+  const exists=o.inbound.some(m=>m.body===x.body&&Math.abs(Date.parse(m.time||0)-Date.parse(x.received_at||0))<60000);
+  if(!exists)o.inbound.push({...x,time:x.received_at})
+ }
+ for(const x of d.chats||[]){const o=join(x.phone);if(o)o.chats.push(x)}
+ for(const x of d.crm||[]){const o=join(x.phone);if(o)o.crm.push(x)}
+ const byRecipient=new Map((d.recipients||[]).map(x=>[x.id,crmNextPhone(x.phone_e164)]));
+ for(const x of d.deliveries||[]){const key=byRecipient.get(x.recipient_id);if(key){const o=map.get(key);if(o)o.messages.push(x)}}
+ return [...map.values()].map(o=>{
+  o.active=o.recipients.some(r=>r.consent_at&&r.verified_at&&!r.revoked_at);
+  o.latest=Math.max(0,...o.messages.map(x=>Date.parse(x.created_at||0)||0),...o.inbound.map(x=>Date.parse(x.time||0)||0),...o.requests.map(x=>Date.parse(x.accepted_at||x.created_at||0)||0));
+  o.error=o.messages.some(x=>["FAILED","BLOCKED"].includes(x.state));
+  o.author=o.requests.find(x=>x.source==="ojs-submission")?.email||o.requests[0]?.email||"Contato registrado";
+  return o;
+ }).sort((a,b)=>b.latest-a.latest);
+}
+function crmNextRender(d){
+ crmNextData=d;crmNextSetupSections();
+ const contacts=crmNextContacts(d);
+ const sent=(d.deliveries||[]).filter(x=>x.state==="SENT"||x.state==="DELIVERED"||x.delivered_at);
+ const delivered=(d.deliveries||[]).filter(x=>x.delivered_at);
+ const read=(d.deliveries||[]).filter(x=>x.read_at);
+ const failed=(d.deliveries||[]).filter(x=>["FAILED","BLOCKED"].includes(x.state));
+ const cards=[["Contatos",contacts.length,"Com telefone registrado"],["Ativos",contacts.filter(x=>x.active).length,"Vinculados ao OJS"],["Mensagens aceitas",sent.length,"Provedor Meta"],["Entregues",delivered.length,"Confirmadas pela Meta"],["Lidas",read.length,"Confirmação recebida"]];
+ $("crmNextCards").replaceChildren(...cards.map(([label,n,foot])=>{
+  const card=crmNextNode("div",null,"crm-next-card");card.append(crmNextNode("div",label,"label"),crmNextNode("strong",n,"number"),crmNextNode("div",foot,"extra"));return card;
+ }));
+ const prior=contacts.find(x=>x.phone===crmNextSelectedPhone);
+ if(!prior)crmNextSelectedPhone=contacts[0]?.phone||null;
+ crmNextDrawContacts(contacts);
+ crmNextDrawThread(d,contacts.find(x=>x.phone===crmNextSelectedPhone)||null);
+ crmNextDrawAudit(d);
+}
+function crmNextDrawContacts(contacts){
+ const root=$("crmNextContacts"),q=$("crmNextSearch").value.toLowerCase().trim(),filter=$("crmNextStatus").value;root.replaceChildren();
+ const list=contacts.filter(x=>(!q||[x.author,x.phone,...x.requests.map(r=>r.submission_id||"")].join(" ").toLowerCase().includes(q))&&
+ (!filter||filter==="active"&&x.active||filter==="pending"&&!x.active||filter==="reply"&&x.inbound.length>0||filter==="issue"&&x.error));
+ $("crmNextCount").textContent=list.length+" registros";
+ if(!list.length){root.append(crmNextNode("div","Nenhum contato corresponde à pesquisa.","crm-next-empty"));return;}
+ for(const x of list){
+  const btn=crmNextNode("button",null,"crm-next-contact"+(x.phone===crmNextSelectedPhone?" selected":""));btn.dataset.crmnextphone=x.phone;
+  const avatar=crmNextNode("div",(x.author.includes("@")?x.author[0]:x.author.slice(0,2)).toUpperCase(),"crm-next-circle");
+  const info=crmNextNode("div");
+  info.append(crmNextNode("div",x.author,"name"),crmNextNode("div","+"+x.phone+" · "+(x.recipients[0]?.journal_code||x.requests[0]?.journal_code||"Não vinculado"),"sub"));
+  const bottom=crmNextNode("div",null,"bottom");
+  bottom.append(crmNextNode("span",x.error?"Falha":x.active?"Acompanhamento ativo":"Aguardando vínculo","crm-next-tag "+(x.error?"bad":x.active?"good":"warn")));
+  bottom.append(crmNextNode("span",x.latest?crmNextDate(x.latest):"","latest"));
+  info.append(bottom);btn.append(avatar,info);root.append(btn);
+ }
+}
+function crmNextDeliveryDetails(d,e){
+ const state=crmNextStatus(d),label=crmNextLabels[e.event_type]||e.event_type||"Atualização editorial";
+ return {state,label,params:["Autor(a)",e.journal_code||"—",String(e.submission_id||"—"),label]};
+}
+function crmNextBuildTimeline(d,contact){
+ const ids=new Set(contact.recipients.map(x=>x.id)),eventMap=new Map((d.events||[]).map(x=>[x.id,x])),records=[];
+ for(const item of contact.messages){
+  const event=eventMap.get(item.event_id)||{};
+  const detail=crmNextDeliveryDetails(item,event);
+  records.push({kind:"out",at:item.created_at,delivery:item,event,label:detail.label,params:detail.params});
+ }
+ for(const inbound of contact.inbound){records.push({kind:"in",at:inbound.time||inbound.received_at,body:inbound.body})}
+ return records.sort((a,b)=>Date.parse(a.at||0)-Date.parse(b.at||0));
+}
+function crmNextDrawThread(d,contact){
+ const root=$("crmNextMessages");root.replaceChildren();
+ $("crmNextPerson").textContent=contact?.author||"Selecione um contato";
+ $("crmNextThreadSub").textContent=contact?"+"+contact.phone+" · "+contact.messages.length+" notificações · "+contact.inbound.length+" respostas":"Histórico do WhatsApp e do OJS";
+ $("crmNextOpenCare").disabled=!contact;$("crmNextStartCare").disabled=!contact;
+ $("crmNextComposeHint").textContent=contact?.chats.length?"Conversa localizada na Central UJN. Envio livre sujeito à janela de 24 horas da Meta.":"Sem conversa iniciada na central; mensagens proativas exigem modelo aprovado pela Meta.";
+ if(!contact){root.append(crmNextNode("div","Selecione um contato para visualizar o histórico de envios.","crm-next-empty"));$("crmNextProfile").replaceChildren();return}
+ const records=crmNextBuildTimeline(d,contact);let previousDay="";
+ for(const x of records){
+  const day=crmNextDate(x.at);
+  if(day!==previousDay){root.append(crmNextNode("div",day,"crm-next-date"));previousDay=day}
+  const bubble=crmNextNode("div",null,"crm-next-bubble "+x.kind);
+  if(x.kind==="out"){
+   const state=crmNextStatus(x.delivery),code=crmNextStatusClass(state);
+   const head=crmNextNode("div",null,"source");head.append(crmNextNode("span","WhatsApp · modelo aprovado"),crmNextNode("span",state,"crm-next-tag "+code));bubble.append(head);
+   const contents=crmNextNode("div",null,"content");
+   contents.append(crmNextNode("strong",x.label));
+   contents.append(crmNextNode("div","Revista: "+(x.event.journal_code||"—")+"  |  Manuscrito: #"+(x.event.submission_id||"—")));
+   if(x.event.title)contents.append(crmNextNode("div",x.event.title.trim()));
+   contents.append(crmNextNode("div","Parâmetros enviados à Meta: "+x.params.join(" · ")));
+   if(x.event.summary)contents.append(crmNextNode("div","Resumo editorial: "+x.event.summary));
+   contents.append(crmNextNode("div","Modelo: "+(x.delivery.template_name||"—")+" · "+(x.delivery.template_locale||"pt_BR")));
+   bubble.append(contents);
+   const foot=crmNextNode("div",null,"minor");
+   for(const [key,value] of [["Fila",x.delivery.created_at],["Entrega",x.delivery.delivered_at],["Leitura",x.delivery.read_at]]){
+    if(!value&&key!=="Fila")continue;foot.append(crmNextNode("span",key+": "+crmNextLocal(value)));
+   }
+   bubble.append(foot);
+  }else{
+   bubble.append(crmNextNode("div","Resposta recebida do contato","source"));
+   bubble.append(crmNextNode("div",x.body||"(mensagem sem texto)","content"));
+   bubble.append(crmNextNode("div",crmNextLocal(x.at),"minor"));
+  }
+  root.append(bubble);
+ }
+ if(!records.length)root.append(crmNextNode("div","Nenhuma notificação ou resposta registrada para este número.","crm-next-empty"));
+ root.scrollTop=root.scrollHeight;
+ crmNextDrawProfile(d,contact);
+}
+function crmNextDrawProfile(d,c){
+ const root=$("crmNextProfile");root.replaceChildren();if(!c)return;
+ const body=crmNextNode("div",null,"crm-next-profile-body");body.append(crmNextNode("div",c.author,"crm-next-profile-name"));
+ const field=(label,value)=>{body.append(crmNextNode("div",label,"crm-next-profile-key"),crmNextNode("div",value||"Não registrado","crm-next-profile-value"))};
+ field("WhatsApp","+"+c.phone);field("E-mail",c.author);
+ field("Autorização",c.active?"Acompanhamento ativo":"Cadastro pendente");
+ const accepted=c.requests.map(x=>x.accepted_at).filter(Boolean).sort()[0];field("Aceite",accepted?crmNextLocal(accepted):"Não identificado");
+ const latestDelivery=c.messages.filter(x=>x.delivered_at).sort((a,b)=>Date.parse(b.delivered_at)-Date.parse(a.delivered_at))[0];
+ field("Última entrega confirmada",latestDelivery?crmNextLocal(latestDelivery.delivered_at):"Nenhuma");
+ const meta=crmMetaFor(d,"+"+c.phone);
+ field("Prioridade",meta.priority||"NORMAL");
+ if(meta.labels?.length)field("Etiquetas",meta.labels.join(", "));
+ if(meta.internal_note)field("Notas internas",meta.internal_note);
+ body.append(crmNextNode("div","Manuscritos relacionados","crm-next-profile-key"));
+ const articles=new Map();
+ for(const x of c.recipients)if(x.journal_code&&x.submission_id)articles.set(x.journal_code+":"+x.submission_id,{journal:x.journal_code,id:x.submission_id});
+ for(const x of c.requests)if(x.journal_code&&x.submission_id)articles.set(x.journal_code+":"+x.submission_id,{journal:x.journal_code,id:x.submission_id});
+ for(const a of articles.values()){
+  const box=crmNextNode("div",null,"crm-next-profile-article");box.append(crmNextNode("strong",a.journal+" · #"+a.id));
+  const event=(d.events||[]).find(e=>e.journal_code===a.journal&&String(e.submission_id)===String(a.id)&&e.title);
+  if(event?.title)box.append(crmNextNode("p",event.title.trim()));
+  const count=c.messages.filter(m=>{const ev=(d.events||[]).find(e=>e.id===m.event_id);return ev?.journal_code===a.journal&&String(ev?.submission_id)===String(a.id)}).length;
+  box.append(crmNextNode("span",count+" notificações registradas","crm-next-tag blue"));
+  body.append(box);
+ }
+ if(!articles.size)body.append(crmNextNode("p","Nenhum manuscrito vinculado. O cadastro pode ter sido originado de uma campanha.","crm-next-empty"));
+ const care=crmNextNode("button","Abrir ficha e atendimento","btn crm-next-profile-button");care.dataset.crmnextcare=c.phone;body.append(care);
+ root.append(body);
+}
+function crmNextDrawAudit(d){
+ const root=$("crmNextAudit");root.replaceChildren();const events=new Map((d.events||[]).map(x=>[x.id,x])),recipients=new Map((d.recipients||[]).map(x=>[x.id,x])),contactMap=new Map();
+ for(const x of d.requests||[]){const key=crmNextPhone(x.phone_e164);if(!contactMap.has(key))contactMap.set(key,x.email)}
+ const table=crmNextNode("table",null,"crm-next-audit"),head=crmNextNode("thead"),headrow=crmNextNode("tr");
+ for(const h of ["Registrada em","Autor / telefone","Revista · artigo","Movimentação / conteúdo","Meta","Entregue em","Lida em","Falha"]){headrow.append(crmNextNode("th",h))}
+ head.append(headrow);table.append(head);const body=crmNextNode("tbody");
+ for(const x of (d.deliveries||[]).slice(0,200)){
+  const e=events.get(x.event_id)||{},r=recipients.get(x.recipient_id)||{},phone=crmNextPhone(r.phone_e164);
+  const row=crmNextNode("tr");row.dataset.crmnextauditphone=phone;
+  const detail=crmNextDeliveryDetails(x,e);
+  const values=[crmNextLocal(x.created_at),(contactMap.get(phone)||"—")+" · +"+phone,(e.journal_code||"—")+" #"+(e.submission_id||"—"),detail.label+" | "+detail.params.join(" · "),
+    crmNextStatus(x),x.delivered_at?crmNextLocal(x.delivered_at):"—",x.read_at?crmNextLocal(x.read_at):"—",x.last_error_code||"—"];
+  values.forEach((v,i)=>{const td=crmNextNode("td",v);if(i===3)td.className="preview";if(i===4)td.append(crmNextNode("span","", "crm-next-tag "+crmNextStatusClass(crmNextStatus(x))));row.append(td)});
+  body.append(row);
+ }
+ table.append(body);root.append(table);
+ if(!body.children.length)root.append(crmNextNode("div","Nenhum envio no período.","crm-next-empty"));
+}
+function crmNextExportAudit(){
+ if(!crmNextData)return;
+ const d=crmNextData,events=new Map((d.events||[]).map(e=>[e.id,e])),recipients=new Map((d.recipients||[]).map(r=>[r.id,r]));
+ const rows=[["Fila em","Revista","ID artigo","Evento","Modelo","Parâmetros","Telefone","Estado","Entrega","Leitura","Erro"]];
+ for(const x of d.deliveries||[]){
+  const e=events.get(x.event_id)||{},r=recipients.get(x.recipient_id)||{};
+  const fields=crmNextDeliveryDetails(x,e);
+  rows.push([crmNextLocal(x.created_at),e.journal_code||"",e.submission_id||"",fields.label,x.template_name||"",fields.params.join(" / "),r.phone_e164||"",crmNextStatus(x),crmNextLocal(x.delivered_at),crmNextLocal(x.read_at),x.last_error_code||""]);
+ }
+ const escape=v=>{let s=String(v??"");if(/^[=+@\-\t\r]/.test(s))s="'"+s;return '"'+s.replace(/"/g,'""')+'"'};
+ const blob=new Blob(["\ufeff"+rows.map(r=>r.map(escape).join(";")).join("\r\n")],{type:"text/csv;charset=utf-8"});
+ const url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="brain-ujn-auditoria-whatsapp-"+new Date().toISOString().slice(0,10)+".csv";
+ document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
 async function editorialWa(){
  const root=$("editorialStats");root.replaceChildren(elem("p","Consultando registros…"));
  try{
-  const d=await editorialCall("?data=1");editorialCache=d;renderEditorial(d);
+  const d=await editorialCall("?data=1");editorialCache=d;renderEditorial(d);crmNextRender(d);
  }catch(e){root.replaceChildren(elem("p",e.message,"notice error"));$("editorialContacts").replaceChildren();$("editorialDeliveries").replaceChildren();$("editorialReplies").replaceChildren()}
 }
 function renderEditorial(d){
@@ -660,5 +877,28 @@ $("crmQueueTable").addEventListener("click",e=>{
 $("crmExport").addEventListener("click",crmCsv);
 $("crmSaveSla").addEventListener("click",crmSaveSla);
 $("crmSaveContact").addEventListener("click",crmSaveContact);
+$("crmNextRefresh").addEventListener("click",editorialWa);
+$("crmNextSearch").addEventListener("input",()=>{if(crmNextData)crmNextDrawContacts(crmNextContacts(crmNextData))});
+$("crmNextStatus").addEventListener("change",()=>{if(crmNextData)crmNextDrawContacts(crmNextContacts(crmNextData))});
+$("crmNextContacts").addEventListener("click",e=>{
+ const b=e.target.closest("button[data-crmnextphone]");if(!b||!crmNextData)return;
+ crmNextSelectedPhone=b.dataset.crmnextphone;
+ const list=crmNextContacts(crmNextData);crmNextDrawContacts(list);crmNextDrawThread(crmNextData,list.find(x=>x.phone===crmNextSelectedPhone)||null);
+});
+$("crmNextAudit").addEventListener("click",e=>{
+ const tr=e.target.closest("tr[data-crmnextauditphone]");if(!tr||!crmNextData)return;
+ crmNextSelectedPhone=tr.dataset.crmnextauditphone;
+ const list=crmNextContacts(crmNextData);crmNextDrawContacts(list);crmNextDrawThread(crmNextData,list.find(x=>x.phone===crmNextSelectedPhone)||null);
+ $("crmNextMessages").scrollIntoView({block:"nearest",behavior:"smooth"});
+});
+function crmNextOpenCare(){
+ if(!crmNextSelectedPhone)return;crmNextSwitchTab("records");editorialOpenService("+"+crmNextSelectedPhone);
+}
+$("crmNextOpenCare").addEventListener("click",crmNextOpenCare);
+$("crmNextStartCare").addEventListener("click",crmNextOpenCare);
+$("crmNextProfile").addEventListener("click",e=>{if(e.target.closest("button[data-crmnextcare]"))crmNextOpenCare()});
+$("crmNextExport").addEventListener("click",crmNextExportAudit);
+document.querySelector(".crm-next-tabs").addEventListener("click",e=>{const tab=e.target.closest("button[data-crm-view]");if(tab)crmNextSwitchTab(tab.dataset.crmView)});
+
 setInterval(()=>{if(!document.hidden&&document.querySelector('[data-page="editorialwa"]:not(.hidden)')&&token)editorialWa()},60000);
 </script></body></html>
