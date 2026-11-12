@@ -122,7 +122,7 @@
 .crm-next-audit tr:hover{background:#f7faf9}.crm-next-audit .preview{max-width:320px;overflow-wrap:anywhere}
 @media(max-width:1250px){.crm-next-workspace{grid-template-columns:minmax(205px,.8fr) minmax(340px,1.4fr)}.crm-next-profile{grid-column:1/-1;display:none}.crm-next-cards{grid-template-columns:repeat(3,minmax(120px,1fr))}}
 @media(max-width:800px){.crm-next-workspace{height:auto;min-height:0;grid-template-columns:1fr}.crm-next-list{max-height:300px;border-right:0;border-bottom:1px solid #e2ebef}.crm-next-timeline{height:520px;border:0}.crm-next-profile{display:none}.crm-next-cards{grid-template-columns:repeat(2,minmax(115px,1fr))}.crm-next-header h1{font-size:23px}}
-.crm-next-templatebar{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;background:#f4faf8;border:1px solid #d6ebe5;border-radius:12px;padding:13px 16px;margin:10px 0 17px}.crm-next-templatebar strong{display:block;font-size:12px;color:#165e55}.crm-next-templatebar span{display:block;font-size:11px;color:#6b8391;margin-top:5px}.crm-next-templateactions{display:flex;align-items:center;gap:7px;flex-wrap:wrap}.crm-next-templateactions input{max-width:245px;padding:8px;border:1px solid #cbdfdf;background:white;font-size:11px;border-radius:8px}.crm-next-templateactions button{white-space:nowrap;font-size:11px}@media(max-width:700px){.crm-next-templateactions input{max-width:100%;width:100%}}</style></head><body><a class="skip" href="#maincontent">Pular para conteúdo</a><div id="overlay"></div><div class="shell">
+</style></head><body><a class="skip" href="#maincontent">Pular para conteúdo</a><div id="overlay"></div><div class="shell">
 <aside class="sidebar" id="sidebar"><div class="brand"><svg width="38" height="38" viewBox="0 0 40 40" fill="none" aria-hidden="true"><path d="M10 30L20 10L32 28L10 30" stroke="#53bbbc" stroke-width="2.5"/><circle cx="10" cy="30" r="4" fill="#fff"/><circle cx="20" cy="10" r="4" fill="#fff"/><circle cx="32" cy="28" r="4" fill="#fff"/></svg>brain <small>UJN</small></div><div class="tagline">RELACIONAMENTO QUE CONECTA</div>
 <div class="navtitle">OPERAÇÃO</div><nav class="nav"><button data-screen="overview">▦　Visão geral</button><button data-screen="inbox">▤　Caixa de entrada</button><button data-screen="contacts">♙　Contatos e vínculos</button></nav>
 <div class="navtitle">ECOSSISTEMA</div><nav class="nav"><button data-screen="academy">♧　Atendimento Academy</button><button data-screen="journals">▥　Revistas</button><button data-screen="submit">▤　Submissões · ArticleRun</button><button data-screen="genius">✧　ArticleGenius</button></nav>
@@ -146,14 +146,6 @@
     <div><div class="crm-next-eyebrow">CENTRAL EDITORIAL · WHATSAPP BUSINESS</div><h1>Mensagens e atendimento</h1><p>Histórico completo por autor e artigo, respostas e confirmações da Meta.</p></div>
     <div class="crm-next-header-actions"><span class="crm-next-live"><i></i> OJS conectado</span><span id="crmNextLastSync" style="font-size:11px;color:#657b8b">Sincronização pendente</span><button class="btn" id="crmNextRefresh">↻ Atualizar</button></div>
   </header>
-  <div class="crm-next-templatebar hidden" id="crmTemplateBar" aria-hidden="true">
-    <div><strong>Modelo de notificação com link para o artigo</strong><span id="crmTemplateState">Consultando situação na Meta…</span></div>
-    <div class="crm-next-templateactions">
-      <input id="crmWabaId" inputmode="numeric" placeholder="ID da conta WhatsApp Business (WABA)" aria-label="ID da conta WhatsApp Business" maxlength="30">
-      <button class="crm-next-ghost" id="crmTemplateSubmit">Enviar modelo à Meta</button>
-      <button class="crm-next-ghost" id="crmTemplateCheck">Verificar aprovação</button>
-    </div>
-  </div>
   <div class="crm-next-tabs">
     <button class="active" data-crm-view="inbox">Caixa de entrada</button>
     <button data-crm-view="report">Indicadores & SLA</button>
@@ -690,27 +682,6 @@ function crmNextDrawAudit(d){
  table.append(body);root.append(table);
  if(!body.children.length)root.append(crmNextNode("div","Nenhum envio no período.","crm-next-empty"));
 }
-async function crmTemplateUpdate(action="get_status",wabaId){
- const payload={action};
- if(action==="submit_template"){payload.waba_id=wabaId;payload.confirmed=true}
- const result=await editorialCall("?template=1",payload);
- const status=result.status||"NOT_CONFIGURED";
- const names={NOT_CONFIGURED:"Aguardando identificação da conta Meta (WABA). O modelo atual continua em uso.",PENDING:"Novo modelo submetido à Meta e aguardando aprovação. Os envios atuais continuam normalmente.",APPROVED:"Novo modelo aprovado! O botão Acompanhar artigo será usado nas próximas notificações.",REJECTED:"A Meta rejeitou o novo modelo. O modelo atual permanece ativo.",PAUSED:"Novo modelo pausado pela Meta; mantido o modelo anterior.",DISABLED:"Novo modelo desabilitado; mantido o modelo anterior.",ERROR:"Não foi possível validar a definição do modelo; sem alterações nos envios."};
- $("crmTemplateState").textContent=names[status]||"Situação: "+status;
- if(result.waba_id&&!$("crmWabaId").value)$("crmWabaId").value=result.waba_id;
- $("crmTemplateBar").dataset.status=status;
- $("crmTemplateSubmit").disabled=status==="APPROVED";
- return result;
-}
-async function crmTemplateSubmit(){
- const id=$("crmWabaId").value.trim();
- if(!/^[0-9]{6,30}$/.test(id)){say("Informe o ID numérico da conta WhatsApp Business (WABA), não o ID do telefone.",true);return}
- if(!confirm("Cadastrar na Meta o novo modelo de utilidade da Editora UJN, com botão de acompanhamento no OJS? O modelo atual permanecerá ativo até a aprovação."))return;
- try{
-  const result=await crmTemplateUpdate("submit_template",id);
-  say(result.status==="APPROVED"?"Modelo já aprovado.":"Solicitação enviada. A aprovação é feita pela Meta.");
- }catch(e){$("crmTemplateState").textContent="Falha ao cadastrar: "+e.message;say(e.message,true)}
-}
 function crmNextExportAudit(){
  if(!crmNextData)return;
  const d=crmNextData,events=new Map((d.events||[]).map(e=>[e.id,e])),recipients=new Map((d.recipients||[]).map(r=>[r.id,r]));
@@ -975,8 +946,8 @@ $("crmNextOpenCare").addEventListener("click",crmNextOpenCare);
 $("crmNextStartCare").addEventListener("click",crmNextOpenCare);
 $("crmNextProfile").addEventListener("click",e=>{if(e.target.closest("button[data-crmnextcare]"))crmNextOpenCare()});
 $("crmNextExport").addEventListener("click",crmNextExportAudit);
-$("crmTemplateSubmit").addEventListener("click",crmTemplateSubmit);
-$("crmTemplateCheck").addEventListener("click",()=>crmTemplateUpdate("refresh_status").catch(e=>say(e.message,true)));
+
+
 document.querySelector(".crm-next-tabs").addEventListener("click",e=>{const tab=e.target.closest("button[data-crm-view]");if(tab)crmNextSwitchTab(tab.dataset.crmView)});
 
 setInterval(()=>{if(!document.hidden&&document.querySelector('[data-page="editorialwa"]:not(.hidden)')&&token)editorialWa()},30000);
