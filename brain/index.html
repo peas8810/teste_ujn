@@ -29,7 +29,7 @@
 <div class="card hidden" id="editorialContactService">
  <div class="head"><div><h2 id="editorialServiceTitle">Atendimento por WhatsApp</h2><p class="hint" id="editorialServiceMeta">Selecione um contato.</p></div>
  <button class="btn small" id="editorialCloseService">Fechar</button></div>
- <h3>Notificações enviadas ao número</h3><div id="editorialPhoneDeliveries"></div>
+ <h3>Notificações enviadas ao número</h3><p class="hint">Abaixo aparecem o modelo aprovado pela Meta e os parâmetros enviados. O texto integral do modelo é administrado na conta WhatsApp Business.</p><div id="editorialPhoneDeliveries"></div>
  <h3>Conversa da Central UJN</h3><p class="hint" id="editorialServiceWindow"></p>
  <div id="editorialChatMessages" style="max-height:370px;overflow:auto;border:1px solid var(--border);border-radius:10px;padding:12px"></div>
  <div class="actions" style="margin-top:12px"><button class="btn small" id="editorialClaimChat">Assumir atendimento</button><button class="btn small" id="editorialRefreshChat">Atualizar conversa</button></div>
@@ -152,9 +152,12 @@ async function editorialOpenService(phone){
  const recipientIds=new Set(recipients.map(r=>r.id));
  const events=new Map((editorialCache.events||[]).map(e=>[e.id,e]));
  const deliveries=(editorialCache.deliveries||[]).filter(d=>recipientIds.has(d.recipient_id)).sort((a,b)=>Date.parse(a.created_at)-Date.parse(b.created_at));
- makeEditorialTable($("editorialPhoneDeliveries"),["Data","Artigo","Evento","Situação","Falha"],deliveries.map(d=>{
+ makeEditorialTable($("editorialPhoneDeliveries"),["Data","Artigo","Conteúdo / modelo de aviso","Situação","Falha"],deliveries.map(d=>{
   const e=events.get(d.event_id)||{};
-  return [stamp(d.created_at),(e.journal_code||"—")+" #"+(e.submission_id||"—"),e.event_type||"—",
+  const labels={activation_confirmed:"Notificações editoriais ativadas",submission_received:"Submissão recebida",review_started:"Avaliação iniciada",revision_requested:"Correções solicitadas",editorial_decision:"Decisão editorial registrada",accepted:"Artigo aceito",published:"Artigo publicado",editor_message_available:"Nova comunicação editorial"};
+  const kind=labels[e.event_type]||e.event_type||"Movimentação editorial";
+  const desc="Modelo Meta: "+(d.template_name||"ujn_editorial_update_ptbr")+" · Parâmetros: Autor(a), "+(e.journal_code||"revista")+", "+(e.submission_id||"artigo")+", "+kind+(e.summary?" · "+e.summary:"");
+  return [stamp(d.created_at),(e.journal_code||"—")+" #"+(e.submission_id||"—"),desc,
    d.read_at?"LIDO":d.delivered_at?"ENTREGUE":d.state||"—",d.last_error_code||"—"];
  }));
  $("editorialChatMessages").replaceChildren(elem("p","Carregando conversa…","hint"));
