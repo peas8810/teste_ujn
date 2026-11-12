@@ -169,7 +169,7 @@
         <div class="crm-next-profile-heading">Perfil do contato</div><div id="crmNextProfile"><div class="crm-next-empty">Os dados aparecerão ao selecionar um contato.</div></div>
       </div>
     </div>
-    <div class="crm-next-bottom"><div class="crm-next-bottom-heading"><div><strong>Auditoria de notificações</strong><p>Eventos, modelo da mensagem, horários registrados e respostas</p></div><button id="crmNextExport" class="crm-next-ghost">Exportar histórico CSV</button></div><div class="crm-next-tablewrap" id="crmNextAudit"></div></div>
+    <div class="crm-next-bottom"><div class="crm-next-bottom-heading"><div><strong>Auditoria de notificações</strong><p>Eventos, parâmetros reais do modelo e horários registrados pela Meta. O texto fixo do modelo não é armazenado no banco.</p></div><button id="crmNextExport" class="crm-next-ghost">Exportar histórico CSV</button></div><div class="crm-next-tablewrap" id="crmNextAudit"></div></div>
   </div>
   <div id="crmNextReports" class="hidden"></div>
   <div id="crmNextRecords" class="hidden"></div>
@@ -488,13 +488,17 @@ function crmNextContacts(d){
   const exists=o.inbound.some(m=>m.body===x.body&&Math.abs(Date.parse(m.time||0)-Date.parse(x.received_at||0))<60000);
   if(!exists)o.inbound.push({...x,time:x.received_at})
  }
+ const chatPhones=new Map((d.chats||[]).map(x=>[x.id,crmNextPhone(x.phone)]));
  for(const x of d.chats||[]){const o=join(x.phone);if(o)o.chats.push(x)}
+ for(const x of d.central_messages||[]){
+  const o=join(chatPhones.get(x.conversation_id));if(!o)continue;o.central_messages=o.central_messages||[];o.central_messages.push(x);
+ }
  for(const x of d.crm||[]){const o=join(x.phone);if(o)o.crm.push(x)}
  const byRecipient=new Map((d.recipients||[]).map(x=>[x.id,crmNextPhone(x.phone_e164)]));
  for(const x of d.deliveries||[]){const key=byRecipient.get(x.recipient_id);if(key){const o=map.get(key);if(o)o.messages.push(x)}}
  return [...map.values()].map(o=>{
   o.active=o.recipients.some(r=>r.consent_at&&r.verified_at&&!r.revoked_at);
-  o.latest=Math.max(0,...o.messages.map(x=>Date.parse(x.created_at||0)||0),...o.inbound.map(x=>Date.parse(x.time||0)||0),...o.requests.map(x=>Date.parse(x.accepted_at||x.created_at||0)||0));
+  o.latest=Math.max(0,...o.messages.map(x=>Date.parse(x.created_at||0)||0),...o.inbound.map(x=>Date.parse(x.time||0)||0),...(o.central_messages||[]).map(x=>Date.parse(x.created_at||0)||0),...o.requests.map(x=>Date.parse(x.accepted_at||x.created_at||0)||0));
   o.error=o.messages.some(x=>["FAILED","BLOCKED"].includes(x.state));
   o.author=o.requests.find(x=>x.source==="ojs-submission")?.email||o.requests[0]?.email||"Contato registrado";
   return o;
@@ -508,6 +512,7 @@ function crmNextRender(d){
  const read=(d.deliveries||[]).filter(x=>x.read_at);
  const failed=(d.deliveries||[]).filter(x=>["FAILED","BLOCKED"].includes(x.state));
  const cards=[["Contatos",contacts.length,"Com telefone registrado"],["Ativos",contacts.filter(x=>x.active).length,"Vinculados ao OJS"],["Mensagens aceitas",sent.length,"Provedor Meta"],["Entregues",delivered.length,"Confirmadas pela Meta"],["Lidas",read.length,"Confirmação recebida"]];
+ $("crmNextThreadSub").title="Histórico registrado, com Meta e Central UJN";
  $("crmNextCards").replaceChildren(...cards.map(([label,n,foot])=>{
   const card=crmNextNode("div",null,"crm-next-card");card.append(crmNextNode("div",label,"label"),crmNextNode("strong",n,"number"),crmNextNode("div",foot,"extra"));return card;
  }));
@@ -545,13 +550,22 @@ function crmNextBuildTimeline(d,contact){
   const detail=crmNextDeliveryDetails(item,event);
   records.push({kind:"out",at:item.created_at,delivery:item,event,label:detail.label,params:detail.params});
  }
- for(const inbound of contact.inbound){records.push({kind:"in",at:inbound.time||inbound.received_at,body:inbound.body})}
+ const central=contact.central_messages||[];
+ for(const message of central){
+   if(message.sender==="NOTE")continue;
+   records.push({kind:message.sender==="CUSTOMER"?"in":"central",sender:message.sender,at:message.created_at,body:message.body,delivery_state:message.delivery_state,delivery_error:message.delivery_error});
+ }
+ for(const inbound of contact.inbound){
+   const when=Date.parse(inbound.time||inbound.received_at||0);
+   const duplicated=central.some(x=>x.sender==="CUSTOMER"&&x.body===inbound.body&&Math.abs(Date.parse(x.created_at||0)-when)<60000);
+   if(!duplicated)records.push({kind:"in",at:inbound.time||inbound.received_at,body:inbound.body});
+ }
  return records.sort((a,b)=>Date.parse(a.at||0)-Date.parse(b.at||0));
 }
 function crmNextDrawThread(d,contact){
  const root=$("crmNextMessages");root.replaceChildren();
  $("crmNextPerson").textContent=contact?.author||"Selecione um contato";
- $("crmNextThreadSub").textContent=contact?"+"+contact.phone+" · "+contact.messages.length+" notificações · "+contact.inbound.length+" respostas":"Histórico do WhatsApp e do OJS";
+ $("crmNextThreadSub").textContent=contact?"+"+contact.phone+" · "+contact.messages.length+" avisos OJS · "+(contact.central_messages||[]).length+" mensagens Central":"Histórico do WhatsApp e do OJS";
  $("crmNextOpenCare").disabled=!contact;$("crmNextStartCare").disabled=!contact;
  $("crmNextComposeHint").textContent=contact?.chats.length?"Conversa localizada na Central UJN. Envio livre sujeito à janela de 24 horas da Meta.":"Sem conversa iniciada na central; mensagens proativas exigem modelo aprovado pela Meta.";
  if(!contact){root.append(crmNextNode("div","Selecione um contato para visualizar o histórico de envios.","crm-next-empty"));$("crmNextProfile").replaceChildren();return}
@@ -577,9 +591,12 @@ function crmNextDrawThread(d,contact){
    }
    bubble.append(foot);
   }else{
-   bubble.append(crmNextNode("div","Resposta recebida do contato","source"));
+   const actor=x.kind==="in"?"Resposta recebida do contato":x.sender==="BOT"?"Assistente UJN":x.sender==="AGENT"?"Atendente humano":"Central UJN";
+   bubble.classList.toggle("out",x.kind==="central"&&(x.sender==="BOT"||x.sender==="AGENT"));
+   bubble.append(crmNextNode("div",actor,"source"));
    bubble.append(crmNextNode("div",x.body||"(mensagem sem texto)","content"));
-   bubble.append(crmNextNode("div",crmNextLocal(x.at),"minor"));
+   const status=x.delivery_state?" · "+x.delivery_state:"";
+   bubble.append(crmNextNode("div",crmNextLocal(x.at)+status,"minor"));
   }
   root.append(bubble);
  }
@@ -628,7 +645,7 @@ function crmNextDrawAudit(d){
   const detail=crmNextDeliveryDetails(x,e);
   const values=[crmNextLocal(x.created_at),(contactMap.get(phone)||"—")+" · +"+phone,(e.journal_code||"—")+" #"+(e.submission_id||"—"),detail.label+" | "+detail.params.join(" · "),
     crmNextStatus(x),x.delivered_at?crmNextLocal(x.delivered_at):"—",x.read_at?crmNextLocal(x.read_at):"—",x.last_error_code||"—"];
-  values.forEach((v,i)=>{const td=crmNextNode("td",v);if(i===3)td.className="preview";if(i===4)td.append(crmNextNode("span","", "crm-next-tag "+crmNextStatusClass(crmNextStatus(x))));row.append(td)});
+  values.forEach((v,i)=>{const td=crmNextNode("td",v);if(i===3)td.className="preview";row.append(td)});
   body.append(row);
  }
  table.append(body);root.append(table);
