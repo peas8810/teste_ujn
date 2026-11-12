@@ -144,7 +144,7 @@
 <div class="crm-next-shell">
   <header class="crm-next-header">
     <div><div class="crm-next-eyebrow">CENTRAL EDITORIAL · WHATSAPP BUSINESS</div><h1>Mensagens e atendimento</h1><p>Histórico completo por autor e artigo, respostas e confirmações da Meta.</p></div>
-    <div class="crm-next-header-actions"><span class="crm-next-live"><i></i> OJS conectado</span><button class="btn" id="crmNextRefresh">↻ Atualizar</button></div>
+    <div class="crm-next-header-actions"><span class="crm-next-live"><i></i> OJS conectado</span><span id="crmNextLastSync" style="font-size:11px;color:#657b8b">Sincronização pendente</span><button class="btn" id="crmNextRefresh">↻ Atualizar</button></div>
   </header>
   <div class="crm-next-tabs">
     <button class="active" data-crm-view="inbox">Caixa de entrada</button>
@@ -506,6 +506,9 @@ function crmNextContacts(d){
 }
 function crmNextRender(d){
  crmNextData=d;crmNextSetupSections();
+ const last=(d.snapshots||[]).map(s=>s.last_checked_at).filter(Boolean).sort().reverse()[0];
+ $("crmNextLastSync").textContent=last?"OJS consultado: "+crmNextLocal(last):"OJS ainda sem consulta";
+ $("crmNextLastSync").title="A página atualiza o histórico da Meta a cada 30 segundos. A consulta ao OJS ocorre a cada 5 minutos.";
  const contacts=crmNextContacts(d);
  const sent=(d.deliveries||[]).filter(x=>x.state==="SENT"||x.state==="DELIVERED"||x.delivered_at);
  const delivered=(d.deliveries||[]).filter(x=>x.delivered_at);
@@ -610,6 +613,12 @@ function crmNextDrawProfile(d,c){
  const field=(label,value)=>{body.append(crmNextNode("div",label,"crm-next-profile-key"),crmNextNode("div",value||"Não registrado","crm-next-profile-value"))};
  field("WhatsApp","+"+c.phone);field("E-mail",c.author);
  field("Autorização",c.active?"Acompanhamento ativo":"Cadastro pendente");
+ const related=(d.snapshots||[]).filter(s=>c.recipients.some(r=>r.journal_code===s.journal_code&&String(r.submission_id)===String(s.submission_id)));
+ const freshest=related.sort((a,b)=>Date.parse(b.last_checked_at||0)-Date.parse(a.last_checked_at||0))[0];
+ if(freshest){
+  field("Última consulta à API do OJS",crmNextLocal(freshest.last_checked_at));
+  field("Etapa consultada no OJS",String(freshest.stage_id??"Não disponível")+" · Última atividade: "+crmNextLocal(freshest.date_last_activity));
+ }
  const accepted=c.requests.map(x=>x.accepted_at).filter(Boolean).sort()[0];field("Aceite",accepted?crmNextLocal(accepted):"Não identificado");
  const latestDelivery=c.messages.filter(x=>x.delivered_at).sort((a,b)=>Date.parse(b.delivered_at)-Date.parse(a.delivered_at))[0];
  field("Última entrega confirmada",latestDelivery?crmNextLocal(latestDelivery.delivered_at):"Nenhuma");
@@ -917,5 +926,5 @@ $("crmNextProfile").addEventListener("click",e=>{if(e.target.closest("button[dat
 $("crmNextExport").addEventListener("click",crmNextExportAudit);
 document.querySelector(".crm-next-tabs").addEventListener("click",e=>{const tab=e.target.closest("button[data-crm-view]");if(tab)crmNextSwitchTab(tab.dataset.crmView)});
 
-setInterval(()=>{if(!document.hidden&&document.querySelector('[data-page="editorialwa"]:not(.hidden)')&&token)editorialWa()},60000);
+setInterval(()=>{if(!document.hidden&&document.querySelector('[data-page="editorialwa"]:not(.hidden)')&&token)editorialWa()},30000);
 </script></body></html>
