@@ -14,9 +14,20 @@
 <p class="muted"><small>O pedido não ativa o envio imediatamente. A Editora UJN confirmará sua autoria e a titularidade do número antes das mensagens. Dados utilizados exclusivamente para processar a solicitação editorial. Não compartilhe informações sensíveis neste formulário.</small></p></div></main>
 <script>
 const form=document.querySelector("#optin"),button=document.querySelector("#send"),out=document.querySelector("#message");
-const suppliedEmail=new URLSearchParams(location.search).get("email");
+const params=new URLSearchParams(location.search),suppliedEmail=params.get("email"),emailConfirmToken=params.get("confirm");
 if(suppliedEmail && suppliedEmail.length <=254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(suppliedEmail)) {form.email.value=suppliedEmail.trim().toLowerCase();form.email.readOnly=true;form.email.setAttribute("aria-readonly","true");document.querySelector("#email-note").classList.remove("hidden");}
 try{history.replaceState(null,"",location.pathname)}catch{}
+if(emailConfirmToken){
+ form.classList.add("hidden");out.className="message";
+ if(!/^[a-f0-9]{64}$/.test(emailConfirmToken)){out.textContent="Link de confirmação inválido.";out.className="message error";}
+ else (async()=>{try{
+  out.textContent="Verificando seu e-mail…";
+  const r=await fetch("https://leytqsyfrmzhectatcqm.supabase.co/functions/v1/ujn-editorial-email-confirm",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({token:emailConfirmToken})});
+  const v=await r.json();
+  if(!r.ok||!v.ok)throw Error("O link é inválido ou expirou. Solicite um novo pelo formulário de ativação.");
+  out.textContent="E-mail confirmado! Se já enviou a mensagem de confirmação pelo WhatsApp, o Brain UJN verificará agora seu vínculo com o manuscrito no OJS. As notificações começam somente depois das verificações.";
+ }catch(e){out.textContent=e.message||"Não foi possível confirmar o e-mail.";out.className="message error";}})();
+}
 form.addEventListener("submit",async e=>{
 e.preventDefault();out.className="message hidden";if(!form.reportValidity())return;
 const email=form.email.value.trim(),phone=form.phone.value.replace(/[\s()\-]/g,"").trim();
@@ -27,7 +38,7 @@ out.className="message";
 const publicPhone=await fetch("https://jufnkfyvqgkrxsbctqqk.supabase.co/functions/v1/ujn-editorial-public-phone");
 const line=await publicPhone.json();
 if(!publicPhone.ok||!line.ready||!/^\d{10,15}$/.test(line.phone_number||""))throw Error("Pedido salvo. O número oficial de confirmação está temporariamente indisponível. Contate a Editora UJN.");
-form.classList.add("hidden");out.textContent="Solicitação recebida! Para confirmar que o número é seu, envie uma mensagem pré-preenchida ao WhatsApp oficial da UJN. Após isso, o Brain conferirá seu vínculo com os manuscritos.";
+form.classList.add("hidden");out.textContent="Solicitação recebida! "+(data.email_verification_sent?"Enviamos um e-mail com um botão de confirmação. Verifique a caixa de entrada e o spam. ":"Não foi possível enviar o e-mail de verificação agora; você pode repetir a solicitação posteriormente. ")+"Confirme também seu número enviando a mensagem pré-preenchida para o WhatsApp oficial. O Brain verificará automaticamente o vínculo com seu manuscrito.";
 const link=document.createElement("a");link.href="https://wa.me/"+line.phone_number+"?text="+encodeURIComponent("UJN CONFIRMAR "+data.whatsapp_confirmation_code);link.target="_blank";link.rel="noopener noreferrer";link.textContent="CONFIRMAR MEU NÚMERO NO WHATSAPP";link.style.cssText="display:block;margin-top:14px;padding:14px;border-radius:10px;background:#087b65;color:white;text-align:center;font-weight:700;text-decoration:none";out.appendChild(link);}catch(err){out.textContent=err.message||"Serviço indisponível. Tente novamente.";out.className="message error";}finally{button.disabled=false;button.textContent="Solicitar ativação";}
 });
 </script></body></html>
