@@ -179,6 +179,154 @@ async function editorialCall(query,body){
  body:body?JSON.stringify(body):undefined,cache:"no-store"});
  const d=await r.json().catch(()=>({}));if(!r.ok||!d.ok)throw Error(d.error||d.reason||"Falha ao consultar WhatsApp OJS");return d;
 }
+
+let crmPeriodDays=30;
+const crmDigits=v=>String(v||"").replace(/\D/g,"");
+const crmMetaFor=(d,phone)=>(d.contact_meta||[]).find(x=>crmDigits(x.phone)===crmDigits(phone))||{priority:"NORMAL",labels:[],internal_note:""};
+const crmMinutes=v=>!Number.isFinite(Number(v))||v===null?"—":Number(v)<60?Number(v).toFixed(1).replace(".0","")+" min":(Number(v)/60).toFixed(1).replace(".0","")+" h";
+const crmAge=v=>!v?null:Math.max(0,(Date.now()-Date.parse(v))/60000);
+const crmDateKey=v=>new Date(v).toISOString().slice(0,10);
+function crmNewMetric(label,value,foot,accent){
+ const box=elem("div",undefined,"crm-metric");box.style.setProperty("--accent",accent);
+ box.append(elem("div",label,"crm-metric-label"),elem("strong",String(value),"crm-metric-num"),elem("div",foot,"crm-metric-desc"));
+ return box;
+}
+function crmChannelState(row,sla){
+ if(row.state==="CLOSED")return {label:"Encerrado",status:"good",elapsed:null};
+ if(row.state==="BOT")return {label:"Atendimento automático",status:"blue",elapsed:null};
+ if(!row.awaiting_human_response||!row.last_customer_message_at)return {label:"Respondido",status:"good",elapsed:null};
+ const elapsed=crmAge(row.last_customer_message_at);
+ const target=row.agent_count>0?Number(sla.followup_minutes):Number(sla.first_response_minutes);
+ if(elapsed>target)return {label:"SLA vencido",status:"danger",elapsed};
+ if(elapsed>target*.75)return {label:"Próximo do SLA",status:"warning",elapsed};
+ return {label:"Aguardando atendente",status:"blue",elapsed};
+}
+function crmRender(d){
+ const days=crmPeriodDays,after=Date.now()-days*86400000;
+ const contacts=d.requests||[],outbox=d.deliveries||[],messages=d.inbound||[],conversations=d.crm||[],sla=d.sla||{first_response_minutes:30,followup_minutes:120};
+ const recent=outbox.filter(x=>Date.parse(x.created_at||0)>=after);
+ const registered=contacts.filter(x=>Date.parse(x.accepted_at||x.created_at||0)>=after);
+ const delivered=recent.filter(x=>x.delivered_at).length;
+ const known=recent.filter(x=>x.state==="SENT"||x.state==="DELIVERED"||x.delivered_at);
+ const deliveredRate=known.length?Math.round(delivered/known.length*100)+"%":"—";
+ const human=conversations.filter(x=>Number.isFinite(Number(x.first_human_response_minutes))&&x.first_human_response_minutes!==null);
+ const avg=human.length?human.reduce((n,x)=>n+Number(x.first_human_response_minutes),0)/human.length:null;
+ const slaOverdue=conversations.filter(x=>crmChannelState(x,sla).status==="danger").length;
+ const active=contacts.filter(x=>x.status==="VERIFIED").length;
+ const metrics=[
+  ["Contatos ativos",active,"Com vínculo editorial","linear-gradient(90deg,#0c9072,#57c6a6)"],
+  ["Aceites no período",registered.length,"Últimos "+days+" dias","#2d7ab5"],
+  ["Notificações entregues",delivered,"Confirmação da Meta","#11917e"],
+  ["Taxa de entrega",deliveredRate,"Sobre envios aceitos","#3682a8"],
+  ["SLA vencidos",slaOverdue,"Fila humana em atraso","#d07142"],
+  ["1ª resposta humana",avg===null?"—":crmMinutes(avg),human.length+" conversa(s) mensurada(s)","#825bc4"]
+ ];
+ $("editorialStats").replaceChildren(...metrics.map(x=>crmNewMetric(...x)));
+ $("crmUpdated").textContent="Atualizado "+stamp(d.updated_at);
+ $("crmPeriodCaption").textContent=days+" dias";
+ $("crmSlaFirst").value=String(sla.first_response_minutes||30);
+ $("crmSlaFollow").value=String(sla.followup_minutes||120);
+ crmVolumeChart(recent,registered,days);
+ crmDeliveryFunnel(recent);
+ crmQueueRender(d);
+}
+function crmVolumeChart(deliveries,requests,days){
+ const root=$("crmVolumeChart");root.replaceChildren();
+ const buckets=days===7?7:days===30?10:9,bucketDays=days/buckets;
+ const now=Date.now(),series=[];
+ for(let i=0;i<buckets;i++){
+  const lo=now-(days-i*bucketDays)*86400000,hi=now-(days-(i+1)*bucketDays)*86400000;
+  const count=(rows,key)=>rows.filter(x=>{const v=Date.parse(x[key]||0);return v>=lo&&v<hi}).length;
+  const range=new Date(lo).toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"});
+  series.push({sent:count(deliveries,"created_at"),optins:count(requests,"accepted_at"),range});
+ }
+ const maximum=Math.max(1,...series.flatMap(x=>[x.sent,x.optins]));
+ for(const item of series){
+  const div=elem("div",undefined,"crm-bar-group");
+  for(const [kind,count] of [["sent",item.sent],["optins",item.optins]]){
+   const bar=elem("div",undefined,"crm-bar "+kind);
+   bar.style.height=Math.max(2,count/maximum*145)+"px";bar.title=(kind==="sent"?"Notificações":"Aceites")+": "+count;
+   bar.setAttribute("aria-label",bar.title);div.append(bar);
+  }
+  div.append(elem("span",item.range,"crm-bar-day"));root.append(div);
+ }
+}
+function crmDeliveryFunnel(deliveries){
+ const root=$("crmDeliveryProgress"),details=$("crmDeliveryBreakdown");root.replaceChildren();details.replaceChildren();
+ const sent=deliveries.filter(x=>(x.state==="SENT"||x.state==="DELIVERED")&&!x.delivered_at).length,
+ delivered=deliveries.filter(x=>x.delivered_at).length,
+ other=deliveries.length-sent-delivered,
+ read=deliveries.filter(x=>x.read_at).length,total=deliveries.length;
+ for(const [kind,value] of [["delivered",delivered],["sent",sent],["other",other]]){
+  if(value<=0)continue;const span=elem("span",undefined,kind);span.style.width=(100*value/Math.max(1,total))+"%";span.title=kind+": "+value;root.append(span);
+ }
+ for(const [name,value] of [["Entregues",delivered],["Aceitas pela Meta",sent],["Lidas",read],["Outros estados",other]]){
+  const item=elem("div");item.append(elem("strong",String(value)),elem("span",name));details.append(item);
+ }
+}
+function crmQueueRender(d){
+ const root=$("crmQueueTable");root.replaceChildren();
+ const search=$("crmQueueSearch").value.toLowerCase().trim(),fStatus=$("crmQueueStatus").value,fPriority=$("crmQueuePriority").value;
+ const priorities={URGENTE:0,ALTA:1,NORMAL:2,BAIXA:3};
+ const sla=d.sla||{first_response_minutes:30,followup_minutes:120},contacts=d.requests||[];
+ const rows=(d.crm||[]).map(x=>{
+  const state=crmChannelState(x,sla),meta=crmMetaFor(d,x.phone);
+  const authors=contacts.filter(r=>crmDigits(r.phone_e164)===crmDigits(x.phone));
+  return {...x,crmState:state,crmPriority:meta.priority,crmAuthor:authors.map(a=>a.email).join(" / ")||"Contato da Central UJN"};
+ }).filter(x=>(!search||[x.phone,x.service_id,x.crmAuthor].join(" ").toLowerCase().includes(search))
+ &&(!fPriority||x.crmPriority===fPriority)
+ &&(!fStatus||(fStatus==="overdue"?x.crmState.status==="danger":fStatus==="risk"?x.crmState.status==="warning":fStatus==="waiting"?x.crmState.elapsed!==null:fStatus==="automated"?x.state==="BOT":true)))
+ .sort((a,b)=>{
+  const weight=x=>x.crmState.status==="danger"?0:x.crmState.status==="warning"?1:x.crmState.elapsed!==null?2:x.state==="BOT"?3:4;
+  return weight(a)-weight(b)||(priorities[a.crmPriority]??2)-(priorities[b.crmPriority]??2)||Date.parse(b.updated_at)-Date.parse(a.updated_at)
+ });
+ const table=elem("table",undefined,"crm-table"),thead=elem("thead"),tr=elem("tr");
+ for(const h of ["Contato / setor","Prioridade","Status","Tempo decorrido","1ª resposta humana","Última interação","Atendimento"])tr.append(elem("th",h));
+ thead.append(tr);table.append(thead);const tbody=elem("tbody");
+ for(const r of rows){
+  const row=elem("tr"),who=elem("td");
+  who.append(elem("strong",r.phone||"—"),elem("div",r.crmAuthor,"crm-note"),elem("div","Setor: "+r.service_id,"crm-note"));row.append(who);
+  const priority=elem("td");priority.append(elem("span",r.crmPriority,"crm-chip "+(r.crmPriority==="URGENTE"?"danger":r.crmPriority==="ALTA"?"warning":"")));row.append(priority);
+  const status=elem("td");status.append(elem("span",r.crmState.label,"crm-chip "+r.crmState.status));row.append(status);
+  row.append(elem("td",r.crmState.elapsed===null?"—":crmMinutes(r.crmState.elapsed),"crm-sla-clock"));
+  row.append(elem("td",crmMinutes(r.first_human_response_minutes)));
+  row.append(elem("td",stamp(r.updated_at)));
+  const action=elem("td"),button=elem("button","Abrir","btn small");button.dataset.crmphone="+"+crmDigits(r.phone);action.append(button);row.append(action);
+  tbody.append(row);
+ }
+ table.append(tbody);root.append(table);
+ if(!rows.length)root.append(elem("p","Nenhuma conversa corresponde aos filtros.","crm-empty"));
+ $("crmQueueFootnote").textContent=rows.length+" conversa(s) exibida(s) · A fila inclui apenas números registrados no fluxo editorial e presentes na Central UJN. Conversas BOT não recebem alerta de SLA humano.";
+}
+async function crmSaveSla(){
+ const first=Number($("crmSlaFirst").value),followup=Number($("crmSlaFollow").value);
+ try{await editorialCall("?crm=1",{action:"set_sla",first_response_minutes:first,followup_minutes:followup});
+  say("Metas internas de SLA atualizadas.");await editorialWa();
+ }catch(e){say(e.message,true)}
+}
+function crmCsv(){
+ if(!editorialCache)return;
+ const d=editorialCache,rows=[["E-mail","WhatsApp","Revista","Manuscrito","Situação","Data do aceite","Prioridade","Etiquetas"]];
+ for(const a of d.requests||[]){
+  const meta=crmMetaFor(d,a.phone_e164);
+  rows.push([a.email,a.phone_e164,a.journal_code||"",a.submission_id||"",a.status,stamp(a.accepted_at),meta.priority,(meta.labels||[]).join("; ")]);
+ }
+ const safeCell=v=>{let t=String(v??"");if(/^[=+@\-\t\r]/.test(t))t="'"+t;return '"'+t.replace(/"/g,'""')+'"'};
+ const csv="\ufeff"+rows.map(r=>r.map(safeCell).join(";")).join("\r\n");
+ const url=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));
+ const a=document.createElement("a");a.href=url;a.download="brain-ujn-whatsapp-ojs-"+new Date().toISOString().slice(0,10)+".csv";
+ document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+async function crmSaveContact(){
+ if(!editorialServicePhone)return;
+ const labels=$("crmContactTags").value.split(",").map(x=>x.trim()).filter(Boolean);
+ const data={action:"contact_metadata",phone:editorialServicePhone,priority:$("crmContactPriority").value,labels,internal_note:$("crmContactNote").value.trim()};
+ try{
+  await editorialCall("?crm=1",data);
+  $("crmContactSaved").textContent="Informações internas salvas.";
+  await editorialWa();
+ }catch(e){$("crmContactSaved").textContent="Não foi possível salvar: "+e.message}
+}
 async function editorialWa(){
  const root=$("editorialStats");root.replaceChildren(elem("p","Consultando registros…"));
  try{
@@ -187,8 +335,7 @@ async function editorialWa(){
 }
 function renderEditorial(d){
  const req=d.requests||[],recipient=d.recipients||[],events=new Map((d.events||[]).map(v=>[v.id,v])),recipients=new Map(recipient.map(v=>[v.id,v]));
- const stats=[["Aceites",req.length],["Ativados",req.filter(v=>v.status==="VERIFIED").length],["Sem vínculo",req.filter(v=>v.status!=="VERIFIED").length],["Enviados / Aceitos",(d.deliveries||[]).filter(v=>["SENT","DELIVERED"].includes(v.state)).length],["Entregues",(d.deliveries||[]).filter(v=>v.delivered_at).length],["Respostas registradas",(d.inbound||[]).length]];
- $("editorialStats").replaceChildren(...stats.map(a=>stat(a[0],a[1])));
+ crmRender(d);
  const journal=$("editorialJournal").value,search=$("editorialSearch").value.toLowerCase().trim();
  const filtered=req.filter(r=>(!journal||r.journal_code===journal)&&(!search||[r.email,r.phone_e164,r.submission_id].join(" ").toLowerCase().includes(search)));
  const contacts=filtered.map(r=>{
@@ -226,6 +373,11 @@ async function editorialOpenService(phone){
  const permitted=(editorialCache.requests||[]).some(r=>canonicalPhone(r.phone_e164)===canonicalPhone(phone)&&r.consent_editorial);
  if(!permitted)return say("Telefone não cadastrado.",true);
  editorialServicePhone=phone;editorialServiceChat=null;
+ const crmMeta=crmMetaFor(editorialCache,phone);
+ $("crmContactPriority").value=crmMeta.priority||"NORMAL";
+ $("crmContactTags").value=(crmMeta.labels||[]).join(", ");
+ $("crmContactNote").value=crmMeta.internal_note||"";
+ $("crmContactSaved").textContent="";
  const associated=(editorialCache.requests||[]).filter(r=>canonicalPhone(r.phone_e164)===canonicalPhone(phone));
  $("editorialContactService").classList.remove("hidden");
  $("editorialServiceTitle").textContent="Atendimento WhatsApp · "+phone;
@@ -388,4 +540,21 @@ $("editorialCloseService").addEventListener("click",()=>{$("editorialContactServ
 $("editorialClaimChat").addEventListener("click",editorialClaimService);
 $("editorialSendReply").addEventListener("click",editorialSendService);
 $("editorialRefreshChat").addEventListener("click",editorialLoadServiceChat);
+$("crmPeriod").addEventListener("click",e=>{
+ const button=e.target.closest("button[data-days]");if(!button)return;
+ crmPeriodDays=Number(button.dataset.days);
+ for(const b of $("crmPeriod").querySelectorAll("button[data-days]"))b.classList.toggle("active",b===button);
+ if(editorialCache)crmRender(editorialCache);
+});
+$("crmQueueStatus").addEventListener("change",()=>{if(editorialCache)crmQueueRender(editorialCache)});
+$("crmQueuePriority").addEventListener("change",()=>{if(editorialCache)crmQueueRender(editorialCache)});
+$("crmQueueSearch").addEventListener("input",()=>{if(editorialCache)crmQueueRender(editorialCache)});
+$("crmQueueTable").addEventListener("click",e=>{
+ const target=e.target.closest("button[data-crmphone]");
+ if(target)editorialOpenService(target.dataset.crmphone);
+});
+$("crmExport").addEventListener("click",crmCsv);
+$("crmSaveSla").addEventListener("click",crmSaveSla);
+$("crmSaveContact").addEventListener("click",crmSaveContact);
+setInterval(()=>{if(!document.hidden&&document.querySelector('[data-page="editorialwa"]:not(.hidden)')&&token)editorialWa()},60000);
 </script></body></html>
