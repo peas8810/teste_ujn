@@ -5,8 +5,8 @@
 <style>
 :root{font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#193347;background:#f4f8fa}*{box-sizing:border-box}body{margin:0}.shell{max-width:560px;margin:6vh auto;padding:24px}.panel{background:white;border-radius:18px;box-shadow:0 12px 36px #163b4e18;padding:30px}h1{font-size:27px;margin:0 0 8px}p{line-height:1.6}label{display:block;font-weight:600;margin:19px 0 8px}input:not([type=checkbox]){width:100%;padding:13px;border:1px solid #b7c7d1;border-radius:9px;font:inherit}small,.muted{color:#526979}.check{display:flex;gap:10px;align-items:flex-start;font-size:14px;line-height:1.5;font-weight:400}.check input{margin-top:4px}.button{width:100%;border:0;background:#087b65;color:white;padding:15px;border-radius:10px;font-weight:700;font-size:16px;cursor:pointer}.button:disabled{opacity:.55;cursor:not-allowed}.message{padding:14px;margin-top:20px;border-radius:9px;background:#e9f4f1;line-height:1.5}.error{background:#fff0ed;color:#8c2828}.brand{color:#087b65;font-weight:750;letter-spacing:.05em;margin-bottom:14px}.hidden{display:none!important}</style>
 </head><body><main class="shell"><div class="panel"><div class="brand">EDITORA UJN · BRAIN UJN</div><h1>Ative as notificações editoriais</h1><p>Receba pelo WhatsApp atualizações sobre avaliação, revisão, decisão editorial e publicação de seus manuscritos.</p>
-<form id="optin" novalidate><label for="email">E-mail utilizado na submissão</label><input type="email" id="email" name="email" maxlength="254" required autocomplete="email" placeholder="voce@instituicao.br"/>
-<label for="phone">Seu WhatsApp com DDD e código do país</label><input type="tel" id="phone" name="phone" maxlength="22" required autocomplete="tel" placeholder="+5533999999999"/>
+<form id="optin" novalidate><label for="email">E-mail associado ao convite</label><input type="email" id="email" name="email" maxlength="254" required autocomplete="email" placeholder="voce@instituicao.br"/>
+<p id="email-note" class="muted hidden"><small>Preenchido pelo link recebido por e-mail. Caso o endereço não esteja correto, utilize o convite enviado à conta cadastrada na revista.</small></p><label for="phone">Seu WhatsApp com DDD e código do país</label><input type="tel" id="phone" name="phone" maxlength="22" required autocomplete="tel" placeholder="+5533999999999"/>
 <input class="hidden" name="website" tabindex="-1" autocomplete="off" aria-hidden="true"/>
 <label class="check"><input type="checkbox" name="accept" required/><span><strong>Quero receber notificações editoriais pelo WhatsApp</strong> sobre os manuscritos vinculados ao meu e-mail, após verificação de autoria e telefone. Sei que é opcional, não autoriza marketing e posso cancelar enviando PARAR.</span></label>
 <button class="button" type="submit" id="send">Solicitar ativação</button></form>
@@ -14,6 +14,9 @@
 <p class="muted"><small>O pedido não ativa o envio imediatamente. A Editora UJN confirmará sua autoria e a titularidade do número antes das mensagens. Dados utilizados exclusivamente para processar a solicitação editorial. Não compartilhe informações sensíveis neste formulário.</small></p></div></main>
 <script>
 const form=document.querySelector("#optin"),button=document.querySelector("#send"),out=document.querySelector("#message");
+const suppliedEmail=new URLSearchParams(location.search).get("email");
+if(suppliedEmail && suppliedEmail.length <=254 && /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(suppliedEmail)) {form.email.value=suppliedEmail.trim().toLowerCase();form.email.readOnly=true;form.email.setAttribute("aria-readonly","true");document.querySelector("#email-note").classList.remove("hidden");}
+try{history.replaceState(null,"",location.pathname)}catch{}
 form.addEventListener("submit",async e=>{
 e.preventDefault();out.className="message hidden";if(!form.reportValidity())return;
 const email=form.email.value.trim(),phone=form.phone.value.replace(/[\s()\-]/g,"").trim();
