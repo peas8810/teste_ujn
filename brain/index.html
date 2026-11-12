@@ -26,6 +26,18 @@
 <div class="notice warn">O registro de aceite não identifica automaticamente o artigo. Cadastros sem manuscrito precisam de vínculo confirmado no OJS antes do envio; não associe por suposição.</div>
 <div id="editorialStats" class="grid"></div>
 <div class="card"><div class="head"><h2>Cadastros e autorizações</h2><div class="row"><select id="editorialJournal"><option value="">Todas as revistas</option><option>REMUNOM</option><option>RSV</option><option>RJNM</option><option>JIRRS</option><option>NEXUS</option></select><input id="editorialSearch" placeholder="Buscar e-mail ou artigo" style="max-width:220px"/></div></div><div id="editorialContacts" style="overflow-x:auto"></div></div>
+<div class="card hidden" id="editorialContactService">
+ <div class="head"><div><h2 id="editorialServiceTitle">Atendimento por WhatsApp</h2><p class="hint" id="editorialServiceMeta">Selecione um contato.</p></div>
+ <button class="btn small" id="editorialCloseService">Fechar</button></div>
+ <h3>Notificações enviadas ao número</h3><div id="editorialPhoneDeliveries"></div>
+ <h3>Conversa da Central UJN</h3><p class="hint" id="editorialServiceWindow"></p>
+ <div id="editorialChatMessages" style="max-height:370px;overflow:auto;border:1px solid var(--border);border-radius:10px;padding:12px"></div>
+ <div class="actions" style="margin-top:12px"><button class="btn small" id="editorialClaimChat">Assumir atendimento</button><button class="btn small" id="editorialRefreshChat">Atualizar conversa</button></div>
+ <label for="editorialReplyText" style="display:block;margin-top:12px">Mensagem de atendimento</label>
+ <textarea id="editorialReplyText" rows="4" maxlength="2500" placeholder="Escreva uma resposta ao autor..." style="width:100%"></textarea>
+ <div class="actions"><button class="btn primary" id="editorialSendReply">Enviar pelo WhatsApp</button></div>
+ <p class="hint" id="editorialReplyStatus" role="status"></p>
+ </div>
 <div class="card"><h2>Envios e entrega</h2><div id="editorialDeliveries" style="overflow-x:auto"></div></div>
 <div class="card"><h2>Respostas dos contatos ativos</h2><p class="hint">Registros recebidos pela Central UJN. Podem incluir conversas gerais realizadas pelo mesmo WhatsApp.</p><div id="editorialReplies" style="overflow-x:auto"></div></div>
 </section>
@@ -66,8 +78,8 @@ const say=(s,error=false)=>{const n=$("notice");n.textContent=s;n.className=erro
 const elem=(tag,content,cls)=>{const x=document.createElement(tag);if(content!==undefined)x.textContent=String(content);if(cls)x.className=cls;return x};
 const stamp=v=>v?new Date(v).toLocaleString("pt-BR"):"—";
 async function call(body){if(!token)throw Error("Faça login novamente.");const r=await fetch(API,{method:"POST",cache:"no-store",headers:{"apikey":PUB,"authorization":"Bearer "+token,"content-type":"application/json"},body:JSON.stringify(body)});const d=await r.json().catch(()=>({}));if(!r.ok||d.error)throw Error(d.error||"Erro HTTP "+r.status);return d}
-async function login(ev){ev.preventDefault();const pass=$("password").value;$("password").value="";say("Autenticando conta Academy...");try{const r=await fetch(BASE+"/auth/v1/token?grant_type=password",{method:"POST",cache:"no-store",headers:{"apikey":PUB,"content-type":"application/json"},body:JSON.stringify({email:$("email").value.trim(),password:pass})});const d=await r.json();if(!r.ok||!d.access_token)throw Error("Não foi possível autenticar. Verifique e-mail e senha.");token=d.access_token;const boot=await call({action:"bootstrap"});if(!boot.superuser&&!boot.allowed?.length){token=null;throw Error("Esta conta não possui permissão de operador.")}role=boot;serviceNames=Object.fromEntries((boot.services||[]).map(x=>[x.id,x.name]));$("login").classList.add("hidden");$("workspace").classList.remove("hidden");$("signout").hidden=false;$("mode").textContent=boot.superuser?"SUPERADMIN · Operacional":"OPERADOR · Operacional";for(const s of boot.services||[]){const o=elem("option",s.name);o.value=s.id;$("inboxFilter").appendChild(o)}show("overview");say("")}catch(e){token=null;say(e.message,true)}}
-function logout(){token=null;role=null;cases=[];current=null;$("password").value="";$("login").classList.remove("hidden");$("workspace").classList.add("hidden");$("signout").hidden=true;$("mode").textContent="Login obrigatório";say("Sessão encerrada.");}
+async function login(ev){ev.preventDefault();const pass=$("password").value;$("password").value="";say("Autenticando conta Academy...");try{const r=await fetch(BASE+"/auth/v1/token?grant_type=password",{method:"POST",cache:"no-store",headers:{"apikey":PUB,"content-type":"application/json"},body:JSON.stringify({email:$("email").value.trim(),password:pass})});const d=await r.json();if(!r.ok||!d.access_token)throw Error("Não foi possível autenticar. Verifique e-mail e senha.");token=d.access_token;editorialUserId=d.user?.id||null;const boot=await call({action:"bootstrap"});if(!boot.superuser&&!boot.allowed?.length){token=null;throw Error("Esta conta não possui permissão de operador.")}role=boot;serviceNames=Object.fromEntries((boot.services||[]).map(x=>[x.id,x.name]));$("login").classList.add("hidden");$("workspace").classList.remove("hidden");$("signout").hidden=false;$("mode").textContent=boot.superuser?"SUPERADMIN · Operacional":"OPERADOR · Operacional";for(const s of boot.services||[]){const o=elem("option",s.name);o.value=s.id;$("inboxFilter").appendChild(o)}show("overview");say("")}catch(e){token=null;say(e.message,true)}}
+function logout(){editorialUserId=null;token=null;role=null;cases=[];current=null;$("password").value="";$("login").classList.remove("hidden");$("workspace").classList.add("hidden");$("signout").hidden=true;$("mode").textContent="Login obrigatório";say("Sessão encerrada.");}
 function show(page){if(!token)return;for(const x of document.querySelectorAll("[data-page]"))x.classList.toggle("hidden",x.dataset.page!==page);for(const x of document.querySelectorAll(".nav button"))x.classList.toggle("active",x.dataset.screen===page);$("crumb").textContent=names[page];$("sidebar").classList.remove("open");$("overlay").classList.remove("show");say("");if(page==="overview")overview();if(page==="inbox")inbox();if(page==="contacts")contactLoad();if(page==="academy")academy();if(page==="journals")renderJournals();if(page==="notifications")notifications();if(page==="marketing")marketing();if(page==="editorialwa")editorialWa();if(page==="ai")aiDash()}
 
 const WA_OJS_API=BASE+"/functions/v1/ujn-editorial-dashboard";let editorialCache=null;
@@ -100,12 +112,105 @@ function renderEditorial(d){
  const contacts=filtered.map(r=>{
   const button=elem("button","Vincular artigo","btn small");button.dataset.request=r.id;button.disabled=r.status==="VERIFIED";
   button.title=r.status==="VERIFIED"?"Já habilitado":"Conferir e-mail e ID do manuscrito no OJS";
-  return [r.email,r.phone_e164,r.journal_code?(r.journal_code+" #"+r.submission_id):"Aguardando manuscrito",stamp(r.accepted_at),r.status==="VERIFIED"?"ATIVO":"PENDENTE",r.status==="VERIFIED"?"—":button]
+  const service=elem("button","Atender / Histórico","btn small");service.dataset.editorialphone=r.phone_e164;
+ const actions=elem("div",undefined,"actions");actions.append(service);if(r.status!=="VERIFIED")actions.append(button);
+ return [r.email,r.phone_e164,r.journal_code?(r.journal_code+" #"+r.submission_id):"Aguardando manuscrito",stamp(r.accepted_at),r.status==="VERIFIED"?"ATIVO":"PENDENTE",actions]
  });
  makeEditorialTable($("editorialContacts"),["E-mail do autor","WhatsApp","Revista / Manuscrito","Aceite","Estado","Ação"],contacts);
  const deliveries=(d.deliveries||[]).slice(0,150).map(v=>{const e=events.get(v.event_id)||{},r=recipients.get(v.recipient_id)||{};return [stamp(v.created_at),e.journal_code||"—",e.submission_id||"—",e.event_type||"—",r.phone_e164||"—",v.read_at?"LIDO":v.delivered_at?"ENTREGUE":v.state,v.last_error_code||"—"]});
  makeEditorialTable($("editorialDeliveries"),["Data","Revista","ID","Movimentação","WhatsApp","Status","Erro"],deliveries);
  makeEditorialTable($("editorialReplies"),["Data","Telefone","Mensagem"],(d.inbound||[]).slice(0,120).map(x=>[stamp(x.created_at),x.phone,x.body]));
+}
+
+let editorialServicePhone=null, editorialServiceChat=null;
+const canonicalPhone=v=>String(v||"").replace(/\D/g,"");
+function editorialThreadAvailable(chat){
+ return !!(chat&&chat.last_customer_at&&Date.now()-Date.parse(chat.last_customer_at)<23*3600000);
+}
+function editorialServiceControls(){
+ const found=editorialServiceChat,open=editorialThreadAvailable(found),claimed=found?.state==="HUMAN"&&found?.assigned_to===editorialUserId;
+ $("editorialClaimChat").disabled=!found||!open||claimed||found.state==="CLOSED";
+ $("editorialSendReply").disabled=!found||!open||!claimed;
+ $("editorialReplyText").disabled=!found||!open||!claimed;
+ $("editorialServiceWindow").textContent=!found
+ ?"Não há conversa iniciada por este número na Central UJN. O atendimento livre só fica disponível após o contato enviar uma mensagem ao WhatsApp oficial. Notificações automáticas usam modelos aprovados."
+ :!open?"A última mensagem do usuário está fora da janela de atendimento. Textos livres não serão enviados; utilize uma mensagem de modelo aprovada pela Meta ou aguarde nova mensagem."
+ :claimed?"Conversa assumida. Você pode enviar respostas pela Central UJN."
+ :"Conversa recente identificada. Assuma o atendimento antes de responder.";
+}
+let editorialUserId=null;
+async function editorialOpenService(phone){
+ if(!editorialCache)return;
+ const permitted=(editorialCache.requests||[]).some(r=>canonicalPhone(r.phone_e164)===canonicalPhone(phone)&&r.consent_editorial);
+ if(!permitted)return say("Telefone não cadastrado.",true);
+ editorialServicePhone=phone;editorialServiceChat=null;
+ const associated=(editorialCache.requests||[]).filter(r=>canonicalPhone(r.phone_e164)===canonicalPhone(phone));
+ $("editorialContactService").classList.remove("hidden");
+ $("editorialServiceTitle").textContent="Atendimento WhatsApp · "+phone;
+ $("editorialServiceMeta").textContent=associated.map(r=>[r.email,r.journal_code,r.submission_id].filter(Boolean).join(" · ")).join(" | ");
+ const recipients=(editorialCache.recipients||[]).filter(r=>canonicalPhone(r.phone_e164)===canonicalPhone(phone));
+ const recipientIds=new Set(recipients.map(r=>r.id));
+ const events=new Map((editorialCache.events||[]).map(e=>[e.id,e]));
+ const deliveries=(editorialCache.deliveries||[]).filter(d=>recipientIds.has(d.recipient_id)).sort((a,b)=>Date.parse(a.created_at)-Date.parse(b.created_at));
+ makeEditorialTable($("editorialPhoneDeliveries"),["Data","Artigo","Evento","Situação","Falha"],deliveries.map(d=>{
+  const e=events.get(d.event_id)||{};
+  return [stamp(d.created_at),(e.journal_code||"—")+" #"+(e.submission_id||"—"),e.event_type||"—",
+   d.read_at?"LIDO":d.delivered_at?"ENTREGUE":d.state||"—",d.last_error_code||"—"];
+ }));
+ $("editorialChatMessages").replaceChildren(elem("p","Carregando conversa…","hint"));
+ $("editorialReplyStatus").textContent="";
+ $("editorialContactService").scrollIntoView({behavior:"smooth",block:"start"});
+ await editorialLoadServiceChat();
+}
+async function editorialLoadServiceChat(){
+ if(!editorialServicePhone||!editorialCache)return;
+ const chats=(editorialCache.chats||[]).filter(x=>canonicalPhone(x.phone)===canonicalPhone(editorialServicePhone)).sort((a,b)=>{
+   const aw=editorialThreadAvailable(a)?1:0,bw=editorialThreadAvailable(b)?1:0;
+   return bw-aw||Date.parse(b.updated_at||0)-Date.parse(a.updated_at||0);
+ });
+ const thread=chats[0]||null;
+ const box=$("editorialChatMessages");box.replaceChildren();
+ editorialServiceChat=thread;
+ if(!thread){box.append(elem("p","Não há conversa recebida desse número na Central UJN. O histórico de notificações editoriais está acima.","hint"));editorialServiceControls();return;}
+ try{
+  const details=await call({action:"detail",id:thread.id});
+  editorialServiceChat={...thread,...details.conversation};
+  for(const m of details.messages||[]){
+   const item=elem("div",undefined,"msg "+m.sender);
+   item.style.marginBottom="8px";item.append(elem("strong",m.sender==="CUSTOMER"?"Autor":m.sender==="AGENT"?"Atendente":m.sender==="BOT"?"Assistente UJN":"Sistema"));
+   item.append(elem("div",m.body||"(sem texto)"),elem("small",stamp(m.created_at)));box.append(item);
+  }
+  if(!(details.messages||[]).length)box.append(elem("p","Conversa sem mensagens.","hint"));
+  box.scrollTop=box.scrollHeight;
+ }catch(e){box.append(elem("p","Não foi possível consultar o atendimento: "+e.message,"notice error"))}
+ editorialServiceControls();
+}
+async function editorialClaimService(){
+ if(!editorialServiceChat||!editorialThreadAvailable(editorialServiceChat))return;
+ const x=editorialServiceChat;
+ try{
+ const result=await call({action:"operator",operation:"claim",id:x.id,revision:x.revision,event_id:crypto.randomUUID()});
+ if(!result.ok)throw Error("Não foi possível assumir.");
+ editorialServiceChat={...x,state:"HUMAN",assigned_to:editorialUserId,revision:x.revision+1};
+ $("editorialReplyStatus").textContent="Atendimento assumido.";
+ await editorialLoadServiceChat();
+ }catch(e){$("editorialReplyStatus").textContent=e.message}
+}
+async function editorialSendService(){
+ const text=$("editorialReplyText").value.trim(),x=editorialServiceChat;
+ if(!x||!text||text.length>2500||!editorialThreadAvailable(x)||x.state!=="HUMAN"||x.assigned_to!==editorialUserId)return;
+ if(!confirm("Enviar esta mensagem ao WhatsApp "+editorialServicePhone+" pela Central UJN?"))return;
+ $("editorialSendReply").disabled=true;
+ try{
+ const result=await call({action:"operator",operation:"reply",id:x.id,revision:x.revision,text,event_id:crypto.randomUUID()});
+ const delivery=result.delivery?.state||"REGISTRADA";
+ $("editorialReplyStatus").textContent="Resultado do envio: "+delivery+(delivery==="NEEDS_TEMPLATE"?" — fora da janela de atendimento.":"");
+ if(!result.ok)throw Error("A central não confirmou a operação.");
+ $("editorialReplyText").value="";
+ editorialServiceChat.revision=x.revision+1;
+ await editorialLoadServiceChat();
+ }catch(e){$("editorialReplyStatus").textContent="Falha: "+e.message}
+ editorialServiceControls();
 }
 async function editorialLink(id){
  if(!editorialCache)return;
@@ -193,5 +298,9 @@ $("loginForm").onsubmit=login;$("signout").onclick=logout;for(const b of documen
 $("editorialRefresh").addEventListener("click",()=>editorialWa());
 $("editorialJournal").addEventListener("change",()=>{if(editorialCache)renderEditorial(editorialCache)});
 $("editorialSearch").addEventListener("input",()=>{if(editorialCache)renderEditorial(editorialCache)});
-$("editorialContacts").addEventListener("click",e=>{const target=e.target.closest("button[data-request]");if(target)editorialLink(target.dataset.request)});
+$("editorialContacts").addEventListener("click",e=>{const phone=e.target.closest("button[data-editorialphone]");if(phone){editorialOpenService(phone.dataset.editorialphone);return}const target=e.target.closest("button[data-request]");if(target)editorialLink(target.dataset.request)});
+$("editorialCloseService").addEventListener("click",()=>{$("editorialContactService").classList.add("hidden");editorialServicePhone=null;editorialServiceChat=null});
+$("editorialClaimChat").addEventListener("click",editorialClaimService);
+$("editorialSendReply").addEventListener("click",editorialSendService);
+$("editorialRefreshChat").addEventListener("click",editorialLoadServiceChat);
 </script></body></html>
