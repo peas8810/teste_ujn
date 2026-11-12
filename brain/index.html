@@ -11,7 +11,7 @@
 .crm-segments{display:inline-flex;border:1px solid #dbe5eb;background:white;border-radius:10px;padding:3px;gap:3px}
 .crm-segments button{border:0;border-radius:8px;background:transparent;color:#52687a;padding:7px 11px;cursor:pointer;font-weight:700}
 .crm-segments button.active{background:#15354c;color:white}
-.crm-dashboard-metrics{display:grid;grid-template-columns:repeat(6,minmax(135px,1fr));gap:12px;margin:14px 0 19px}
+.crm-dashboard-metrics{display:grid;grid-template-columns:repeat(4,minmax(135px,1fr));gap:12px;margin:14px 0 19px}
 .crm-metric{background:#fff;border:1px solid #e0e9ed;border-radius:15px;padding:17px;position:relative;box-shadow:0 7px 20px #0c34590b;overflow:hidden}
 .crm-metric:before{content:"";position:absolute;top:0;left:0;right:0;height:4px;background:var(--accent,#087c69)}
 .crm-metric .crm-metric-num{display:block;font-size:29px;line-height:1.1;letter-spacing:-1px;font-weight:800;margin:10px 0 5px;color:#102f46}
@@ -209,8 +209,11 @@ function crmRender(d){
  const delivered=recent.filter(x=>x.delivered_at).length;
  const known=recent.filter(x=>x.state==="SENT"||x.state==="DELIVERED"||x.delivered_at);
  const deliveredRate=known.length?Math.round(delivered/known.length*100)+"%":"—";
- const human=conversations.filter(x=>Number.isFinite(Number(x.first_human_response_minutes))&&x.first_human_response_minutes!==null);
+ const human=conversations.filter(x=>Number.isFinite(Number(x.first_human_response_minutes))&&x.first_human_response_minutes!==null&&Date.parse(x.first_customer_at||0)>=after);
  const avg=human.length?human.reduce((n,x)=>n+Number(x.first_human_response_minutes),0)/human.length:null;
+ const bot=conversations.filter(x=>Number.isFinite(Number(x.first_bot_response_minutes))&&x.first_bot_response_minutes!==null&&Date.parse(x.first_customer_at||0)>=after);
+ const avgBot=bot.length?bot.reduce((n,x)=>n+Number(x.first_bot_response_minutes),0)/bot.length:null;
+ const recentReplies=messages.filter(m=>Date.parse(m.created_at||0)>=after);
  const slaOverdue=conversations.filter(x=>crmChannelState(x,sla).status==="danger").length;
  const active=contacts.filter(x=>x.status==="VERIFIED").length;
  const metrics=[
@@ -218,8 +221,10 @@ function crmRender(d){
   ["Aceites no período",registered.length,"Últimos "+days+" dias","#2d7ab5"],
   ["Notificações entregues",delivered,"Confirmação da Meta","#11917e"],
   ["Taxa de entrega",deliveredRate,"Sobre envios aceitos","#3682a8"],
+  ["Respostas recebidas",recentReplies.length,"Central UJN / período","#5c79bd"],
   ["SLA vencidos",slaOverdue,"Fila humana em atraso","#d07142"],
-  ["1ª resposta humana",avg===null?"—":crmMinutes(avg),human.length+" conversa(s) mensurada(s)","#825bc4"]
+  ["1ª resposta humana",avg===null?"—":crmMinutes(avg),human.length+" conversa(s) no período","#825bc4"],
+  ["1ª resposta automática",avgBot===null?"—":crmMinutes(avgBot),bot.length+" conversa(s) no período","#329c9c"]
  ];
  $("editorialStats").replaceChildren(...metrics.map(x=>crmNewMetric(...x)));
  $("crmUpdated").textContent="Atualizado "+stamp(d.updated_at);
