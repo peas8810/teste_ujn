@@ -58,6 +58,70 @@
 .crm-sla-clock{font-variant-numeric:tabular-nums}
 @media(max-width:1250px){.crm-dashboard-metrics{grid-template-columns:repeat(3,minmax(130px,1fr))}.crm-two-col{grid-template-columns:1fr}}
 @media(max-width:690px){.crm-dashboard-metrics{grid-template-columns:repeat(2,minmax(120px,1fr))}.crm-service-meta{grid-template-columns:1fr}.crm-chart{gap:3px}.crm-filter-bar input,.crm-filter-bar select{max-width:none}}
+
+/* UJN Editorial CRM — agent workspace (inbox / thread / contact context) */
+.crm-next-shell{font-family:Inter,system-ui,-apple-system,"Segoe UI",Arial,sans-serif;color:#1a344b}
+.crm-next-header{display:flex;justify-content:space-between;align-items:center;gap:18px;flex-wrap:wrap;margin:8px 0 19px}
+.crm-next-header h1{font-size:28px;letter-spacing:-.7px;margin:4px 0 3px}
+.crm-next-header p{color:#728799;font-size:13px;margin:0}.crm-next-eyebrow{color:#007e74;font-size:10px;font-weight:800;letter-spacing:1.5px}
+.crm-next-header-actions{display:flex;gap:9px;align-items:center}.crm-next-live{border-radius:100px;background:#e9f7f1;color:#11825d;padding:9px 12px;font-size:12px;font-weight:700}
+.crm-next-live i{width:8px;height:8px;display:inline-block;background:#17ae79;border-radius:50%;margin-right:5px}
+.crm-next-tabs{display:flex;gap:5px;border-bottom:1px solid #dbe6eb;margin-bottom:17px;overflow:auto}
+.crm-next-tabs button{font:inherit;font-size:12px;border:0;border-bottom:3px solid transparent;background:none;padding:11px 16px;white-space:nowrap;color:#71869a;cursor:pointer;font-weight:650}
+.crm-next-tabs button.active{border-color:#008d78;color:#116e65}
+.crm-next-cards{display:grid;grid-template-columns:repeat(5,minmax(125px,1fr));gap:10px;margin-bottom:14px}
+.crm-next-card{border:1px solid #e1e9ef;border-radius:12px;padding:13px 15px;background:white;box-shadow:0 3px 12px #11355206}
+.crm-next-card .number{display:block;font-size:24px;font-weight:800;letter-spacing:-.7px;margin:5px 0 3px;color:#1a354d}
+.crm-next-card .label{font-size:11px;color:#657d8e;font-weight:700}.crm-next-card .extra{font-size:10px;color:#9aabb5}
+.crm-next-workspace{display:grid;grid-template-columns:minmax(220px,.88fr) minmax(360px,1.52fr) minmax(230px,.8fr);height:min(685px,75vh);min-height:480px;border:1px solid #dce7eb;border-radius:15px;overflow:hidden;background:#fff;box-shadow:0 15px 40px #15364b0e}
+.crm-next-pane{min-width:0;display:flex;flex-direction:column}.crm-next-list,.crm-next-timeline{border-right:1px solid #e2ebef}
+.crm-next-panehead{padding:18px 16px 12px;display:flex;justify-content:space-between}.crm-next-panehead strong{font-size:14px}.crm-next-panehead span{font-size:11px;color:#97a6b3;margin-left:7px}
+.crm-next-controls{padding:0 12px 12px;display:flex;gap:5px;flex-wrap:wrap}
+.crm-next-controls input{width:100%;min-width:0;border:1px solid #d8e5ea;border-radius:9px;background:#f8fafb;padding:10px;font-size:12px}
+.crm-next-controls select{border:1px solid #d8e5ea;border-radius:8px;padding:6px;font-size:11px;width:100%}
+.crm-next-scroll{flex:1;overflow:auto}
+.crm-next-contact{width:100%;display:grid;grid-template-columns:34px minmax(0,1fr);gap:10px;text-align:left;padding:13px 13px;border:0;border-bottom:1px solid #eff3f5;background:#fff;cursor:pointer;font:inherit}
+.crm-next-contact:hover{background:#f4f9f9}.crm-next-contact.selected{background:#ecf8f5;border-left:3px solid #058c75;padding-left:10px}
+.crm-next-circle{display:flex;align-items:center;justify-content:center;background:#deecf1;color:#31677e;border-radius:50%;width:34px;height:34px;font-size:11px;font-weight:800;flex-shrink:0}
+.crm-next-contact .name{font-size:12px;font-weight:750;color:#18354b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.crm-next-contact .sub{font-size:10px;color:#6e8493;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:4px 0}
+.crm-next-contact .bottom{display:flex;justify-content:space-between;gap:5px;align-items:center}
+.crm-next-tag{font-size:10px;border-radius:100px;background:#edf2f5;color:#5e7484;padding:4px 8px;font-weight:700;display:inline-flex;align-items:center;gap:3px}
+.crm-next-tag.good{background:#e0f5ec;color:#08795c}.crm-next-tag.blue{background:#e6eefb;color:#3760a1}.crm-next-tag.warn{background:#fff1d8;color:#976b14}.crm-next-tag.bad{background:#ffe8e6;color:#b24b43}
+.crm-next-contact .latest{font-size:10px;color:#94a6b0}
+.crm-next-thread-head{display:flex;align-items:center;gap:10px;padding:14px 17px;border-bottom:1px solid #e8eff1;min-height:70px}
+.crm-next-avatar{border-radius:50%;width:40px;height:40px;background:#153f58;color:white;font-size:12px;font-weight:750;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.crm-next-thread-head>div:nth-child(2){flex:1;min-width:0}.crm-next-thread-head strong{display:block;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.crm-next-thread-head span{color:#8194a2;font-size:11px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:3px}
+.crm-next-ghost{border:1px solid #d3e3e7;background:#fff;color:#126c69;border-radius:8px;padding:8px 11px;cursor:pointer;font-size:11px;font-weight:750}
+.crm-next-ghost:disabled{opacity:.45;cursor:default}
+.crm-next-messages{background:linear-gradient(130deg,#f5f8f9,#edf5f4);padding:16px;flex:1;overflow:auto;display:flex;flex-direction:column;gap:11px}
+.crm-next-date{align-self:center;color:#8397a3;font-size:10px;background:white;border-radius:100px;padding:5px 10px}
+.crm-next-bubble{max-width:92%;border-radius:13px;padding:13px 14px;background:#fff;border:1px solid #e3ebee;box-shadow:0 2px 9px #143d5108;align-self:flex-start;min-width:180px}
+.crm-next-bubble.out{background:#e0f5ee;border-color:#cfebdf;align-self:flex-end}
+.crm-next-bubble.event{align-self:center;background:#f8f2e7;border:1px dashed #ebdabb;max-width:100%;text-align:center;min-width:0}
+.crm-next-bubble .source{font-size:10px;color:#488576;font-weight:800;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.crm-next-bubble .content{font-size:12px;color:#264457;margin-top:8px;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.6}
+.crm-next-bubble .minor{color:#7e939d;font-size:10px;margin-top:8px;display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap}
+.crm-next-bubble .minor span{white-space:nowrap}
+.crm-next-composer{border-top:1px solid #e1ebef;padding:12px 16px;display:flex;align-items:center;gap:12px;justify-content:space-between;background:#fff}
+.crm-next-composer strong{display:block;font-size:12px}.crm-next-composer span{font-size:10px;color:#8093a0;display:block;margin-top:4px}
+.crm-next-profile{background:#fdfefe;overflow:auto}.crm-next-profile-heading{padding:21px 17px 14px;border-bottom:1px solid #edf1f3;font-size:13px;font-weight:800}
+.crm-next-profile-body{padding:15px 17px}.crm-next-profile-name{font-size:14px;font-weight:800;line-height:1.4}.crm-next-profile-key{font-size:10px;color:#8ba0ac;margin-top:14px;text-transform:uppercase;letter-spacing:.5px}
+.crm-next-profile-value{font-size:12px;font-weight:650;color:#345369;margin-top:4px;overflow-wrap:anywhere}
+.crm-next-profile-article{border:1px solid #dce9eb;border-radius:10px;padding:10px;margin:8px 0;background:#fff}
+.crm-next-profile-article strong{color:#135e78;font-size:12px}.crm-next-profile-article p{color:#4e6474;font-size:11px;line-height:1.5;margin:5px 0}
+.crm-next-profile-button{width:100%;margin-top:10px}
+.crm-next-empty{color:#8397a4;text-align:center;font-size:12px;line-height:1.7;margin:auto;padding:20px}
+.crm-next-bottom{background:white;border:1px solid #e1ebee;border-radius:14px;padding:17px;margin-top:14px}
+.crm-next-bottom-heading{display:flex;gap:12px;align-items:center;justify-content:space-between;margin-bottom:9px;flex-wrap:wrap}
+.crm-next-bottom-heading strong{font-size:15px}.crm-next-bottom-heading p{font-size:11px;color:#8698a6;margin:3px 0}
+.crm-next-tablewrap{overflow:auto;max-height:340px}.crm-next-audit{width:100%;border-collapse:collapse;font-size:11px}
+.crm-next-audit th{text-align:left;color:#718698;background:#f6f9fa;position:sticky;top:0;z-index:1;padding:11px;white-space:nowrap}
+.crm-next-audit td{padding:11px;border-bottom:1px solid #edf1f3;color:#3c576a;vertical-align:top}
+.crm-next-audit tr:hover{background:#f7faf9}.crm-next-audit .preview{max-width:320px;overflow-wrap:anywhere}
+@media(max-width:1250px){.crm-next-workspace{grid-template-columns:minmax(205px,.8fr) minmax(340px,1.4fr)}.crm-next-profile{grid-column:1/-1;display:none}.crm-next-cards{grid-template-columns:repeat(3,minmax(120px,1fr))}}
+@media(max-width:800px){.crm-next-workspace{height:auto;min-height:0;grid-template-columns:1fr}.crm-next-list{max-height:300px;border-right:0;border-bottom:1px solid #e2ebef}.crm-next-timeline{height:520px;border:0}.crm-next-profile{display:none}.crm-next-cards{grid-template-columns:repeat(2,minmax(115px,1fr))}.crm-next-header h1{font-size:23px}}
 </style></head><body><a class="skip" href="#maincontent">Pular para conteúdo</a><div id="overlay"></div><div class="shell">
 <aside class="sidebar" id="sidebar"><div class="brand"><svg width="38" height="38" viewBox="0 0 40 40" fill="none" aria-hidden="true"><path d="M10 30L20 10L32 28L10 30" stroke="#53bbbc" stroke-width="2.5"/><circle cx="10" cy="30" r="4" fill="#fff"/><circle cx="20" cy="10" r="4" fill="#fff"/><circle cx="32" cy="28" r="4" fill="#fff"/></svg>brain <small>UJN</small></div><div class="tagline">RELACIONAMENTO QUE CONECTA</div>
 <div class="navtitle">OPERAÇÃO</div><nav class="nav"><button data-screen="overview">▦　Visão geral</button><button data-screen="inbox">▤　Caixa de entrada</button><button data-screen="contacts">♙　Contatos e vínculos</button></nav>
@@ -77,6 +141,40 @@
 <section data-page="genius" class="screen hidden"><div class="eyebrow">ECOSSISTEMA</div><h1>ArticleGenius</h1><div class="card"><a class="btn primary" target="_blank" rel="noopener" href="https://www.articlegenius.org/">https://www.articlegenius.org/</a></div></section>
 
 <section data-page="editorialwa" class="screen hidden">
+<div class="crm-next-shell">
+  <header class="crm-next-header">
+    <div><div class="crm-next-eyebrow">CENTRAL EDITORIAL · WHATSAPP BUSINESS</div><h1>Mensagens e atendimento</h1><p>Histórico completo por autor e artigo, respostas e confirmações da Meta.</p></div>
+    <div class="crm-next-header-actions"><span class="crm-next-live"><i></i> OJS conectado</span><button class="btn" id="crmNextRefresh">↻ Atualizar</button></div>
+  </header>
+  <div class="crm-next-tabs">
+    <button class="active" data-crm-view="inbox">Caixa de entrada</button>
+    <button data-crm-view="report">Indicadores & SLA</button>
+    <button data-crm-view="records">Cadastros & envios</button>
+  </div>
+  <div id="crmNextOverview">
+    <div id="crmNextCards" class="crm-next-cards"></div>
+    <div class="crm-next-workspace">
+      <div class="crm-next-pane crm-next-list">
+        <div class="crm-next-panehead"><div><strong>Contatos e autores</strong><span id="crmNextCount">—</span></div></div>
+        <div class="crm-next-controls"><input id="crmNextSearch" placeholder="Buscar autor, WhatsApp, artigo…" aria-label="Buscar contatos">
+        <select id="crmNextStatus"><option value="">Todos os contatos</option><option value="active">Ativos</option><option value="pending">Aguardando vínculo</option><option value="reply">Com respostas</option><option value="issue">Com falha</option></select></div>
+        <div id="crmNextContacts" class="crm-next-scroll"></div>
+      </div>
+      <div class="crm-next-pane crm-next-timeline">
+        <div class="crm-next-thread-head"><div class="crm-next-avatar">UJN</div><div><strong id="crmNextPerson">Selecione um contato</strong><span id="crmNextThreadSub">Histórico do WhatsApp e do OJS</span></div><button id="crmNextOpenCare" class="crm-next-ghost" disabled>Atender</button></div>
+        <div id="crmNextMessages" class="crm-next-messages"><div class="crm-next-empty">Selecione um autor para visualizar todas as mensagens registradas.</div></div>
+        <div class="crm-next-composer"><div><strong>Atendimento humano</strong><span id="crmNextComposeHint">Selecione uma conversa para conferir a janela de resposta da Meta.</span></div><button class="btn" id="crmNextStartCare" disabled>Abrir atendimento</button></div>
+      </div>
+      <div class="crm-next-pane crm-next-profile">
+        <div class="crm-next-profile-heading">Perfil do contato</div><div id="crmNextProfile"><div class="crm-next-empty">Os dados aparecerão ao selecionar um contato.</div></div>
+      </div>
+    </div>
+    <div class="crm-next-bottom"><div class="crm-next-bottom-heading"><div><strong>Auditoria de notificações</strong><p>Eventos, modelo da mensagem, horários registrados e respostas</p></div><button id="crmNextExport" class="crm-next-ghost">Exportar histórico CSV</button></div><div class="crm-next-tablewrap" id="crmNextAudit"></div></div>
+  </div>
+  <div id="crmNextReports" class="hidden"></div>
+  <div id="crmNextRecords" class="hidden"></div>
+</div>
+<div id="crmNextLegacyReports" class="hidden">
 <div class="eyebrow">OPERAÇÃO · REVISTAS</div>
 <div class="head"><div><h1>WhatsApp OJS</h1><p class="lead">Acompanhe o aceite dos autores, o vínculo com os manuscritos, entregas da Meta e respostas recebidas.</p></div><button class="btn" id="editorialRefresh">Atualizar dados</button></div>
 <div class="notice warn">O registro de aceite não identifica automaticamente o artigo. Cadastros sem manuscrito precisam de vínculo confirmado no OJS antes do envio; não associe por suposição.</div>
@@ -123,6 +221,7 @@
 <div class="card"><h2>Envios e entrega</h2><div id="editorialDeliveries" style="overflow-x:auto"></div></div>
 <div class="card"><h2>Respostas dos contatos ativos</h2><p class="hint">Registros recebidos pela Central UJN. Podem incluir conversas gerais realizadas pelo mesmo WhatsApp.</p><div id="editorialReplies" style="overflow-x:auto"></div></div>
 </section>
+</div>
 <section data-page="marketing" class="screen hidden">
  <div class="eyebrow">COMUNICAÇÃO · GESTÃO</div>
  <div class="head"><div><h1>WhatsApp · Marketing e relacionamento</h1><p class="lead">Indicadores reais de notificações editoriais, interação posterior e oportunidades de relacionamento.</p></div><button class="btn" id="marketingRefresh">Atualizar indicadores</button></div>
