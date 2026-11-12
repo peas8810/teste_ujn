@@ -15,7 +15,7 @@
 <script>
 const form=document.querySelector("#optin"),button=document.querySelector("#send"),out=document.querySelector("#message");
 const suppliedEmail=new URLSearchParams(location.search).get("email");
-if(suppliedEmail && suppliedEmail.length <=254 && /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(suppliedEmail)) {form.email.value=suppliedEmail.trim().toLowerCase();form.email.readOnly=true;form.email.setAttribute("aria-readonly","true");document.querySelector("#email-note").classList.remove("hidden");}
+if(suppliedEmail && suppliedEmail.length <=254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(suppliedEmail)) {form.email.value=suppliedEmail.trim().toLowerCase();form.email.readOnly=true;form.email.setAttribute("aria-readonly","true");document.querySelector("#email-note").classList.remove("hidden");}
 try{history.replaceState(null,"",location.pathname)}catch{}
 form.addEventListener("submit",async e=>{
 e.preventDefault();out.className="message hidden";if(!form.reportValidity())return;
