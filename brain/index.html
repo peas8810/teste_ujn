@@ -432,6 +432,25 @@ async function crmSaveContact(){
  }catch(e){$("crmContactSaved").textContent="Não foi possível salvar: "+e.message}
 }
 
+const crmOjsHosts={
+ REMUNOM:"https://remunom.ojsbr.com/multidisciplinar",
+ RSV:"https://rsv.ojsbr.com/rsv",
+ RJNM:"https://jrnm.ojsbr.com/juridica",
+ JIRRS:"https://jirrs.org.uk/jirrs",
+ NEXUS:"https://nexussr.org.uk/nexussr"
+};
+function crmOjsSubmissionLink(journal,id){
+ const base=crmOjsHosts[journal],num=Number(id);
+ if(!base||!Number.isSafeInteger(num)||num<=0||num>999999999)return null;
+ return base+"/dashboard/mySubmissions?workflowSubmissionId="+num;
+}
+function crmOjsLinkElement(journal,id,text){
+ const url=crmOjsSubmissionLink(journal,id);if(!url)return null;
+ const a=document.createElement("a");a.href=url;a.target="_blank";a.rel="noopener noreferrer";
+ a.textContent=text||"Acompanhar manuscrito no OJS ↗";
+ a.style.cssText="display:inline-block;color:#006e9c;font-size:12px;font-weight:700;margin-top:9px;text-decoration:underline";
+ return a;
+}
 const crmNextLabels={
  activation_confirmed:"Notificações editoriais ativadas",
  submission_received:"Submissão recebida",editor_assigned:"Editor designado",
@@ -583,6 +602,8 @@ function crmNextDrawThread(d,contact){
    const contents=crmNextNode("div",null,"content");
    contents.append(crmNextNode("strong",x.label));
    contents.append(crmNextNode("div","Revista: "+(x.event.journal_code||"—")+"  |  Manuscrito: #"+(x.event.submission_id||"—")));
+   const articleLink=crmOjsLinkElement(x.event.journal_code,x.event.submission_id,"Acompanhar artigo no OJS ↗");
+   if(articleLink)contents.append(articleLink);
    if(x.event.title)contents.append(crmNextNode("div",x.event.title.trim()));
    contents.append(crmNextNode("div","Parâmetros enviados à Meta: "+x.params.join(" · ")));
    if(x.event.summary)contents.append(crmNextNode("div","Resumo editorial: "+x.event.summary));
@@ -636,6 +657,7 @@ function crmNextDrawProfile(d,c){
   if(event?.title)box.append(crmNextNode("p",event.title.trim()));
   const count=c.messages.filter(m=>{const ev=(d.events||[]).find(e=>e.id===m.event_id);return ev?.journal_code===a.journal&&String(ev?.submission_id)===String(a.id)}).length;
   box.append(crmNextNode("span",count+" notificações registradas","crm-next-tag blue"));
+  const link=crmOjsLinkElement(a.journal,a.id,"Abrir submissão ↗");if(link)box.append(link);
   body.append(box);
  }
  if(!articles.size)body.append(crmNextNode("p","Nenhum manuscrito vinculado. O cadastro pode ter sido originado de uma campanha.","crm-next-empty"));
