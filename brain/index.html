@@ -1003,7 +1003,7 @@ function mktCampaigns(root,d){
  const layout=mktEl("div",undefined,"mkt-layout"),left=mktEl("div"),right=mktEl("div");
  left.append(mktPanel("Gestor de campanhas","Rascunhos, revisão, orçamento e públicos. O envio real está bloqueado."));
  const rows=d.campaigns.map(x=>[x.name,x.journal_code||"Todas",mktBadge(x.status,x.status==="DRAFT"?"warn":x.status==="ARCHIVED"?"bad":"blue"),mktMoney(x.budget_brl),mktDate(x.scheduled_for),(()=>{const a=mktEl("div");if(x.status==="DRAFT")a.append(mktBtn("Solicitar revisão","review_campaign",x.id));else if(x.status==="IN_REVIEW")a.append(mktBtn("Voltar ao rascunho","draft_campaign",x.id));
- a.append(mktBtn("Pré-auditoria","preflight_campaign",x.id));
+ a.append(mktBtn("Pré-auditoria","preflight_campaign",x.id));if(x.status==="IN_REVIEW")a.append(mktBtn("Aprovar após conferência","approve_campaign",x.id));
  if(["DRAFT","IN_REVIEW"].includes(x.status))a.append(mktBtn("Planejar data","plan_campaign",x.id));return a})()]);
  left.append(mktTable(["Campanha","Revista","Status","Orçamento","Agendada","Ação"],rows));
  const fields=[
@@ -1020,7 +1020,10 @@ function mktCampaigns(root,d){
  {name:"label",label:"Nome interno",required:true},{name:"meta_template_name",label:"Identificador Meta (ex.: ujn_chamada_cientifica)",required:true},
  {name:"sample_body",label:"Texto de prévia",type:"textarea",wide:true}
  ],"create_template","Salvar rascunho de modelo"));
- right.append(mktTable(["Modelo","Situação"],d.templates.map(t=>[t.label,mktBadge(t.approval_status,t.approval_status==="APPROVED"?"ok":"warn")])));
+ right.append(mktTable(["Modelo","Situação","Verificação Meta"],d.templates.map(t=>[
+  t.label,mktBadge(t.approval_status,t.approval_status==="APPROVED"?"ok":"warn"),
+  mktBtn("Conferir na Meta","verify_meta_template",t.id)
+ ])));
  layout.append(left,right);root.append(layout);
 }
 function mktAudience(root,d){
@@ -1248,6 +1251,16 @@ $("mktViewBody").addEventListener("click",e=>{
   return;
  }
  if(action==="sync_contacts"){if(confirm("Importar números da Central UJN e dos cadastros OJS para a base de contatos, SEM conceder autorização comercial?"))mktRun("sync_central_contacts",{});return}
+ if(action==="verify_meta_template"){
+  const waba=prompt("Digite o ID da conta WhatsApp Business (WABA) da Editora UJN. Não informe token ou senha.","");
+  if(!waba)return;
+  if(!/^[0-9]{6,30}$/.test(waba))return say("O WABA ID deve conter apenas números.",true);
+  mktRun("verify_meta_template",{id,waba_id:waba});return;
+ }
+ if(action==="approve_campaign"){
+  if(!confirm("Confirmar aprovação INTERNA desta campanha? Isso não enviará mensagens. O sistema exigirá público com consentimento comprovado, modelo aprovado pela Meta e orçamento válido."))return;
+  mktRun("approve_campaign",{id,confirmed:true});return;
+ }
  if(action==="preflight_campaign"){
   mktCall("preflight_campaign",{id}).then(r=>{
    const labels={marketing_consent:"Público com consentimento comercial",audience_configured:"Público definido",
