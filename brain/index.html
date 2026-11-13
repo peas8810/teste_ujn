@@ -979,7 +979,7 @@ function mktCreateForm(title,help,fields,action,buttonText){
   const label=mktEl("label",f.label,f.wide?"wide":"");
   let input;if(f.type==="select"){input=mktEl("select");for(const [val,text] of f.options){const o=mktEl("option",text);o.value=val;input.append(o)}}
   else if(f.type==="textarea")input=mktEl("textarea");else{input=mktEl("input");input.type=f.type||"text";}
-  input.name=f.name;input.required=!!f.required;input.placeholder=f.placeholder||"";if(f.maxlength)input.maxLength=f.maxlength;label.append(input);form.append(label);
+  input.name=f.name;if(input.type==="number")input.step="0.01";input.required=!!f.required;input.placeholder=f.placeholder||"";if(f.maxlength)input.maxLength=f.maxlength;label.append(input);form.append(label);
  }
  const submit=mktEl("button",buttonText||"Salvar","btn");submit.type="submit";form.append(submit);p.append(form);return p;
 }
@@ -1003,6 +1003,7 @@ function mktCampaigns(root,d){
  const layout=mktEl("div",undefined,"mkt-layout"),left=mktEl("div"),right=mktEl("div");
  left.append(mktPanel("Gestor de campanhas","Rascunhos, revisão, orçamento e públicos. O envio real está bloqueado."));
  const rows=d.campaigns.map(x=>[x.name,x.journal_code||"Todas",mktBadge(x.status,x.status==="DRAFT"?"warn":x.status==="ARCHIVED"?"bad":"blue"),mktMoney(x.budget_brl),mktDate(x.scheduled_for),(()=>{const a=mktEl("div");if(x.status==="DRAFT")a.append(mktBtn("Solicitar revisão","review_campaign",x.id));else if(x.status==="IN_REVIEW")a.append(mktBtn("Voltar ao rascunho","draft_campaign",x.id));
+ a.append(mktBtn("Pré-auditoria","preflight_campaign",x.id));
  if(["DRAFT","IN_REVIEW"].includes(x.status))a.append(mktBtn("Planejar data","plan_campaign",x.id));return a})()]);
  left.append(mktTable(["Campanha","Revista","Status","Orçamento","Agendada","Ação"],rows));
  const fields=[
@@ -1025,7 +1026,13 @@ function mktCampaigns(root,d){
 function mktAudience(root,d){
  const layout=mktEl("div",undefined,"mkt-layout"),left=mktEl("div"),right=mktEl("div");
  const panel=mktPanel("Base de contatos e consentimento","A inclusão de um contato não autoriza campanhas. Apenas evidências específicas de marketing permitem o opt-in.");
- const controls=mktEl("div",undefined,"row");controls.style.marginBottom="12px";controls.append(mktBtn("Sincronizar contatos da Central e do OJS (sem opt-in)","sync_contacts"));panel.append(controls);
+ const controls=mktEl("div",undefined,"row");controls.style.marginBottom="12px";controls.append(mktBtn("Sincronizar contatos da Central e do OJS (sem opt-in)","sync_contacts"));
+ const consentLink=mktEl("a","Autorizar marketing pelo WhatsApp ↗","mkt-action");
+ consentLink.href="https://wa.me/553189474110?text=UJN%20MARKETING%20SIM";
+ consentLink.target="_blank";consentLink.rel="noopener noreferrer";
+ consentLink.style.cssText="display:inline-flex;align-items:center;text-decoration:none";
+ controls.append(consentLink);panel.append(controls);
+ panel.append(mktEl("div","Para autorizar marketing, o contato deve enviar UJN MARKETING SIM pelo próprio WhatsApp. O Brain registra a prova da Meta. Para cancelar apenas marketing: UJN MARKETING PARAR. O comando PARAR cancela também notificações editoriais.","mkt-notice"));
  panel.append(mktTable(["Contato","WhatsApp","Origem","Marketing","Ações"],d.contacts.map(x=>{
   const action=mktEl("div");action.style.display="flex";action.style.gap="5px";
   action.append(mktBtn("Detalhes/consentimento","consent_contact",x.id));action.append(mktBtn("Editar perfil","edit_contact",x.id));
@@ -1241,6 +1248,16 @@ $("mktViewBody").addEventListener("click",e=>{
   return;
  }
  if(action==="sync_contacts"){if(confirm("Importar números da Central UJN e dos cadastros OJS para a base de contatos, SEM conceder autorização comercial?"))mktRun("sync_central_contacts",{});return}
+ if(action==="preflight_campaign"){
+  mktCall("preflight_campaign",{id}).then(r=>{
+   const labels={marketing_consent:"Público com consentimento comercial",audience_configured:"Público definido",
+   approved_marketing_template:"Modelo de categoria Marketing aprovado",campaign_reviewed:"Campanha aprovada",
+   spending_budget:"Orçamento dentro do limite",dispatch_enabled:"Disparo homologado e habilitado"};
+   alert("Pré-auditoria da campanha\n\nPúblico elegível: "+r.eligible+"\n"+
+     Object.entries(r.gates).map(([k,v])=>(v?"✓ ":"✗ ")+labels[k]).join("\n")+
+     "\n\nEsta ação não enviou mensagens.");
+  }).catch(e=>say(e.message,true));return;
+ }
  if(action==="preview_segment"){mktRun("preview_segment",{segment_id:id});return}
  if(action==="review_campaign"||action==="draft_campaign"){mktRun("change_campaign",{id,status:action==="review_campaign"?"IN_REVIEW":"DRAFT"});return}
 });
