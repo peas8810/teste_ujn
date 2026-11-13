@@ -7,6 +7,19 @@
 </head><body><main class="shell"><div class="panel"><div class="brand">EDITORA UJN · BRAIN UJN</div><h1>Ative as notificações editoriais</h1><p>Receba pelo WhatsApp atualizações sobre avaliação, revisão, decisão editorial e publicação de seus manuscritos.</p>
 <form id="optin" novalidate><label for="email">E-mail associado ao convite</label><div class="email-line"><input type="email" id="email" name="email" maxlength="254" required autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="voce@instituicao.br"/><button type="button" id="clear-email" class="clear-email" aria-label="Limpar e-mail">Limpar</button></div>
 <p id="email-note" class="muted hidden"><small>Confira o endereço antes de enviar. Você pode corrigir ou limpar este campo.</small></p><label for="phone">Seu WhatsApp com DDD e código do país</label><input type="tel" id="phone" name="phone" maxlength="22" required autocomplete="tel" placeholder="+5533999999999"/>
+<fieldset style="border:1px solid #d6e3e8;border-radius:10px;padding:12px 15px;margin:18px 0">
+<legend style="padding:0 6px;font-weight:700;color:#27485a;font-size:14px">Identificação do artigo (recomendado)</legend>
+<small class="muted">Se você já submeteu seu artigo, informe a revista e o ID que aparece no e-mail do OJS. Isso acelera a conferência. Para avisos sobre outros artigos vinculados ao seu e-mail, não será necessário preencher novamente.</small>
+<label for="journal">Revista da submissão</label>
+<select name="journal" id="journal" style="width:100%;padding:13px;border:1px solid #b7c7d1;border-radius:9px;background:white;font:inherit">
+<option value="">Selecione a revista</option><option value="REMUNOM">REMUNOM</option>
+<option value="RSV">Revista Saúde dos Vales (RSV)</option><option value="RJNM">Revista Jurídica (RJNM)</option>
+<option value="JIRRS">JIRRS</option><option value="NEXUS">NEXUS</option>
+</select>
+<label for="submission">ID do manuscrito no OJS</label>
+<input id="submission" name="submission" type="text" inputmode="numeric" pattern="[1-9][0-9]{0,8}" maxlength="9" placeholder="Ex.: 8411" autocomplete="off"/>
+<small class="muted">O ID informado será conferido com o e-mail do autor no OJS antes de qualquer ativação. Não basta digitar um ID para obter acesso.</small>
+</fieldset>
 <input class="hidden" name="website" tabindex="-1" autocomplete="off" aria-hidden="true"/>
 <label class="check"><input type="checkbox" name="accept" required/><span><strong>Quero receber notificações editoriais pelo WhatsApp</strong> sobre os manuscritos vinculados ao meu e-mail, após verificação de autoria e telefone. Sei que é opcional, não autoriza marketing e posso cancelar enviando PARAR.</span></label>
 <button class="button" type="submit" id="send">Solicitar ativação</button></form>
@@ -15,6 +28,8 @@
 <script>
 const form=document.querySelector("#optin"),button=document.querySelector("#send"),out=document.querySelector("#message");
 const params=new URLSearchParams(location.search),suppliedEmail=params.get("email"),emailConfirmToken=params.get("confirm"),journalHint=params.get("journal"),submissionHint=params.get("submission")||params.get("submission_id");
+if(["REMUNOM","RSV","RJNM","JIRRS","NEXUS"].includes(String(journalHint||"").toUpperCase()))form.journal.value=journalHint.toUpperCase();
+if(/^[1-9][0-9]{0,8}$/.test(String(submissionHint||"")))form.submission.value=submissionHint;
 if(suppliedEmail && suppliedEmail.length <=254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(suppliedEmail)) {form.email.value=suppliedEmail.trim().toLowerCase();document.querySelector("#email-note").classList.remove("hidden");}
 document.querySelector("#clear-email").addEventListener("click",()=>{form.email.value="";form.email.removeAttribute("readonly");document.querySelector("#email-note").classList.add("hidden");form.email.focus();});
 try{history.replaceState(null,"",location.pathname)}catch{}
@@ -32,9 +47,14 @@ if(emailConfirmToken){
 form.addEventListener("submit",async e=>{
 e.preventDefault();out.className="message hidden";if(!form.reportValidity())return;
 const email=form.email.value.trim(),phone=form.phone.value.replace(/[\s()\-]/g,"").trim();
+const journal=form.journal.value,submission=form.submission.value.trim();
+if((journal&&!submission)||(!journal&&submission)||submission&&!/^[1-9][0-9]{0,8}$/.test(submission)){
+ out.textContent="Informe a revista e o ID do artigo juntos, ou deixe ambos em branco.";out.className="message error";return;
+}
+
 if(!/^[+][1-9][0-9]{7,14}$/.test(phone)){out.textContent="Informe seu número no formato internacional, por exemplo +5533999999999.";out.className="message error";return;}
 button.disabled=true;button.textContent="Registrando…";
-try{const response=await fetch("https://leytqsyfrmzhectatcqm.supabase.co/functions/v1/ujn-editorial-activation-request",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({email,phone,accept:form.accept.checked,marketing:false,source:"ojs-submission",journal:journalHint||null,submission_id:submissionHint||null,website:form.website.value})});const data=await response.json();if(!response.ok||!data.ok)throw Error("A solicitação não foi concluída. Tente novamente mais tarde.");if(!/^[a-f0-9]{32}$/.test(data.whatsapp_confirmation_code||""))throw Error("Pedido salvo, mas a verificação do número ainda não está disponível. Contate a Editora UJN.");
+try{const response=await fetch("https://leytqsyfrmzhectatcqm.supabase.co/functions/v1/ujn-editorial-activation-request",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({email,phone,accept:form.accept.checked,marketing:false,source:"ojs-submission",journal:journal||null,submission_id:submission||null,website:form.website.value})});const data=await response.json();if(!response.ok||!data.ok)throw Error("A solicitação não foi concluída. Tente novamente mais tarde.");if(!/^[a-f0-9]{32}$/.test(data.whatsapp_confirmation_code||""))throw Error("Pedido salvo, mas a verificação do número ainda não está disponível. Contate a Editora UJN.");
 out.className="message";
 const publicPhone=await fetch("https://jufnkfyvqgkrxsbctqqk.supabase.co/functions/v1/ujn-editorial-public-phone");
 const line=await publicPhone.json();
