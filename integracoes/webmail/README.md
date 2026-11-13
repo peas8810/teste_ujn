@@ -59,3 +59,44 @@ Confirme a base legal e a política de retenção de mensagens e anexos antes de
 - Verificar carga do cron, falhas de rede e deduplicação em duas leituras consecutivas.
 - Validar retenção de mensagens e estratégia de remoção conforme a política da UJN.
 - Testar configuração SMTP somente em fase posterior, com autorização humana e bloqueio de duplicidades.
+
+
+## Envio supervisionado via SMTP — implantação
+
+O script `ujn_smtp_supervised_worker.py` usa a **mesma configuração privada** do IMAP e a conexão segura SMTP de `contato@ujn.ojsbr.com` em `mail.ujn.ojsbr.com:465`.
+
+**Comportamento atual:**
+- O painel permite registrar autorização para um rascunho, com destinatário, assunto e texto revisados.
+- Enquanto `smtp_enabled=false`, a solicitação fica `PENDING_ACTIVATION`, **não entra na fila executável** e não é enviada quando o SMTP for ativado posteriormente. Será preciso preparar uma nova autorização.
+- O servidor de e-mail **não está conectado ao worker neste momento**. Não é possível acionar o cPanel a partir do GitHub ou diretamente da aplicação web.
+- A fila só pode ser consumida por processo privado com assinatura HMAC do coletor, usando um único disparo `--send-one`, sem repetir tentativas com resultado incerto.
+
+### Teste de autenticação SMTP sem transmitir mensagens
+
+Copie `ujn_smtp_supervised_worker.py` para `/home/ujn/brain-ujn/`. No cPanel, crie **temporariamente** uma tarefa Cron a cada minuto contendo:
+
+```sh
+timeout 45s python3 /home/ujn/brain-ujn/ujn_smtp_supervised_worker.py --test-auth > /home/ujn/brain-ujn/state/teste_smtp_auth.log 2>&1
+```
+
+Exclua a tarefa após a primeira execução e abra o arquivo `/home/ujn/brain-ujn/state/teste_smtp_auth.log`. Saída esperada:
+
+```json
+{"smtp_authenticated": true, "sent_email": false, "host": "mail.ujn.ojsbr.com", "port": 465}
+```
+
+Esse comando **não envia e-mails**, mesmo com credenciais corretas. Se houver erro, envie somente o nome da exceção/descrição, nunca senha ou token.
+
+### Antes de habilitar qualquer envio real
+
+1. Confirme a autenticidade do remetente e as permissões da conta.
+2. Homologue a pasta Enviados do IMAP para conciliar mensagens enviadas pelo painel e pelo Webmail.
+3. Estabeleça uma política de retenção e uma confirmação explícita da conta para teste.
+4. Não habilite `smtp_enabled` nem agende o worker `--send-one` antes de cumprir essas verificações.
+5. O worker registra a mensagem enviada no banco apenas quando o servidor SMTP confirma aceitação; falhas de comunicação ficam como `UNKNOWN` sem reenvio automático.
+6. Os envios são autorizados individualmente pelo operador. Nenhuma resposta da IA é enviada sem revisão.
+
+### Instalação opcional após homologação (não executar agora)
+
+O worker oferece `--send-one` para consumir **uma** solicitação `QUEUED` previamente aprovada, enviar pelo SMTP e atualizar o banco. O processo nunca deve ser executado automaticamente até o teste de ponta a ponta, confirmação de pasta Enviados e política de duplicidade.
+
