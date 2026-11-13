@@ -196,6 +196,13 @@
 .mkt-footer{font-size:11px;color:#8298a5;line-height:1.7;padding:14px 0 27px}
 @media(max-width:1100px){.mkt-kpis{grid-template-columns:repeat(3,minmax(130px,1fr))}.mkt-layout{grid-template-columns:1fr}.mkt-stages{grid-template-columns:repeat(2,minmax(180px,1fr))}}
 @media(max-width:650px){.mkt-kpis{grid-template-columns:repeat(2,minmax(115px,1fr))}.mkt-form{grid-template-columns:1fr}.mkt-form .wide{grid-column:1}.mkt-stages{grid-template-columns:1fr}}
+
+.mkt-calendar{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));border-top:1px solid #dce8eb;border-left:1px solid #dce8eb}
+.mkt-calendar-head{background:#eaf2f3;font-size:11px;text-align:center;font-weight:750;padding:12px 4px;color:#4c6a7c;border-right:1px solid #dce8eb}
+.mkt-calendar-day{min-height:85px;min-width:0;border-right:1px solid #dce8eb;border-bottom:1px solid #dce8eb;padding:7px;background:#fff;font-size:11px}
+.mkt-calendar-day strong{color:#24475b}.mkt-calendar-day.muted{background:#f6f9fa}
+.mkt-calendar-event{padding:5px;border-radius:5px;font-size:10px;background:#dcf5eb;color:#00785e;margin-top:5px;white-space:normal;overflow-wrap:anywhere}
+@media(max-width:760px){.mkt-calendar-day{min-height:65px;padding:3px}.mkt-calendar-event{font-size:8px;padding:3px}.mkt-calendar-head{font-size:9px}}
 </style></head><body><a class="skip" href="#maincontent">Pular para conteúdo</a><div id="overlay"></div><div class="shell">
 <aside class="sidebar" id="sidebar"><div class="brand"><svg width="38" height="38" viewBox="0 0 40 40" fill="none" aria-hidden="true"><path d="M10 30L20 10L32 28L10 30" stroke="#53bbbc" stroke-width="2.5"/><circle cx="10" cy="30" r="4" fill="#fff"/><circle cx="20" cy="10" r="4" fill="#fff"/><circle cx="32" cy="28" r="4" fill="#fff"/></svg>brain <small>UJN</small></div><div class="tagline">RELACIONAMENTO QUE CONECTA</div>
 <div class="navtitle">OPERAÇÃO</div><nav class="nav"><button data-screen="overview">▦　Visão geral</button><button data-screen="inbox">▤　Caixa de entrada</button><button data-screen="contacts">♙　Contatos e vínculos</button></nav>
@@ -299,7 +306,7 @@
 <section data-page="marketing" class="screen hidden" id="marketingIntelligence">
 <div class="mkt-head"><div><span class="mkt-eyebrow">EDITORA UJN · INTELIGÊNCIA COMERCIAL</span><h1>Marketing Intelligence</h1><p>Campanhas, públicos, relacionamento, funil e resultados em um único espaço.</p></div><div class="mkt-tools"><span class="mkt-safe"><icon name="shield-check" inline/> Disparos suspensos até homologação</span><button class="btn" id="mktRefresh">Atualizar dados</button></div></div>
 <div class="mkt-tabs" id="mktTabs" role="tablist">
-<button data-mkt-view="overview" class="active">Visão geral</button><button data-mkt-view="campaigns">Campanhas</button><button data-mkt-view="audience">Contatos e consentimento</button><button data-mkt-view="segments">Segmentos</button><button data-mkt-view="journeys">Automações</button><button data-mkt-view="pipeline">Funil comercial</button><button data-mkt-view="analytics">Análises</button><button data-mkt-view="health">Saúde e custos</button><button data-mkt-view="assistant">Copiloto</button>
+<button data-mkt-view="overview" class="active">Visão geral</button><button data-mkt-view="campaigns">Campanhas</button><button data-mkt-view="audience">Contatos e consentimento</button><button data-mkt-view="segments">Segmentos</button><button data-mkt-view="journeys">Automações</button><button data-mkt-view="scheduler">Calendário</button><button data-mkt-view="pipeline">Funil comercial</button><button data-mkt-view="analytics">Análises</button><button data-mkt-view="health">Saúde e custos</button><button data-mkt-view="assistant">Copiloto</button>
 </div>
 <div class="mkt-kpis" id="mktKpis"></div>
 <div id="mktViewBody" class="mkt-view"><div class="card">Consultando dados de marketing…</div></div>
@@ -963,7 +970,7 @@ function mktRender(){
  $("mktKpis").replaceChildren(...metrics.map(([label,value,sub])=>{const b=mktEl("div",undefined,"mkt-kpi");b.append(mktEl("div",label,"label"),mktEl("strong",value,"value"),mktEl("div",sub,"sub"));return b}));
  for(const b of $("mktTabs").querySelectorAll("button[data-mkt-view]"))b.classList.toggle("active",b.dataset.mktView===marketingView);
  const root=$("mktViewBody");root.replaceChildren();
- const creators={overview:mktOverview,campaigns:mktCampaigns,audience:mktAudience,segments:mktSegments,journeys:mktJourneys,pipeline:mktPipeline,analytics:mktAnalytics,health:mktHealth,assistant:mktAssistant};
+ const creators={overview:mktOverview,campaigns:mktCampaigns,audience:mktAudience,segments:mktSegments,journeys:mktJourneys,scheduler:mktScheduler,pipeline:mktPipeline,analytics:mktAnalytics,health:mktHealth,assistant:mktAssistant};
  (creators[marketingView]||mktOverview)(root,d);
 }
 function mktCreateForm(title,help,fields,action,buttonText){
@@ -1094,6 +1101,31 @@ function mktJourneys(root,d){
  ],"create_journey","Criar jornada"));
  layout.append(left,right);root.append(layout);
 }
+let mktCalendarOffset=0;
+function mktScheduler(root,d){
+ const now=new Date();now.setDate(1);now.setMonth(now.getMonth()+mktCalendarOffset);
+ const year=now.getFullYear(),month=now.getMonth();
+ const title=now.toLocaleDateString("pt-BR",{month:"long",year:"numeric"});
+ const box=mktPanel("Calendário de campanhas","Datas planejadas para revisão e organização; agendamento não significa disparo.");
+ const actions=mktEl("div",undefined,"row");actions.style.cssText="display:flex;justify-content:space-between;margin:12px 0";
+ const previous=mktBtn("← Mês anterior","calendar_prev"),next=mktBtn("Próximo mês →","calendar_next");
+ actions.append(previous,mktEl("strong",title),next);box.append(actions);
+ const table=mktEl("div",undefined,"mkt-calendar");
+ for(const weekday of ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"])table.append(mktEl("div",weekday,"mkt-calendar-head"));
+ const first=new Date(year,month,1).getDay(),total=new Date(year,month+1,0).getDate();
+ for(let i=0;i<first;i++)table.append(mktEl("div",undefined,"mkt-calendar-day muted"));
+ for(let day=1;day<=total;day++){
+  const cell=mktEl("div",undefined,"mkt-calendar-day");
+  cell.append(mktEl("strong",String(day)));
+  const matches=d.campaigns.filter(x=>{if(!x.scheduled_for)return false;const date=new Date(x.scheduled_for);return date.getFullYear()===year&&date.getMonth()===month&&date.getDate()===day});
+  for(const camp of matches){const item=mktEl("div",camp.name,"mkt-calendar-event");item.title=camp.status+" · "+mktMoney(camp.budget_brl);cell.append(item)}
+  table.append(cell);
+ }
+ box.append(table);root.append(box);
+ const upcoming=mktPanel("Próximos planejamentos","A revisão humana e a aprovação do modelo continuam obrigatórias.");
+ upcoming.append(mktTable(["Campanha","Data planejada","Status","Orçamento"],d.campaigns.filter(x=>x.scheduled_for).sort((a,b)=>Date.parse(a.scheduled_for)-Date.parse(b.scheduled_for)).map(x=>[x.name,mktDate(x.scheduled_for),mktBadge(x.status,"warn"),mktMoney(x.budget_brl)])));
+ root.append(upcoming);
+}
 function mktPipeline(root,d){
  const stages=[["NOVO","Novo interesse"],["QUALIFICADO","Qualificado"],["ATENDIMENTO","Em atendimento"],["PROPOSTA","Proposta"],["CONVERTIDO","Convertido"],["PERDIDO","Perdido"]];
  const container=mktEl("div",undefined,"mkt-stages");
@@ -1179,6 +1211,8 @@ $("mktViewBody").addEventListener("submit",e=>{
 $("mktViewBody").addEventListener("click",e=>{
  const b=e.target.closest("button[data-mkt-action]");if(!b)return;
  const action=b.dataset.mktAction,id=b.dataset.mktId;
+ if(action==="calendar_prev"){mktCalendarOffset--;mktRender();return}
+ if(action==="calendar_next"){mktCalendarOffset++;mktRender();return}
  if(action==="consent_contact"){mktConsentDetail(id);return}
  if(action==="edit_contact"){mktEditContact(id);return}
  if(action==="plan_campaign"){
