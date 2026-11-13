@@ -1184,6 +1184,8 @@ function mktHealth(root,d){
  {name:"monthly_budget_cap_brl",label:"Teto mensal de marketing (R$)",type:"number",placeholder:"0"},
  {name:"max_messages_per_contact_per_7d",label:"Máximo de mensagens por contato / 7 dias",type:"number",placeholder:"2"}
  ],"update_limits","Salvar limites"));
+ const meta=mktPanel("Condição da conta na Meta","Leitura da qualidade do número oficial, sem modificar a conta.");
+ meta.id="mktMetaHealth";meta.append(mktBtn("Consultar qualidade da Meta","health_meta"));right.append(meta);
  const p=mktEl("div","Nenhuma função deste novo módulo envia campanhas automaticamente. A comunicação editorial já implantada permanece separada e inalterada.","mkt-notice warn");right.append(p);
  layout.append(left,right);root.append(layout);
  const form=root.querySelector('form[data-mkt-form="update_limits"]');
@@ -1191,8 +1193,18 @@ function mktHealth(root,d){
  form.elements.max_messages_per_contact_per_7d.value=String(d.settings.max_messages_per_contact_per_7d||2)}
 }
 async function mktAssistant(root,d){
- const panel=mktPanel("Copiloto de Marketing","Recomendações analíticas sobre os dados disponíveis. Nesta versão, são regras verificáveis, não geração por IA.");
- const list=mktEl("div","Consultando recomendações…","mkt-empty");panel.append(list);root.append(panel);
+ const layout=mktEl("div",undefined,"mkt-layout"),left=mktEl("div"),right=mktEl("div");
+ const generator=mktCreateForm("Copiloto de campanhas","Crie um texto de campanha sujeito à revisão humana. Não informe dados pessoais, pareceres, títulos confidenciais ou promessas editoriais.",[
+ {name:"journal",label:"Revista",type:"select",options:mktJournalOptions},
+ {name:"objective",label:"Objetivo da comunicação",required:true,wide:true,placeholder:"Ex.: Divulgar o novo escopo de uma revista"},
+ {name:"topic",label:"Tema público (opcional)",wide:true,placeholder:"Ex.: pesquisa multidisciplinar"}
+ ],"marketing_ai_draft","Preparar texto");
+ const output=mktPanel("Rascunho gerado","Texto interno para revisão e cadastro de modelo na Meta; nunca é enviado automaticamente.");
+ output.id="mktDraftOutput";output.append(mktEl("div","Preencha os campos ao lado para criar um rascunho.","mkt-empty"));
+ left.append(generator,output);
+ const panel=mktPanel("Recomendações com base nos dados","O uso de um modelo generativo depende da credencial configurada. As recomendações abaixo são regras verificáveis.");
+ const list=mktEl("div","Consultando recomendações…","mkt-empty");panel.append(list);right.append(panel);
+ layout.append(left,right);root.append(layout);
  try{const r=await mktCall("suggestions");list.replaceChildren(...r.suggestions.map(s=>{
   const card=mktEl("div",undefined,"mkt-notice");card.style.marginBottom="9px";
   card.append(mktEl("strong",s.title+" · "+s.priority),mktEl("div",s.text));return card;
@@ -1219,6 +1231,17 @@ $("mktViewBody").addEventListener("submit",e=>{
   values.journal_interest=String(values.journal_interest||"").split(",").map(x=>x.trim().toUpperCase()).filter(Boolean);
   values.topic_tags=String(values.topic_tags||"").split(",").map(x=>x.trim()).filter(Boolean);
  }
+ if(action==="marketing_ai_draft"){
+   mktCall("marketing_ai_draft",values).then(result=>{
+     const root=$("mktDraftOutput");if(!root)return;
+     root.replaceChildren(mktEl("h3","Rascunho · "+(result.engine==="modelo_ia"?"IA generativa":"regras de composição")));
+     const text=mktEl("textarea");text.value=result.text;text.readOnly=false;
+     text.style.cssText="width:100%;min-height:200px;font-size:13px;line-height:1.55;padding:14px;border:1px solid #d6e5e8;border-radius:8px";
+     root.append(text,mktEl("p",result.warning,"mkt-notice warn"));
+     const copy=mktBtn("Copiar texto","copy_draft");root.append(copy);
+   }).catch(e=>say(e.message,true));
+   return;
+ }
  if(action==="record_consent"&&values.decision==="OPT_IN"){
   if(!confirm("Você conferiu uma autorização específica de Marketing para este telefone, com prova registrada? O aceite editorial sozinho não autoriza campanhas."))return;
   values.confirmed=true;
@@ -1238,6 +1261,21 @@ $("mktViewBody").addEventListener("click",e=>{
   const date=new Date(when.replace(" ","T"));
   if(!Number.isFinite(date.getTime())||date.getTime()<=Date.now())return say("Informe uma data futura válida.",true);
   mktRun("schedule_campaign",{id,scheduled_for:date.toISOString()});return;
+ }
+ if(action==="copy_draft"){
+   const text=$("mktDraftOutput")?.querySelector("textarea")?.value||"";
+   if(text)navigator.clipboard?.writeText(text).then(()=>say("Texto copiado. Revise antes de cadastrar na Meta.")).catch(()=>say("Selecione e copie o texto.",true));
+   return;
+ }
+ if(action==="health_meta"){
+  mktCall("health_meta").then(r=>{
+    const area=$("mktMetaHealth");if(!area)return;
+    area.replaceChildren(mktEl("h3","Condição do WhatsApp na Meta"));
+    if(!r.available)area.append(mktEl("div","A API não disponibilizou a leitura: "+r.reason,"mkt-notice warn"));
+    else for(const [label,value] of [["Nome verificado",r.verified_name],["Número",r.display_phone_number],["Qualidade",r.quality_rating],["Estado do nome",r.name_status],["Consulta",mktDate(r.checked_at)]]){
+      const line=mktEl("div",label+": "+(value||"Não informado"),"mkt-notice");line.style.margin="6px 0";area.append(line);
+    }
+  }).catch(e=>say(e.message,true));return;
  }
  if(action==="record_payment"){
   const amount=prompt("Valor do pagamento confirmado (R$, exemplo 350.00)","");
