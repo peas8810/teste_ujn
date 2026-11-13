@@ -144,6 +144,58 @@
  .crm-next-list{height:340px;max-height:340px;min-height:0}
  .crm-next-scroll{height:100%;overflow-y:scroll;max-height:100%}
 }
+
+/* Marketing Intelligence — UJN SaaS workspace */
+.mkt-head{display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;margin:3px 0 20px}
+.mkt-head h1{font-size:30px;letter-spacing:-.7px;margin:4px 0}
+.mkt-head p{margin:4px 0;color:#6b8292;font-size:13px}
+.mkt-eyebrow{font-size:10px;font-weight:800;letter-spacing:1.4px;color:#008875}
+.mkt-tools{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.mkt-safe{background:#fff1d7;color:#8c6121;border:1px solid #f0d7a9;padding:8px 11px;border-radius:8px;font-size:11px;font-weight:700}
+.mkt-tabs{display:flex;gap:2px;overflow-x:auto;border-bottom:1px solid #dce8ea;scrollbar-width:thin;margin-bottom:16px}
+.mkt-tabs button{white-space:nowrap;background:transparent;border:0;border-bottom:3px solid transparent;border-radius:0;padding:13px 12px;color:#5f798b;font-size:12px;font-weight:700;cursor:pointer}
+.mkt-tabs button.active{color:#007963;border-color:#0c917a;background:#eaf5f1}
+.mkt-kpis{display:grid;grid-template-columns:repeat(5,minmax(125px,1fr));gap:10px;margin-bottom:15px}
+.mkt-kpi{border:1px solid #dce7eb;background:white;border-radius:12px;padding:16px;box-shadow:0 3px 13px #173e5008}
+.mkt-kpi .value{font-size:26px;display:block;color:#173a4d;font-weight:800;letter-spacing:-.7px;margin:5px 0}
+.mkt-kpi .label{font-size:11px;color:#607b8b;font-weight:700}
+.mkt-kpi .sub{font-size:10px;color:#879ca8}
+.mkt-layout{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(260px,.9fr);gap:14px}
+.mkt-panel{background:#fff;border:1px solid #dfe9ec;border-radius:13px;padding:18px;margin:0 0 14px;min-width:0}
+.mkt-panel h3{font-size:16px;margin:0 0 8px;color:#1b3b4e}
+.mkt-panel p{font-size:12px;color:#708696;line-height:1.6;margin:4px 0 12px}
+.mkt-form{display:grid;grid-template-columns:repeat(2,minmax(150px,1fr));gap:10px}
+.mkt-form label{font-size:11px;font-weight:750;color:#436071}
+.mkt-form input,.mkt-form select,.mkt-form textarea{display:block;width:100%;border:1px solid #d6e4e8;padding:10px;border-radius:8px;font-size:12px;margin-top:5px;background:#fff;color:#173749}
+.mkt-form textarea{min-height:72px;resize:vertical}
+.mkt-form .wide{grid-column:1/-1}
+.mkt-form button{grid-column:1/-1;justify-self:start}
+.mkt-list{overflow:auto;max-height:620px;border:1px solid #e1e9ed;border-radius:10px}
+.mkt-table{border-collapse:collapse;width:100%;min-width:560px;font-size:12px}
+.mkt-table th{text-align:left;position:sticky;top:0;background:#f5f9fa;color:#627f8d;padding:12px;z-index:1;white-space:nowrap}
+.mkt-table td{padding:11px 12px;border-bottom:1px solid #edf2f4;vertical-align:top;overflow-wrap:anywhere}
+.mkt-table tr:hover{background:#f9fbfb}
+.mkt-tag{display:inline-flex;align-items:center;padding:5px 9px;border-radius:20px;background:#edf2f5;color:#547080;font-size:10px;font-weight:800}
+.mkt-tag.ok{background:#e0f6eb;color:#067b5c}.mkt-tag.warn{background:#fff0d5;color:#936514}.mkt-tag.bad{background:#ffe5e0;color:#ad4233}.mkt-tag.blue{background:#e5edfb;color:#3563a9}
+.mkt-action{padding:7px 9px;border:1px solid #bedbd9;background:#eff8f6;color:#116b60;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer}
+.mkt-action:disabled{opacity:.5;cursor:default}
+.mkt-empty{padding:26px;color:#869ba7;font-size:12px;text-align:center}
+.mkt-notice{border-radius:9px;padding:12px 15px;background:#f2f8f7;border-left:3px solid #138d7b;color:#456779;font-size:12px;line-height:1.6}
+.mkt-notice.warn{background:#fff7e9;border-color:#d49f45}
+.mkt-stages{display:grid;grid-template-columns:repeat(3,minmax(180px,1fr));gap:12px}
+.mkt-stage{border-radius:12px;background:#f3f7f8;padding:12px;min-height:155px;border:1px solid #e0e9ed}
+.mkt-stage>strong{font-size:12px;display:block;color:#27495a;margin-bottom:10px}
+.mkt-deal{border:1px solid #d6e6e8;border-radius:9px;background:#fff;padding:12px;margin:7px 0}
+.mkt-deal strong{display:block;font-size:12px}.mkt-deal span{color:#688496;font-size:11px;display:block;margin:6px 0}
+.mkt-deal select{width:100%;font-size:11px;padding:7px;border:1px solid #dae5e8;border-radius:6px}
+.mkt-mini-bar{background:#e7eff1;height:11px;border-radius:20px;overflow:hidden;margin:7px 0 16px}
+.mkt-mini-bar>i{display:block;height:100%;background:#0b9982;min-width:1px}
+.mkt-workflow{display:flex;flex-direction:column;align-items:center;gap:7px;padding:16px;background:#f7faf9;border-radius:12px}
+.mkt-workflow>div{background:#fff;border:1px solid #dce8ea;border-radius:9px;padding:12px 18px;font-size:12px;color:#234e60;max-width:390px;text-align:center;width:100%}
+.mkt-hscroll{overflow:auto}
+.mkt-footer{font-size:11px;color:#8298a5;line-height:1.7;padding:14px 0 27px}
+@media(max-width:1100px){.mkt-kpis{grid-template-columns:repeat(3,minmax(130px,1fr))}.mkt-layout{grid-template-columns:1fr}.mkt-stages{grid-template-columns:repeat(2,minmax(180px,1fr))}}
+@media(max-width:650px){.mkt-kpis{grid-template-columns:repeat(2,minmax(115px,1fr))}.mkt-form{grid-template-columns:1fr}.mkt-form .wide{grid-column:1}.mkt-stages{grid-template-columns:1fr}}
 </style></head><body><a class="skip" href="#maincontent">Pular para conteúdo</a><div id="overlay"></div><div class="shell">
 <aside class="sidebar" id="sidebar"><div class="brand"><svg width="38" height="38" viewBox="0 0 40 40" fill="none" aria-hidden="true"><path d="M10 30L20 10L32 28L10 30" stroke="#53bbbc" stroke-width="2.5"/><circle cx="10" cy="30" r="4" fill="#fff"/><circle cx="20" cy="10" r="4" fill="#fff"/><circle cx="32" cy="28" r="4" fill="#fff"/></svg>brain <small>UJN</small></div><div class="tagline">RELACIONAMENTO QUE CONECTA</div>
 <div class="navtitle">OPERAÇÃO</div><nav class="nav"><button data-screen="overview">▦　Visão geral</button><button data-screen="inbox">▤　Caixa de entrada</button><button data-screen="contacts">♙　Contatos e vínculos</button></nav>
@@ -244,14 +296,14 @@
 <div class="card"><h2>Respostas dos contatos ativos</h2><p class="hint">Registros recebidos pela Central UJN. Podem incluir conversas gerais realizadas pelo mesmo WhatsApp.</p><div id="editorialReplies" style="overflow-x:auto"></div></div>
 </div>
 </section>
-<section data-page="marketing" class="screen hidden">
- <div class="eyebrow">COMUNICAÇÃO · GESTÃO</div>
- <div class="head"><div><h1>WhatsApp · Marketing e relacionamento</h1><p class="lead">Indicadores reais de notificações editoriais, interação posterior e oportunidades de relacionamento.</p></div><button class="btn" id="marketingRefresh">Atualizar indicadores</button></div>
- <div class="notice warn">As notificações editoriais são transacionais. Campanhas promocionais exigem opt-in de marketing separado. Aceite da API ≠ entrega ≠ leitura ≠ resposta.</div>
- <div id="marketingStats" class="grid"></div>
- <div class="card"><h2>Desempenho por revista</h2><div id="marketingJournal"></div></div>
- <div class="card"><h2>Movimentações e destinatários</h2><p class="hint">Dados de contato mascarados. Interação posterior só é sinalizada quando há correspondência com uma conversa registrada no canal UJN.</p><div id="marketingRecent"></div></div>
- <div class="card"><h2>Estratégia de relacionamento</h2><p>Segmentar autores por revista, etapa editorial e engajamento — apenas com autorização apropriada. Campanhas de marketing e notificações operacionais devem ter listas e métricas separadas.</p><div class="grid" id="marketingIdeas"></div></div>
+<section data-page="marketing" class="screen hidden" id="marketingIntelligence">
+<div class="mkt-head"><div><span class="mkt-eyebrow">EDITORA UJN · INTELIGÊNCIA COMERCIAL</span><h1>Marketing Intelligence</h1><p>Campanhas, públicos, relacionamento, funil e resultados em um único espaço.</p></div><div class="mkt-tools"><span class="mkt-safe"><icon name="shield-check" inline/> Disparos suspensos até homologação</span><button class="btn" id="mktRefresh">Atualizar dados</button></div></div>
+<div class="mkt-tabs" id="mktTabs" role="tablist">
+<button data-mkt-view="overview" class="active">Visão geral</button><button data-mkt-view="campaigns">Campanhas</button><button data-mkt-view="audience">Contatos e consentimento</button><button data-mkt-view="segments">Segmentos</button><button data-mkt-view="journeys">Automações</button><button data-mkt-view="pipeline">Funil comercial</button><button data-mkt-view="analytics">Análises</button><button data-mkt-view="health">Saúde e custos</button><button data-mkt-view="assistant">Copiloto</button>
+</div>
+<div class="mkt-kpis" id="mktKpis"></div>
+<div id="mktViewBody" class="mkt-view"><div class="card">Consultando dados de marketing…</div></div>
+<div class="mkt-footer">Os consentimentos para acompanhar artigos e receber mensagens editoriais não autorizam marketing. Todo novo contato começa sem permissão comercial. Os módulos de campanhas e jornadas estão em modo de planejamento, sem envio automático.</div>
 </section>
 <section data-page="ai" class="screen hidden">
  <div class="eyebrow">INTELIGÊNCIA · CENTRAL UJN</div>
@@ -881,30 +933,235 @@ async function insight(url,action,params={}){
 function titleText(text){return elem("strong",text)}
 function line(parent,headline,detail){const r=elem("div",undefined,"row");r.style.justifyContent="space-between";r.style.padding="10px 0";r.style.borderBottom="1px solid var(--border)";r.append(elem("span",headline),elem("strong",detail));parent.append(r);return r}
 function empty(root,text){root.replaceChildren(elem("p",text,"hint"))}
-async function marketing(){
- const st=$("marketingStats"),journal=$("marketingJournal"),recent=$("marketingRecent"),ideas=$("marketingIdeas");
- st.replaceChildren();empty(journal,"Consultando revistas…");empty(recent,"Consultando mensagens…");
- try{
-  const [m,a]=await Promise.all([insight(INSIGHTS_LAB,"editorial_marketing_dashboard"),insight(INSIGHTS_AI,"dashboard")]);
-  marketingCache=m;aiCache=a;st.replaceChildren();
-  const interactionMap=new Map((a.interactions||[]).map(x=>[x.contact_hash,x]));
-  const returned=(m.recent||[]).filter(x=>["SENT","DELIVERED","READ"].includes(x.state)&&interactionMap.get(x.contact_hash)&&new Date(interactionMap.get(x.contact_hash).last_inbound)>new Date(x.at));
-  const responders=new Set(returned.map(x=>x.contact_hash));
-  for(const [label,value] of [["Destinatários verificados",m.counts.authorized],["Submissões confirmadas",m.counts.submission_confirmations],["Sem vínculo verificado",m.counts.awaiting_author],["Avisos aceitos pela Meta",m.counts.provider_accepted],["Pessoas notificadas",m.counts.unique_recipients_accepted],["Interagiram após o envio*",responders.size],["Na fila",m.counts.pending],["Falhas e bloqueios",m.counts.failed],["Opt-ins de marketing",a.counts.marketing_optins],["Leitura confirmada",m.counts.read_confirmed]])st.append(stat(label,value));
-  journal.replaceChildren();
-  const table=elem("div",undefined,"metrics-table");
-  const h=elem("div",undefined,"metric-head");for(const s of ["Revista","Fonte","Autores","Submissões","Sem vínculo","Eventos","Aceitos","Pendentes","Falhas"])h.append(elem("span",s));table.append(h);
-  for(const j of m.journals||[]){const row=elem("div",undefined,"metric-line");for(const v of [j.journal,j.source_enabled?"Ativa":"Inativa",j.verified_recipients,j.submissions_received,j.awaiting_author,j.events,j.accepted,j.pending,j.failed])row.append(elem("span",v));table.append(row)}journal.append(table);
-  recent.replaceChildren();
-  const list=(m.recent||[]).slice(0,30);
-  if(!list.length)recent.append(elem("p","Ainda não há envios registrados.","hint"));
-  for(const x of list){const r=elem("div",undefined,"metric-event");const reply=interactionMap.get(x.contact_hash);const didReply=reply&&new Date(reply.last_inbound)>new Date(x.at);r.append(elem("strong",x.journal+" · OJS "+x.submission_id),elem("span",x.phone_mask+" · "+x.event_type+" · "+x.state+" · "+stamp(x.at)),elem("span",didReply?"Interação registrada posteriormente no canal":"Sem interação posterior comprovada","hint"));recent.append(r)}
-  ideas.replaceChildren();
-  const suggestions=[["Educação editorial","Orientações por revista e etapa do artigo; apenas mensagens de serviço ou para contatos com autorização específica."],["Atendimento prioritário","Encaminhar para um operador os autores que responderam e não tiveram resolução."],["Segmentação responsável","Separar opt-in comercial por origem, revista, idioma, interesse e data de autorização."],["Qualidade e eficiência","Mensurar aceite, entrega, leitura, resposta, opt-out e tempo de resolução, quando existirem recibos."]];
-  for(const [name,desc] of suggestions){const box=elem("div",undefined,"notice");box.append(elem("strong",name),elem("p",desc));ideas.append(box)}
-  recent.append(elem("p","* Sinal de resposta no canal após o envio; não comprova que a resposta foi causada pela notificação. A conciliação usa identificadores pseudonimizados.","hint"));
- }catch(e){empty(journal,e.message);say(e.message,true)}
+
+const MKT_API=BASE+"/functions/v1/ujn-marketing-intelligence";
+let marketingData=null,marketingView="overview";
+const mktMoney=x=>Number(x||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+const mktEl=(t,v,cls)=>{const n=document.createElement(t);if(v!==undefined)n.textContent=String(v??"");if(cls)n.className=cls;return n};
+const mktClean=root=>root.replaceChildren();
+const mktBadge=(s,cl)=>mktEl("span",s,"mkt-tag "+(cl||""));
+const mktPanel=(title,subtitle)=>{const box=mktEl("div",undefined,"mkt-panel");box.append(mktEl("h3",title));if(subtitle)box.append(mktEl("p",subtitle));return box};
+const mktTable=(names,rows)=>{const w=mktEl("div",undefined,"mkt-list"),t=mktEl("table",undefined,"mkt-table"),h=mktEl("thead"),tr=mktEl("tr");
+for(const name of names)tr.append(mktEl("th",name));h.append(tr);t.append(h);const b=mktEl("tbody");
+for(const cells of rows){const row=mktEl("tr");for(const value of cells){const td=mktEl("td");if(value instanceof Node)td.append(value);else td.textContent=String(value??"—");row.append(td)}b.append(row)}
+t.append(b);w.append(t);if(!rows.length)w.append(mktEl("div","Nenhum registro encontrado.","mkt-empty"));return w};
+const mktBtn=(text,action,id)=>{const b=mktEl("button",text,"mkt-action");b.dataset.mktAction=action;if(id)b.dataset.mktId=id;return b};
+const mktDate=x=>x?new Date(x).toLocaleString("pt-BR",{timeZone:"America/Sao_Paulo",day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}):"—";
+async function mktCall(action,fields={}){
+ if(!token||!role?.superuser)throw Error("Acesso restrito ao superadministrador.");
+ const r=await fetch(MKT_API,{method:"POST",headers:{authorization:"Bearer "+token,"content-type":"application/json"},body:JSON.stringify({action,...fields}),cache:"no-store"});
+ const result=await r.json().catch(()=>({}));if(!r.ok||!result.ok)throw Error(result.error||"Operação não realizada");return result;
 }
+async function marketing(){
+ const host=$("mktViewBody");host.replaceChildren(mktEl("div","Consultando contatos, campanhas e métricas…","mkt-panel"));
+ try{marketingData=await mktCall("dashboard");mktRender();}catch(e){host.replaceChildren(mktEl("div","Falha ao carregar Marketing: "+e.message,"mkt-notice warn"));say(e.message,true)}
+}
+function mktRender(){
+ if(!marketingData)return;const d=marketingData,metrics=[
+ ["Contatos",d.counts.contacts,"Cadastrados na base"],["Autorizados",d.counts.authorized,"Consentimento comercial"],["Campanhas",d.counts.campaigns,"Planejamento e gestão"],["Oportunidades",d.counts.opportunities,"Funil comercial"],["Receita confirmada",mktMoney(d.counts.revenue),"Atribuição registrada"]
+ ];
+ $("mktKpis").replaceChildren(...metrics.map(([label,value,sub])=>{const b=mktEl("div",undefined,"mkt-kpi");b.append(mktEl("div",label,"label"),mktEl("strong",value,"value"),mktEl("div",sub,"sub"));return b}));
+ for(const b of $("mktTabs").querySelectorAll("button[data-mkt-view]"))b.classList.toggle("active",b.dataset.mktView===marketingView);
+ const root=$("mktViewBody");root.replaceChildren();
+ const creators={overview:mktOverview,campaigns:mktCampaigns,audience:mktAudience,segments:mktSegments,journeys:mktJourneys,pipeline:mktPipeline,analytics:mktAnalytics,health:mktHealth,assistant:mktAssistant};
+ (creators[marketingView]||mktOverview)(root,d);
+}
+function mktCreateForm(title,help,fields,action,buttonText){
+ const p=mktPanel(title,help),form=mktEl("form",undefined,"mkt-form");form.dataset.mktForm=action;
+ for(const f of fields){
+  const label=mktEl("label",f.label,f.wide?"wide":"");
+  let input;if(f.type==="select"){input=mktEl("select");for(const [val,text] of f.options){const o=mktEl("option",text);o.value=val;input.append(o)}}
+  else if(f.type==="textarea")input=mktEl("textarea");else{input=mktEl("input");input.type=f.type||"text";}
+  input.name=f.name;input.required=!!f.required;input.placeholder=f.placeholder||"";if(f.maxlength)input.maxLength=f.maxlength;label.append(input);form.append(label);
+ }
+ const submit=mktEl("button",buttonText||"Salvar","btn");submit.type="submit";form.append(submit);p.append(form);return p;
+}
+const mktJournalOptions=[["","Todas"],["REMUNOM","REMUNOM"],["RSV","RSV"],["RJNM","RJNM"],["JIRRS","JIRRS"],["NEXUS","NEXUS"]];
+function mktOverview(root,d){
+ const layout=mktEl("div",undefined,"mkt-layout"),left=mktEl("div"),right=mktEl("div");
+ const summary=mktPanel("Visão executiva","Resultados atribuídos a campanhas desta base — não incluem notificações editoriais.");
+ const lines=[["Contatos com permissão",d.counts.authorized+" de "+d.counts.contacts],["Campanhas planejadas",d.campaigns.filter(x=>x.status==="DRAFT").length],["Mensagens entregues",d.counts.delivered],["Leituras registradas",d.counts.reads],["Respostas atribuídas",d.counts.replied],["Custo registrado",mktMoney(d.counts.spent)],["Receita confirmada",mktMoney(d.counts.revenue)]];
+ for(const [label,value] of lines){const r=mktEl("div",undefined,"row");r.style.cssText="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #edf2f4";r.append(mktEl("span",label),mktEl("strong",value));summary.append(r)}left.append(summary);
+ const campaign=mktPanel("Últimas campanhas","A criação de campanhas está disponível em modo rascunho.");
+ campaign.append(mktTable(["Campanha","Status","Orçamento"],d.campaigns.slice(0,8).map(x=>[x.name,mktBadge(x.status,x.status==="DRAFT"?"warn":""),mktMoney(x.budget_brl)])));
+ left.append(campaign);
+ const flow=mktPanel("Jornada proposta","Fluxo com validação antes de qualquer comunicação comercial.");
+ const w=mktEl("div",undefined,"mkt-workflow");
+ for(const [i,t] of ["Contato demonstrou interesse","Validar opt-in de Marketing","Selecionar público e modelo Meta","Revisão e autorização humana","Analisar respostas e oportunidades"].entries()){if(i)w.append(mktEl("span","↓"));w.append(mktEl("div",t))}
+ flow.append(w);right.append(flow);
+ const notice=mktEl("div","O número oficial e os modelos editoriais permanecem separados dos disparos promocionais. Marketing em modo seguro, sem envios.","mkt-notice warn");right.append(notice);
+ layout.append(left,right);root.append(layout);
+}
+function mktCampaigns(root,d){
+ const layout=mktEl("div",undefined,"mkt-layout"),left=mktEl("div"),right=mktEl("div");
+ left.append(mktPanel("Gestor de campanhas","Rascunhos, revisão, orçamento e públicos. O envio real está bloqueado."));
+ const rows=d.campaigns.map(x=>[x.name,x.journal_code||"Todas",mktBadge(x.status,x.status==="DRAFT"?"warn":x.status==="ARCHIVED"?"bad":"blue"),mktMoney(x.budget_brl),mktDate(x.scheduled_for),(()=>{const a=mktEl("div");if(x.status==="DRAFT")a.append(mktBtn("Solicitar revisão","review_campaign",x.id));else if(x.status==="IN_REVIEW")a.append(mktBtn("Voltar ao rascunho","draft_campaign",x.id));return a})()]);
+ left.append(mktTable(["Campanha","Revista","Status","Orçamento","Agendada","Ação"],rows));
+ const fields=[
+ {name:"name",label:"Nome da campanha",required:true,maxlength:140},
+ {name:"journal_code",label:"Revista",type:"select",options:mktJournalOptions},
+ {name:"objective",label:"Objetivo comercial",required:true},
+ {name:"budget_brl",label:"Teto de custo (R$)",type:"number",placeholder:"0"},
+ {name:"segment_id",label:"Público",type:"select",options:[["","Selecione um público"],...d.segments.map(x=>[x.id,x.name])]},
+ {name:"template_id",label:"Modelo Meta",type:"select",options:[["","Selecione um modelo"],...d.templates.map(x=>[x.id,x.label+" · "+x.approval_status])]},
+ {name:"author_notes",label:"Briefing",type:"textarea",wide:true}
+ ];
+ right.append(mktCreateForm("Nova campanha","Será criada como rascunho, sem disparos.",fields,"create_campaign","Criar rascunho"));
+ right.append(mktCreateForm("Biblioteca de modelos","Cadastre a referência do modelo. A aprovação na Meta é independente.",[
+ {name:"label",label:"Nome interno",required:true},{name:"meta_template_name",label:"Identificador Meta (ex.: ujn_chamada_cientifica)",required:true},
+ {name:"sample_body",label:"Texto de prévia",type:"textarea",wide:true}
+ ],"create_template","Salvar rascunho de modelo"));
+ right.append(mktTable(["Modelo","Situação"],d.templates.map(t=>[t.label,mktBadge(t.approval_status,t.approval_status==="APPROVED"?"ok":"warn")])));
+ layout.append(left,right);root.append(layout);
+}
+function mktAudience(root,d){
+ const layout=mktEl("div",undefined,"mkt-layout"),left=mktEl("div"),right=mktEl("div");
+ const panel=mktPanel("Base de contatos e consentimento","A inclusão de um contato não autoriza campanhas. Apenas evidências específicas de marketing permitem o opt-in.");
+ const controls=mktEl("div",undefined,"row");controls.style.marginBottom="12px";controls.append(mktBtn("Importar contatos da Central UJN (sem opt-in)","sync_contacts"));panel.append(controls);
+ panel.append(mktTable(["Contato","WhatsApp","Origem","Marketing","Ações"],d.contacts.map(x=>{
+  const action=mktEl("div");action.style.display="flex";action.style.gap="5px";
+  action.append(mktBtn("Detalhes/consentimento","consent_contact",x.id));
+  return [x.display_name||x.email||"Contato",x.phone,x.origin,x.marketing_opt_in?mktBadge("AUTORIZADO","ok"):mktBadge("SEM AUTORIZAÇÃO","warn"),action];
+ })));
+ left.append(panel);
+ right.append(mktCreateForm("Adicionar contato","O contato começa sem autorização de Marketing.",[
+ {name:"display_name",label:"Nome"},{name:"phone",label:"WhatsApp com DDI",required:true,placeholder:"+5531999999999"},
+ {name:"email",label:"E-mail"},{name:"journal",label:"Revista de interesse",type:"select",options:mktJournalOptions}
+ ],"create_contact","Cadastrar contato"));
+ const detail=mktPanel("Gestão de consentimento","Selecione um contato na tabela para registrar a origem e a prova de autorização comercial.");
+ detail.id="mktConsentDetail";detail.append(mktEl("div","Nenhum contato selecionado.","mkt-empty"));right.append(detail);
+ layout.append(left,right);root.append(layout);
+}
+function mktConsentDetail(id){
+ const d=marketingData,c=d?.contacts.find(x=>x.id===id),host=$("mktConsentDetail");if(!c||!host)return;
+ host.replaceChildren(mktEl("h3","Consentimento · "+(c.display_name||c.phone)));
+ host.append(mktEl("p","Telefone: "+c.phone+" · "+(c.marketing_opt_in?"Marketing autorizado":"Marketing não autorizado")));
+ const form=mktEl("form",undefined,"mkt-form");form.dataset.mktForm="record_consent";
+ const hid=mktEl("input");hid.type="hidden";hid.name="contact_id";hid.value=id;form.append(hid);
+ for(const field of [
+ {name:"decision",label:"Ação",options:[["OPT_OUT","Registrar saída / PARAR"],["OPT_IN","Registrar autorização comprovada"]]},
+ {name:"origin",label:"Origem da autorização",placeholder:"Ex.: formulário específico UJN"},
+ {name:"evidence_ref",label:"Referência da prova (obrigatória para opt-in)",placeholder:"ID do formulário, protocolo ou registro de aceite"}
+ ]){
+  const label=mktEl("label",field.label,"wide"),input=field.options?mktEl("select"):mktEl("input");
+  input.name=field.name;if(field.options)for(const [value,text] of field.options){const option=mktEl("option",text);option.value=value;input.append(option)}
+  else input.placeholder=field.placeholder||"";label.append(input);form.append(label);
+ }
+ const submit=mktEl("button","Registrar decisão","btn");submit.type="submit";form.append(submit);host.append(form);
+}
+function mktSegments(root,d){
+ const layout=mktEl("div",undefined,"mkt-layout"),left=mktEl("div"),right=mktEl("div");
+ const panel=mktPanel("Públicos dinâmicos","Somente contatos com opt-in comercial ativo podem integrar uma campanha.");
+ panel.append(mktTable(["Segmento","Revista","Filtro","Ação"],d.segments.map(x=>[
+ x.name,x.journal_code||"Todas",x.required_tag||x.language||x.source_filter||"Autorizados",mktBtn("Simular alcance","preview_segment",x.id)
+ ])));left.append(panel);
+ right.append(mktCreateForm("Novo segmento","Filtros aplicados somente a contatos com autorização comercial.",[
+ {name:"name",label:"Nome do público",required:true},{name:"journal_code",label:"Revista",type:"select",options:mktJournalOptions},
+ {name:"description",label:"Descrição",wide:true},{name:"required_tag",label:"Etiqueta/interesse (opcional)"},
+ {name:"language",label:"Idioma (ex.: pt_BR)"},{name:"source_filter",label:"Origem do cadastro (opcional)"}
+ ],"create_segment","Criar público"));
+ const sim=mktPanel("Prévia do público","O alcance é contado sem revelar destinatários fora da base autorizada.");sim.id="mktAudiencePreview";sim.append(mktEl("div","Selecione Simular alcance.","mkt-empty"));right.append(sim);
+ layout.append(left,right);root.append(layout);
+}
+function mktJourneys(root,d){
+ const layout=mktEl("div",undefined,"mkt-layout"),left=mktEl("div"),right=mktEl("div");
+ const panel=mktPanel("Jornadas de relacionamento","Fluxos criados como rascunho, sem execução em segundo plano.");
+ panel.append(mktTable(["Jornada","Gatilho","Etapa"],d.journeys.map(x=>[x.name,x.entry_trigger,mktBadge(x.status,"warn")])));
+ left.append(panel);
+ right.append(mktCreateForm("Criar jornada","Gatilho → consentimento → revisão humana → rascunho de modelo.",[
+ {name:"name",label:"Nome da jornada",required:true},
+ {name:"entry_trigger",label:"Gatilho",type:"select",options:[["MANUAL","Manual"],["CONTACT_OPT_IN","Nova autorização"],["INBOUND_INTEREST","Interesse recebido"]]},
+ {name:"segment_id",label:"Público",type:"select",options:[["","Todos os autorizados"],...d.segments.map(x=>[x.id,x.name])]}
+ ],"create_journey","Criar jornada"));
+ layout.append(left,right);root.append(layout);
+}
+function mktPipeline(root,d){
+ const stages=[["NOVO","Novo interesse"],["QUALIFICADO","Qualificado"],["ATENDIMENTO","Em atendimento"],["PROPOSTA","Proposta"],["CONVERTIDO","Convertido"],["PERDIDO","Perdido"]];
+ const container=mktEl("div",undefined,"mkt-stages");
+ for(const [code,label] of stages){const column=mktEl("div",undefined,"mkt-stage");column.append(mktEl("strong",label));
+  for(const o of d.opportunities.filter(x=>x.stage===code)){
+   const item=mktEl("div",undefined,"mkt-deal");item.append(mktEl("strong",o.title),mktEl("span",mktMoney(o.value_brl)));
+   const dropdown=mktEl("select");dropdown.dataset.mktStage=o.id;
+   for(const [stage,descr] of stages){const opt=mktEl("option",descr);opt.value=stage;opt.selected=stage===o.stage;dropdown.append(opt)}
+   item.append(dropdown);column.append(item)
+  }container.append(column)
+ }root.append(container);
+ const opts=d.contacts.map(x=>[x.id,(x.display_name||x.email||x.phone)+" · "+x.phone]);
+ root.append(mktCreateForm("Nova oportunidade comercial","A oportunidade é independente da avaliação editorial e não influencia publicação.",[
+ {name:"contact_id",label:"Contato",type:"select",options:[["","Selecione um contato"],...opts],required:true},
+ {name:"title",label:"Título da oportunidade",required:true},{name:"value_brl",label:"Valor estimado (R$)",type:"number"},
+ {name:"campaign_id",label:"Campanha de origem",type:"select",options:[["","Sem campanha"],...d.campaigns.map(x=>[x.id,x.name])]},
+ {name:"notes",label:"Notas comerciais",wide:true,type:"textarea"}
+ ],"create_opportunity","Criar oportunidade"));
+}
+function mktAnalytics(root,d){
+ const panel=mktPanel("Relatório de resultados","Estatísticas exclusivas das campanhas de marketing. Não confundir com notificações OJS.");
+ const entries=[["Eventos entregues",d.counts.delivered],["Leituras confirmadas",d.counts.reads],["Respostas atribuídas",d.counts.replied],["Custo registrado",mktMoney(d.counts.spent)],["Receita confirmada",mktMoney(d.counts.revenue)],
+ ["Retorno sobre gasto",d.counts.spent>0?((d.counts.revenue-d.counts.spent)/d.counts.spent*100).toFixed(1)+"%":"—"]];
+ panel.append(mktTable(["Indicador","Valor"],entries));root.append(panel);
+ const campaign=mktPanel("Desempenho por campanha","Somente eventos registrados com comprovante de campanha.");
+ const rows=d.campaigns.map(c=>{
+  const ev=d.events.filter(e=>e.campaign_id===c.id);
+  return [c.name,ev.filter(x=>x.event_type==="DELIVERED").length,ev.filter(x=>x.event_type==="READ").length,ev.filter(x=>x.event_type==="REPLIED").length,mktMoney(ev.reduce((sum,x)=>sum+Number(x.cost_brl||0),0))];
+ });campaign.append(mktTable(["Campanha","Entregues","Lidas","Respostas","Custo"],rows));root.append(campaign);
+}
+function mktHealth(root,d){
+ const layout=mktEl("div",undefined,"mkt-layout"),left=mktEl("div"),right=mktEl("div");
+ const health=mktPanel("Saúde do WhatsApp","Integração do número e configurações locais. A classificação de qualidade da conta Meta exigirá consulta específica à Meta.");
+ health.append(mktTable(["Canal","Habilitado","Modelo técnico"],d.channels.map(x=>[x.name,x.enabled?mktBadge("ATIVO","ok"):mktBadge("INATIVO","warn"),x.template_name])));
+ left.append(health);
+ const protection=mktPanel("Proteção de disparos","Estado atual do módulo Marketing Intelligence.");
+ protection.append(mktTable(["Configuração","Valor"],[
+ ["Disparo de campanhas","DESATIVADO"],
+ ["Limite por contato / 7 dias",d.settings.max_messages_per_contact_per_7d],
+ ["Orçamento mensal de marketing",mktMoney(d.settings.monthly_budget_cap_brl)],
+ ["Eventos com falha registrados",d.events.filter(x=>x.event_type==="FAILED").length]
+ ]));right.append(protection);
+ const p=mktEl("div","Nenhuma função deste novo módulo envia campanhas automaticamente. A comunicação editorial já implantada permanece separada e inalterada.","mkt-notice warn");right.append(p);
+ layout.append(left,right);root.append(layout);
+}
+async function mktAssistant(root,d){
+ const panel=mktPanel("Copiloto de Marketing","Recomendações analíticas sobre os dados disponíveis. Nesta versão, são regras verificáveis, não geração por IA.");
+ const list=mktEl("div","Consultando recomendações…","mkt-empty");panel.append(list);root.append(panel);
+ try{const r=await mktCall("suggestions");list.replaceChildren(...r.suggestions.map(s=>{
+  const card=mktEl("div",undefined,"mkt-notice");card.style.marginBottom="9px";
+  card.append(mktEl("strong",s.title+" · "+s.priority),mktEl("div",s.text));return card;
+ }))}catch(e){list.textContent=e.message}
+}
+async function mktRun(action,payload){
+ const btn=$("mktRefresh");btn.disabled=true;
+ try{const result=await mktCall(action,payload);if(action==="preview_segment"){
+  const area=$("mktAudiencePreview");if(area){area.replaceChildren(mktEl("h3","Público alcançável: "+result.total));for(const v of result.masked_examples||[])area.append(mktEl("p",v.phone+" · "+(v.journals||[]).join(",")))}
+  return;
+ }
+ say(action==="sync_central_contacts"?"Importados "+result.imported+" contatos. Nenhum opt-in comercial foi concedido.":"Registro salvo.");
+ await marketing();
+ }catch(e){say(e.message,true)}finally{btn.disabled=false}
+}
+$("mktRefresh").addEventListener("click",marketing);
+$("mktTabs").addEventListener("click",e=>{
+ const b=e.target.closest("button[data-mkt-view]");if(!b)return;marketingView=b.dataset.mktView;mktRender();
+});
+$("mktViewBody").addEventListener("submit",e=>{
+ const form=e.target.closest("form[data-mkt-form]");if(!form)return;e.preventDefault();
+ const values=Object.fromEntries(new FormData(form).entries()),action=form.dataset.mktForm;
+ if(action==="record_consent"&&values.decision==="OPT_IN"){
+  if(!confirm("Você conferiu uma autorização específica de Marketing para este telefone, com prova registrada? O aceite editorial sozinho não autoriza campanhas."))return;
+  values.confirmed=true;
+ }
+ mktRun(action,values);
+});
+$("mktViewBody").addEventListener("click",e=>{
+ const b=e.target.closest("button[data-mkt-action]");if(!b)return;
+ const action=b.dataset.mktAction,id=b.dataset.mktId;
+ if(action==="consent_contact"){mktConsentDetail(id);return}
+ if(action==="sync_contacts"){if(confirm("Importar telefones já atendidos para a base de contatos, SEM autorizar marketing?"))mktRun("sync_central_contacts",{});return}
+ if(action==="preview_segment"){mktRun("preview_segment",{segment_id:id});return}
+ if(action==="review_campaign"||action==="draft_campaign"){mktRun("change_campaign",{id,status:action==="review_campaign"?"IN_REVIEW":"DRAFT"});return}
+});
+$("mktViewBody").addEventListener("change",e=>{
+ const x=e.target.closest("select[data-mkt-stage]");if(x)mktRun("change_opportunity",{id:x.dataset.mktStage,stage:x.value});
+});
 async function aiDash(){
  const st=$("aiStats"),aud=$("aiEmailStats"),topics=$("aiTopics"),kb=$("aiKnowledge"),recent=$("aiRecent"),drafts=$("aiDrafts");
  st.replaceChildren();empty(aud,"Consultando histórico…");
