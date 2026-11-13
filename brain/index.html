@@ -1059,9 +1059,9 @@ function mktOverview(root,d){
 }
 function mktCampaigns(root,d){
  const layout=mktEl("div",undefined,"mkt-layout"),left=mktEl("div"),right=mktEl("div");
- left.append(mktPanel("Gestor de campanhas","Rascunhos, revisão, orçamento e públicos. O envio real está bloqueado."));
+ left.append(mktPanel("Gestor de campanhas","Rascunhos, aprovação, orçamentos e disparo pela Meta em lotes controlados, exclusivamente para públicos autorizados."));
  const rows=d.campaigns.map(x=>[x.name,x.journal_code||"Todas",mktBadge(x.status,x.status==="DRAFT"?"warn":x.status==="ARCHIVED"?"bad":"blue"),mktMoney(x.budget_brl),mktDate(x.scheduled_for),(()=>{const a=mktEl("div");if(x.status==="DRAFT")a.append(mktBtn("Solicitar revisão","review_campaign",x.id));else if(x.status==="IN_REVIEW")a.append(mktBtn("Voltar ao rascunho","draft_campaign",x.id));
- a.append(mktBtn("Pré-auditoria","preflight_campaign",x.id));if(x.status==="IN_REVIEW")a.append(mktBtn("Aprovar após conferência","approve_campaign",x.id));
+ a.append(mktBtn("Pré-auditoria","preflight_campaign",x.id));if(x.status==="APPROVED"){a.append(mktBtn("Preparar fila","queue_campaign",x.id));a.append(mktBtn("Enviar lote (até 5)","send_campaign_batch",x.id));}if(x.status==="IN_REVIEW")a.append(mktBtn("Aprovar após conferência","approve_campaign",x.id));
  if(["DRAFT","IN_REVIEW"].includes(x.status))a.append(mktBtn("Planejar data","plan_campaign",x.id));return a})()]);
  left.append(mktTable(["Campanha","Revista","Status","Orçamento","Agendada","Ação"],rows));
  const fields=[
@@ -1073,7 +1073,7 @@ function mktCampaigns(root,d){
  {name:"template_id",label:"Modelo Meta",type:"select",options:[["","Selecione um modelo"],...d.templates.map(x=>[x.id,x.label+" · "+x.approval_status])]},
  {name:"author_notes",label:"Briefing",type:"textarea",wide:true}
  ];
- right.append(mktCreateForm("Nova campanha","Será criada como rascunho, sem disparos.",fields,"create_campaign","Criar rascunho"));
+ right.append(mktCreateForm("Nova campanha","O rascunho poderá ser aprovado e enviado somente após consentimento, conferência Meta e limites financeiros.",fields,"create_campaign","Criar rascunho"));
  right.append(mktCreateForm("Biblioteca de modelos","Cadastre a referência do modelo. A aprovação na Meta é independente.",[
  {name:"label",label:"Nome interno",required:true},{name:"meta_template_name",label:"Identificador Meta (ex.: ujn_chamada_cientifica)",required:true},
  {name:"sample_body",label:"Texto de prévia",type:"textarea",wide:true}
@@ -1233,22 +1233,28 @@ function mktHealth(root,d){
  left.append(health);
  const protection=mktPanel("Proteção de disparos","Estado atual do módulo Marketing Intelligence.");
  protection.append(mktTable(["Configuração","Valor"],[
- ["Disparo de campanhas","DESATIVADO"],
+ ["Disparo de campanhas",d.settings.marketing_dispatch_enabled?mktBadge("HABILITADO","ok"):mktBadge("PAUSADO","warn")],
  ["Limite por contato / 7 dias",d.settings.max_messages_per_contact_per_7d],
  ["Orçamento mensal de marketing",mktMoney(d.settings.monthly_budget_cap_brl)],
+ ["Reserva por mensagem",mktMoney(d.settings.max_cost_per_message_brl)],
  ["Eventos com falha registrados",d.events.filter(x=>x.event_type==="FAILED").length]
  ]));right.append(protection);
- right.append(mktCreateForm("Limites preventivos","Defina orçamento e limite por contato. Isso NÃO habilita disparos.",[
+ right.append(mktCreateForm("Limites preventivos","Defina teto mensal, reserva máxima por mensagem e frequência. O envio depende também de campanha e autorização.",[
  {name:"monthly_budget_cap_brl",label:"Teto mensal de marketing (R$)",type:"number",placeholder:"0"},
- {name:"max_messages_per_contact_per_7d",label:"Máximo de mensagens por contato / 7 dias",type:"number",placeholder:"2"}
+ {name:"max_messages_per_contact_per_7d",label:"Máximo de mensagens por contato / 7 dias",type:"number",placeholder:"2"},
+ {name:"max_cost_per_message_brl",label:"Reserva por mensagem (R$)",type:"number",placeholder:"Defina um limite conservador"}
  ],"update_limits","Salvar limites"));
+ const switcher=mktPanel("Liberação de disparos",d.settings.marketing_dispatch_enabled?"O mecanismo de envio está habilitado. Cada campanha ainda exige aprovação, opt-in e modelo Marketing Meta.":"Disparos comerciais pausados. Use o controle abaixo para habilitar o mecanismo.");
+ switcher.append(mktBtn(d.settings.marketing_dispatch_enabled?"Pausar disparos comerciais":"Habilitar disparos comerciais","toggle_dispatch"));
+ right.append(switcher);
  const meta=mktPanel("Condição da conta na Meta","Leitura da qualidade do número oficial, sem modificar a conta.");
  meta.id="mktMetaHealth";meta.append(mktBtn("Consultar qualidade da Meta","health_meta"));right.append(meta);
- const p=mktEl("div","Nenhuma função deste novo módulo envia campanhas automaticamente. A comunicação editorial já implantada permanece separada e inalterada.","mkt-notice warn");right.append(p);
+ const p=mktEl("div","Os envios deste módulo exigem uma ação administrativa por lote e somente podem utilizar modelos Marketing verificados. O WhatsApp editorial permanece separado.","mkt-notice warn");right.append(p);
  layout.append(left,right);root.append(layout);
  const form=root.querySelector('form[data-mkt-form="update_limits"]');
  if(form){form.elements.monthly_budget_cap_brl.value=String(d.settings.monthly_budget_cap_brl||0);
- form.elements.max_messages_per_contact_per_7d.value=String(d.settings.max_messages_per_contact_per_7d||2)}
+ form.elements.max_messages_per_contact_per_7d.value=String(d.settings.max_messages_per_contact_per_7d||2);
+ form.elements.max_cost_per_message_brl.value=String(d.settings.max_cost_per_message_brl||0)}
 }
 async function mktAssistant(root,d){
  const layout=mktEl("div",undefined,"mkt-layout"),left=mktEl("div"),right=mktEl("div");
@@ -1274,7 +1280,7 @@ async function mktRun(action,payload){
   const area=$("mktAudiencePreview");if(area){area.replaceChildren(mktEl("h3","Público alcançável: "+result.total));for(const v of result.masked_examples||[])area.append(mktEl("p",v.phone+" · "+(v.journals||[]).join(",")))}
   return;
  }
- say(action==="sync_central_contacts"?"Importados "+result.imported+" contatos. Nenhum opt-in comercial foi concedido.":"Registro salvo.");
+ say(action==="sync_central_contacts"?"Importados "+result.imported+" contatos. Nenhum opt-in comercial foi concedido.":"Configuração ou registro atualizado.");
  await marketing();
  }catch(e){say(e.message,true)}finally{btn.disabled=false}
 }
@@ -1285,6 +1291,9 @@ $("mktTabs").addEventListener("click",e=>{
 $("mktViewBody").addEventListener("submit",e=>{
  const form=e.target.closest("form[data-mkt-form]");if(!form)return;e.preventDefault();
  const values=Object.fromEntries(new FormData(form).entries()),action=form.dataset.mktForm;
+ if(action==="update_limits"){
+  if(!confirm("Salvar os limites de gastos do Marketing? Isso não enviará mensagens."))return;
+ }
  if(action==="update_contact"){
   values.journal_interest=String(values.journal_interest||"").split(",").map(x=>x.trim().toUpperCase()).filter(Boolean);
   values.topic_tags=String(values.topic_tags||"").split(",").map(x=>x.trim()).filter(Boolean);
@@ -1352,6 +1361,28 @@ $("mktViewBody").addEventListener("click",e=>{
   if(!waba)return;
   if(!/^[0-9]{6,30}$/.test(waba))return say("O WABA ID deve conter apenas números.",true);
   mktRun("verify_meta_template",{id,waba_id:waba});return;
+ }
+ if(action==="toggle_dispatch"){
+  const enabled=!marketingData.settings.marketing_dispatch_enabled;
+  if(!confirm(enabled?
+    "Habilitar o mecanismo de disparos de Marketing? Nenhuma mensagem será enviada agora. Cada campanha continuará exigindo consentimento comprovado, modelo aprovado pela Meta, orçamento e comando manual de envio.":
+    "Pausar novos disparos de Marketing? As notificações editoriais não serão afetadas."))return;
+  mktRun("set_marketing_dispatch",{enabled,confirmed:true});return;
+ }
+ if(action==="queue_campaign"){
+  if(!confirm("Preparar a fila desta campanha APROVADA? Somente destinatários com autorização comercial comprovada serão incluídos. Nenhuma mensagem será enviada agora."))return;
+  mktCall("queue_campaign",{id,confirmed:true}).then(async r=>{
+    alert("Fila preparada: "+r.enqueued+" novos destinatários.\nNenhuma mensagem enviada nesta etapa.");
+    await marketing();
+  }).catch(e=>say(e.message,true));return;
+ }
+ if(action==="send_campaign_batch"){
+  if(!confirm("CONFIRMAR DISPARO REAL: enviar até 5 mensagens comerciais pelo número oficial da Editora UJN, usando o modelo Marketing aprovado na Meta e os contatos autorizados desta campanha?"))return;
+  mktCall("send_campaign_batch",{id,confirmed:true,max:5}).then(async r=>{
+    alert("Resultado do lote:\n"+r.accepted+" aceitas pela Meta\n"+r.failed+" rejeitadas\n"+r.unknown+
+      " com confirmação desconhecida\n"+r.claimed+" contatos processados.\n\nAceito pela Meta não significa entregue.");
+    await marketing();
+  }).catch(e=>say(e.message,true));return;
  }
  if(action==="approve_campaign"){
   if(!confirm("Confirmar aprovação INTERNA desta campanha? Isso não enviará mensagens. O sistema exigirá público com consentimento comprovado, modelo aprovado pela Meta e orçamento válido."))return;
