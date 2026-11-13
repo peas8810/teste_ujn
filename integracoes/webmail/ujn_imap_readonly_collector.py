@@ -10,10 +10,40 @@ from email.header import decode_header, make_header
 from email.utils import parseaddr, parsedate_to_datetime
 from datetime import datetime, timezone
 
-HOST = os.environ["UJN_IMAP_HOST"]
-USER = os.environ["UJN_IMAP_USER"]
-PASSWORD = os.environ["UJN_IMAP_PASSWORD"]
-ENDPOINT = os.environ["UJN_EMAIL_DESK_ENDPOINT"]
+# The already configured private cPanel file is the credential source.
+# Never print/store the password and never copy it to GitHub.
+CONFIG_PATH = os.getenv("UJN_IMAP_CONFIG_PATH", "/home/ujn/brain-ujn/imap_config.json")
+def load_imap_password():
+    with open(CONFIG_PATH, "r", encoding="utf-8") as fh:
+        cfg = json.load(fh)
+    if not isinstance(cfg, dict):
+        raise RuntimeError("imap_config.json must contain a JSON object")
+
+    def from_path(obj, path):
+        for part in path.split("."):
+            if not isinstance(obj, dict):
+                return None
+            obj = obj.get(part)
+        return obj
+
+    # The optional path supports an existing custom config field without exposing the secret.
+    configured = os.getenv("UJN_IMAP_PASSWORD_FIELD", "").strip()
+    candidates = [configured] if configured else [
+        "password", "senha", "imap_password", "mail_password",
+        "imap.password", "imap.senha", "email.password",
+        "account.password", "credentials.password",
+    ]
+    matches = [(path, from_path(cfg, path)) for path in candidates if path]
+    matches = [(path, value) for path, value in matches if isinstance(value, str) and value]
+    if len(matches) != 1:
+        raise RuntimeError("Cannot identify a single password field in private imap_config.json; set UJN_IMAP_PASSWORD_FIELD to the existing JSON key path")
+    return matches[0][1]
+
+HOST = os.getenv("UJN_IMAP_HOST", "mail.ujn.ojsbr.com")
+USER = "contato@ujn.ojsbr.com"
+MAILBOX = USER
+PASSWORD = load_imap_password()
+ENDPOINT = os.getenv("UJN_EMAIL_DESK_ENDPOINT", "https://leytqsyfrmzhectatcqm.supabase.co/functions/v1/ujn-email-desk-v1")
 def load_ingest_key():
     # Prefer the existing protected cPanel config; no second copy of the HMAC key.
     config_path = os.environ.get("UJN_INGEST_CONFIG_PATH", "/home/ujn/brain-ujn/ingest_config.json")
@@ -26,7 +56,6 @@ def load_ingest_key():
 
 HMAC_KEY = load_ingest_key()
 FOLDERS = [x.strip() for x in os.getenv("UJN_IMAP_FOLDERS", "INBOX,Sent").split(",") if x.strip()]
-MAILBOX = os.environ["UJN_MAILBOX"].strip().lower()
 LIMIT = max(5,min(500,int(os.getenv("UJN_IMAP_SCAN_LIMIT", "150"))))
 
 if not ENDPOINT.startswith("https://") or not re.match(r"^[a-f0-9]{64}$", HMAC_KEY):
