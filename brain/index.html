@@ -1064,6 +1064,16 @@ function mktCampaigns(root,d){
  a.append(mktBtn("Pré-auditoria","preflight_campaign",x.id));if(x.status==="APPROVED"){a.append(mktBtn("Preparar fila","queue_campaign",x.id));a.append(mktBtn("Enviar lote (até 5)","send_campaign_batch",x.id));}if(x.status==="IN_REVIEW")a.append(mktBtn("Aprovar após conferência","approve_campaign",x.id));
  if(["DRAFT","IN_REVIEW"].includes(x.status))a.append(mktBtn("Planejar data","plan_campaign",x.id));return a})()]);
  left.append(mktTable(["Campanha","Revista","Status","Orçamento","Agendada","Ação"],rows));
+ const dispatchStatus=mktPanel("Fila de disparos","Os estados representam a Meta: mensagens aceitas podem ainda não ter sido entregues.");
+ const summary=document.createElement("div");summary.style.cssText="display:grid;grid-template-columns:repeat(4,minmax(95px,1fr));gap:9px;margin:12px 0";
+ for(const [name,value] of [["Na fila",d.counts.queued],["Aceitas",d.counts.accepted],["Falhas",d.counts.failed_queue],["Desconhecidas",d.counts.unknown_queue]]){
+   const unit=mktEl("div",undefined,"mkt-kpi");unit.append(mktEl("span",name,"label"),mktEl("strong",value,"value"));summary.append(unit);
+ }dispatchStatus.append(summary);
+ dispatchStatus.append(mktTable(["Campanha","Destino","Situação","Data"],(d.queue||[]).slice(0,40).map(q=>{
+  const c=d.campaigns.find(x=>x.id===q.campaign_id),contact=d.contacts.find(x=>x.id===q.contact_id);
+  return [c?.name||"Campanha",contact?.phone?"••••"+contact.phone.slice(-4):"Contato",mktBadge(q.status,q.status==="FAILED"?"bad":q.status==="ACCEPTED"?"ok":"warn"),mktDate(q.created_at)]
+ })));
+ left.append(dispatchStatus);
  const fields=[
  {name:"name",label:"Nome da campanha",required:true,maxlength:140},
  {name:"journal_code",label:"Revista",type:"select",options:mktJournalOptions},
