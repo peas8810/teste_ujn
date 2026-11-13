@@ -259,8 +259,16 @@
 <label>E-mail do contato<input id="crmManualEmail" type="email" required maxlength="254" autocomplete="off" placeholder="autor@instituicao.br"></label>
 <label>WhatsApp com DDI e DDD<input id="crmManualPhone" type="tel" required maxlength="22" placeholder="+5533999999999"></label>
 <button class="btn" type="submit" id="crmManualSave">Salvar contato</button>
+<div style="grid-column:1/-1;display:grid;gap:11px;margin-top:8px">
+<label style="display:flex;gap:9px;align-items:center"><input type="checkbox" id="crmManualRequested" style="width:auto;margin:0"> <span>Estou cadastrando a pedido do autor, que autorizou receber notificações editoriais no WhatsApp informado.</span></label>
+<label>Referência da solicitação do autor (obrigatória se marcado acima)<input id="crmManualEvidence" type="text" maxlength="450" placeholder="Ex.: conversa de WhatsApp de 13/11/2026, protocolo ou e-mail de autorização"></label>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+<label>Revista (opcional)<select id="crmManualJournal" style="width:100%;display:block;padding:11px;margin-top:5px;border:1px solid #c9dae0;border-radius:8px"><option value="">Sem revista identificada</option><option>REMUNOM</option><option>RSV</option><option>RJNM</option><option>JIRRS</option><option>NEXUS</option></select></label>
+<label>ID do artigo (opcional)<input id="crmManualSubmission" type="text" inputmode="numeric" placeholder="Ex.: 8427" maxlength="9"></label>
+</div>
+</div>
 </form><div id="crmManualFeedback" role="status" aria-live="polite"></div>
-<p class="crm-manual-warning">Cadastro administrativo: sem consentimento automático, sem vínculo automático com artigos e sem disparo de mensagens.</p>
+<p class="crm-manual-warning">O superadministrador pode registrar uma autorização comprovada a pedido do autor. A autoria e o artigo ainda precisam ser conferidos no OJS antes de qualquer notificação.</p>
 <h3>Contatos cadastrados manualmente <span id="crmManualCount"></span></h3>
 <div id="crmManualTable" style="overflow-x:auto"></div></section>
 </div>
@@ -572,16 +580,32 @@ async function crmManualSave(e){
  e.preventDefault();
  const feedback=$("crmManualFeedback"),button=$("crmManualSave");
  const email=$("crmManualEmail").value.trim().toLowerCase();
- const phone=$("crmManualPhone").value.replace(/[^+0-9]/g,"");
- if(!/^[^\\s@<>]+@[^\\s@<>]+\\.[a-z]{2,}$/i.test(email)||!/^\\+[1-9][0-9]{7,14}$/.test(phone)){
-  feedback.textContent="Informe e-mail válido e WhatsApp internacional, por exemplo +5533999999999.";return;
+ let phone=$("crmManualPhone").value.trim().replace(/[^+0-9]/g,"");
+ if(phone.startsWith("00"))phone="+"+phone.slice(2);
+ if(!phone.startsWith("+")&&phone.startsWith("55"))phone="+"+phone;
+ if(!/^[^\s@<>]+@[^\s@<>]+\.[a-z]{2,}$/i.test(email)||!/^\+[1-9][0-9]{7,14}$/.test(phone)){
+  feedback.textContent="Informe e-mail válido e WhatsApp com DDI, como +55 98 98844-8772.";return;
+ }
+ const requested=$("crmManualRequested").checked;
+ const evidence=$("crmManualEvidence").value.trim(),journal=$("crmManualJournal").value,
+       submission=$("crmManualSubmission").value.trim();
+ if(requested&&evidence.length<12){
+  feedback.textContent="Registre a referência da solicitação do autor (mínimo 12 caracteres).";return;
+ }
+ if((journal&&!/^[1-9][0-9]{0,8}$/.test(submission))||(!journal&&submission)){
+  feedback.textContent="Para indicar artigo, selecione a revista e informe um ID válido.";return;
  }
  button.disabled=true;feedback.textContent="Salvando…";
  try{
-  const result=await editorialCall("?crm=1",{action:"manual_contact",email,phone});
-  const notice=result.created?"Contato cadastrado com sucesso.":"Contato já cadastrado, sem duplicação.";
-  $("crmManualContactForm").reset();await editorialWa();
-  $("crmManualFeedback").textContent=notice;
+  const result=await editorialCall("?crm=1",{
+   action:"manual_contact",email,phone,requested_by_author:requested,
+   request_evidence_ref:evidence,journal:journal||null,submission_id:submission||null
+  });
+  const msg=requested?"Pedido do autor registrado. Vínculo e autoria ainda aguardam conferência no OJS.":
+      result.created?"Contato administrativo cadastrado.":"Contato existente, sem duplicação.";
+  $("crmManualContactForm").reset();
+  await editorialWa();
+  $("crmManualFeedback").textContent=msg;
  }catch(err){feedback.textContent=err.message||"Não foi possível salvar o contato."}
  finally{button.disabled=false}
 }
