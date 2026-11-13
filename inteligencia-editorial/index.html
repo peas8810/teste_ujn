@@ -34,8 +34,22 @@ const x=r.find(x=>x.id===S.selected);if(!x){by("detail").innerHTML='<div class="
 const logs=S.audit.filter(a=>a.review_id===x.id);
 by("detail").innerHTML='<div class="head"><h2>Análise da IA</h2><span class="tag">'+esc(x.review_state)+'</span></div><div class="meta">'+esc(x.journal_code)+' · Manuscrito '+esc(x.submission_id||"não identificado")+' · '+date(x.created_at)+'</div><p class="label">Evento identificado</p><div class="content">'+esc(x.event_type)+'</div><p class="label">Resumo</p><div class="content">'+esc(x.ai_summary||"Ainda não disponível")+'</div><p class="label">Encaminhamento sugerido</p><div class="content">'+esc(x.ai_suggestion||"Revisão manual necessária")+'</div><p class="label">Confiabilidade / modelo</p><div class="content">'+esc(x.classification_confidence)+' · '+esc(x.model_state)+' · '+esc(x.model_name||"Sem modelo")+'</div><div class="note">A decisão aqui registra apenas a revisão interna da análise. Não publica artigos, não aceita ou rejeita manuscritos e não envia e-mail ou WhatsApp.</div>'+
 (x.review_state==="NEEDS_REVIEW"?'<div class="label">Justificativa obrigatória (mínimo 8 caracteres)</div><textarea id="justification" maxlength="1000" placeholder="Descreva por que aprova ou rejeita o encaminhamento interno da IA."></textarea><div class="buttons"><button id="approve">Concluir revisão</button><button class="danger" id="reject">Rejeitar sugestão</button></div>':'<p class="muted">Esta revisão já foi concluída. O histórico está preservado.</p>')+
-'<p class="label">Histórico de auditoria</p>'+(logs.length?logs.map(a=>'<div class="note"><b>'+esc(a.to_state)+'</b> · '+date(a.created_at)+'<div>'+esc(a.justification)+'</div></div>').join(""):'<div class="muted">Nenhuma decisão registrada.</div>');
+'<div class="buttons"><button class="secondary" id="suggest" type="button">Gerar sugestões com histórico</button></div><div id="suggestions" class="note">Consulte eventos OJS, metadados de e-mails e análises anteriores deste mesmo manuscrito.</div><p class="label">Histórico de auditoria</p>'+(logs.length?logs.map(a=>'<div class="note"><b>'+esc(a.to_state)+'</b> · '+date(a.created_at)+'<div>'+esc(a.justification)+'</div></div>').join(""):'<div class="muted">Nenhuma decisão registrada.</div>');
+by("suggest").onclick=()=>suggest();
 if(x.review_state==="NEEDS_REVIEW"){by("approve").onclick=()=>decide("REVIEWED");by("reject").onclick=()=>decide("REJECTED");}}
+async function suggest(){
+ const id=S.selected;const btn=by("suggest"),target=by("suggestions");btn.disabled=true;btn.textContent="Consultando históricos...";
+ try{
+ const data=await call("suggest",{review_id:id});
+ if(S.selected!==id)return;
+ const source=data.sources||{};
+ target.innerHTML='<b>Contexto da revista '+esc(data.scope.journal)+' — manuscrito '+esc(data.scope.submission_id)+'</b><p>'+esc(data.overview)+'</p><div class="meta">Fontes: '+Number(source.ojs_events||0)+' eventos OJS, '+Number(source.email_metadata||0)+' metadados de e-mail e '+Number(source.prior_analyses||0)+' análises anteriores.</div>'+
+ (data.suggestions||[]).map(x=>'<div style="margin-top:12px;border-top:1px solid #d7e5e4;padding-top:10px"><b>'+esc(x.title)+'</b><div class="meta">Prioridade: '+esc(x.priority)+'</div><div>'+esc(x.rationale)+'</div></div>').join("")+
+ (data.limitations||[]).map(x=>'<p class="muted">Atenção: '+esc(x)+'</p>').join("")+
+ '<p class="muted">Sugestões internas; verifique a etapa atual no OJS antes de agir.</p>';
+ }catch(e){if(S.selected===id)target.textContent="Não foi possível gerar sugestões: "+e.message;}
+ finally{if(S.selected===id&&by("suggest")){by("suggest").disabled=false;by("suggest").textContent="Gerar sugestões com histórico";}}
+}
 async function decide(decision){const text=by("justification").value.trim();if(text.length<8){notice("Escreva uma justificativa com pelo menos 8 caracteres.",true);return;}if(!confirm(decision==="REVIEWED"?"Concluir esta revisão interna?":"Rejeitar a sugestão interna da IA?"))return;for(const b of by("detail").querySelectorAll("button"))b.disabled=true;try{await call("decide",{review_id:S.selected,decision,justification:text});await refresh();notice("Decisão interna registrada com auditoria. Nenhuma mensagem foi enviada.");}catch(err){notice(err.message,true);render();}}
 by("refresh").onclick=()=>refresh().catch(e=>notice(e.message,true));by("logout").onclick=logout;by("journal").onchange=render;by("filter").onchange=render;
 </script></body></html>
