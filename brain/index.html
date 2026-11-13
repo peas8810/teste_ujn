@@ -995,7 +995,8 @@ function mktOverview(root,d){
 function mktCampaigns(root,d){
  const layout=mktEl("div",undefined,"mkt-layout"),left=mktEl("div"),right=mktEl("div");
  left.append(mktPanel("Gestor de campanhas","Rascunhos, revisão, orçamento e públicos. O envio real está bloqueado."));
- const rows=d.campaigns.map(x=>[x.name,x.journal_code||"Todas",mktBadge(x.status,x.status==="DRAFT"?"warn":x.status==="ARCHIVED"?"bad":"blue"),mktMoney(x.budget_brl),mktDate(x.scheduled_for),(()=>{const a=mktEl("div");if(x.status==="DRAFT")a.append(mktBtn("Solicitar revisão","review_campaign",x.id));else if(x.status==="IN_REVIEW")a.append(mktBtn("Voltar ao rascunho","draft_campaign",x.id));return a})()]);
+ const rows=d.campaigns.map(x=>[x.name,x.journal_code||"Todas",mktBadge(x.status,x.status==="DRAFT"?"warn":x.status==="ARCHIVED"?"bad":"blue"),mktMoney(x.budget_brl),mktDate(x.scheduled_for),(()=>{const a=mktEl("div");if(x.status==="DRAFT")a.append(mktBtn("Solicitar revisão","review_campaign",x.id));else if(x.status==="IN_REVIEW")a.append(mktBtn("Voltar ao rascunho","draft_campaign",x.id));
+ if(["DRAFT","IN_REVIEW"].includes(x.status))a.append(mktBtn("Planejar data","plan_campaign",x.id));return a})()]);
  left.append(mktTable(["Campanha","Revista","Status","Orçamento","Agendada","Ação"],rows));
  const fields=[
  {name:"name",label:"Nome da campanha",required:true,maxlength:140},
@@ -1020,7 +1021,7 @@ function mktAudience(root,d){
  const controls=mktEl("div",undefined,"row");controls.style.marginBottom="12px";controls.append(mktBtn("Importar contatos da Central UJN (sem opt-in)","sync_contacts"));panel.append(controls);
  panel.append(mktTable(["Contato","WhatsApp","Origem","Marketing","Ações"],d.contacts.map(x=>{
   const action=mktEl("div");action.style.display="flex";action.style.gap="5px";
-  action.append(mktBtn("Detalhes/consentimento","consent_contact",x.id));
+  action.append(mktBtn("Detalhes/consentimento","consent_contact",x.id));action.append(mktBtn("Editar perfil","edit_contact",x.id));
   return [x.display_name||x.email||"Contato",x.phone,x.origin,x.marketing_opt_in?mktBadge("AUTORIZADO","ok"):mktBadge("SEM AUTORIZAÇÃO","warn"),action];
  })));
  left.append(panel);
@@ -1048,6 +1049,24 @@ function mktConsentDetail(id){
   else input.placeholder=field.placeholder||"";label.append(input);form.append(label);
  }
  const submit=mktEl("button","Registrar decisão","btn");submit.type="submit";form.append(submit);host.append(form);
+}
+function mktEditContact(id){
+ const d=marketingData,c=d?.contacts.find(x=>x.id===id),host=$("mktConsentDetail");if(!c||!host)return;
+ host.replaceChildren(mktEl("h3","Perfil · "+c.phone));
+ const form=mktEl("form",undefined,"mkt-form");form.dataset.mktForm="update_contact";
+ const idinput=mktEl("input");idinput.name="id";idinput.type="hidden";idinput.value=id;form.append(idinput);
+ for(const field of [
+ ["display_name","Nome ou identificação",c.display_name||""],
+ ["email","E-mail",c.email||""],
+ ["organization","Instituição",c.organization||""],
+ ["journal_interest","Revistas (separadas por vírgula)",(c.journal_interest||[]).join(", ")],
+ ["topic_tags","Interesses declarados (separados por vírgula)",(c.topic_tags||[]).join(", ")],
+ ["language","Idioma",c.language||"pt_BR"]
+ ]){
+  const label=mktEl("label",field[1],field[0]==="topic_tags"||field[0]==="journal_interest"?"wide":"");
+  const input=mktEl("input");input.name=field[0];input.value=field[2];label.append(input);form.append(label);
+ }
+ const b=mktEl("button","Salvar perfil","btn");b.type="submit";form.append(b);host.append(form);
 }
 function mktSegments(root,d){
  const layout=mktEl("div",undefined,"mkt-layout"),left=mktEl("div"),right=mktEl("div");
@@ -1083,7 +1102,9 @@ function mktPipeline(root,d){
    const item=mktEl("div",undefined,"mkt-deal");item.append(mktEl("strong",o.title),mktEl("span",mktMoney(o.value_brl)));
    const dropdown=mktEl("select");dropdown.dataset.mktStage=o.id;
    for(const [stage,descr] of stages){const opt=mktEl("option",descr);opt.value=stage;opt.selected=stage===o.stage;dropdown.append(opt)}
-   item.append(dropdown);column.append(item)
+   item.append(dropdown);
+   const revenue=mktEl("div","Receita confirmada: "+mktMoney(o.confirmed_revenue_brl),"small");item.append(revenue);
+   const receipt=mktBtn("Registrar pagamento","record_payment",o.id);item.append(receipt);column.append(item)
   }container.append(column)
  }root.append(container);
  const opts=d.contacts.map(x=>[x.id,(x.display_name||x.email||x.phone)+" · "+x.phone]);
@@ -1145,6 +1166,10 @@ $("mktTabs").addEventListener("click",e=>{
 $("mktViewBody").addEventListener("submit",e=>{
  const form=e.target.closest("form[data-mkt-form]");if(!form)return;e.preventDefault();
  const values=Object.fromEntries(new FormData(form).entries()),action=form.dataset.mktForm;
+ if(action==="update_contact"){
+  values.journal_interest=String(values.journal_interest||"").split(",").map(x=>x.trim().toUpperCase()).filter(Boolean);
+  values.topic_tags=String(values.topic_tags||"").split(",").map(x=>x.trim()).filter(Boolean);
+ }
  if(action==="record_consent"&&values.decision==="OPT_IN"){
   if(!confirm("Você conferiu uma autorização específica de Marketing para este telefone, com prova registrada? O aceite editorial sozinho não autoriza campanhas."))return;
   values.confirmed=true;
@@ -1155,6 +1180,25 @@ $("mktViewBody").addEventListener("click",e=>{
  const b=e.target.closest("button[data-mkt-action]");if(!b)return;
  const action=b.dataset.mktAction,id=b.dataset.mktId;
  if(action==="consent_contact"){mktConsentDetail(id);return}
+ if(action==="edit_contact"){mktEditContact(id);return}
+ if(action==="plan_campaign"){
+  const when=prompt("Informe a data e hora planejadas (AAAA-MM-DD HH:MM). O agendamento NÃO dispara mensagens.","");
+  if(!when)return;
+  const date=new Date(when.replace(" ","T"));
+  if(!Number.isFinite(date.getTime())||date.getTime()<=Date.now())return say("Informe uma data futura válida.",true);
+  mktRun("schedule_campaign",{id,scheduled_for:date.toISOString()});return;
+ }
+ if(action==="record_payment"){
+  const amount=prompt("Valor do pagamento confirmado (R$, exemplo 350.00)","");
+  if(amount===null)return;
+  const value=Number(amount.replace(",","."));
+  if(!(value>0))return say("Informe valor positivo.",true);
+  const proof=prompt("Identificador único do comprovante de pagamento (mínimo 8 caracteres):","");
+  if(!proof||proof.trim().length<8)return say("É necessário um comprovante identificável.",true);
+  if(confirm("Confirma que o pagamento foi efetivamente recebido e conferido?"))
+   mktRun("record_revenue",{opportunity_id:id,amount_brl:value,proof_ref:proof,source_system:"comprovante_conferido",confirmed:true});
+  return;
+ }
  if(action==="sync_contacts"){if(confirm("Importar telefones já atendidos para a base de contatos, SEM autorizar marketing?"))mktRun("sync_central_contacts",{});return}
  if(action==="preview_segment"){mktRun("preview_segment",{segment_id:id});return}
  if(action==="review_campaign"||action==="draft_campaign"){mktRun("change_campaign",{id,status:action==="review_campaign"?"IN_REVIEW":"DRAFT"});return}
