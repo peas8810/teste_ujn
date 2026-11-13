@@ -304,7 +304,7 @@
 </div>
 </section>
 <section data-page="marketing" class="screen hidden" id="marketingIntelligence">
-<div class="mkt-head"><div><span class="mkt-eyebrow">EDITORA UJN · INTELIGÊNCIA COMERCIAL</span><h1>Marketing Intelligence</h1><p>Campanhas, públicos, relacionamento, funil e resultados em um único espaço.</p></div><div class="mkt-tools"><span class="mkt-safe"><icon name="shield-check" inline/> Disparos suspensos até homologação</span><button class="btn" id="mktRefresh">Atualizar dados</button></div></div>
+<div class="mkt-head"><div><span class="mkt-eyebrow">EDITORA UJN · INTELIGÊNCIA COMERCIAL</span><h1>Marketing Intelligence</h1><p>Campanhas, públicos, relacionamento, funil e resultados em um único espaço.</p></div><div class="mkt-tools"><span class="mkt-safe">🔒 Disparos suspensos até homologação</span><button class="btn" id="mktRefresh">Atualizar dados</button></div></div>
 <div class="mkt-tabs" id="mktTabs" role="tablist">
 <button data-mkt-view="overview" class="active">Visão geral</button><button data-mkt-view="campaigns">Campanhas</button><button data-mkt-view="audience">Contatos e consentimento</button><button data-mkt-view="segments">Segmentos</button><button data-mkt-view="journeys">Automações</button><button data-mkt-view="scheduler">Calendário</button><button data-mkt-view="pipeline">Funil comercial</button><button data-mkt-view="analytics">Análises</button><button data-mkt-view="health">Saúde e custos</button><button data-mkt-view="assistant">Copiloto</button>
 </div>
@@ -1191,7 +1191,7 @@ async function mktRun(action,payload){
  await marketing();
  }catch(e){say(e.message,true)}finally{btn.disabled=false}
 }
-$("mktRefresh").addEventListener("click",marketing);
+
 $("mktTabs").addEventListener("click",e=>{
  const b=e.target.closest("button[data-mkt-view]");if(!b)return;marketingView=b.dataset.mktView;mktRender();
 });
@@ -1264,7 +1264,7 @@ async function aiSuggest(request){
 }
 async function menuLoad(){try{if(!role?.superuser)throw Error("Somente superadministrador.");const d=await call({action:"menu_get"});if(!d.menu)throw Error("Menu indisponível");menuVersion=d.menu.version;$("menuText").value=d.menu.body;$("saveMenu").disabled=false;say("Mensagem carregada. Versão "+menuVersion)}catch(e){say(e.message,true)}}
 async function menuSave(){if(!Number.isInteger(menuVersion))return;if(!confirm("Publicar esta mensagem como menu de produção no WhatsApp?"))return;try{const d=await call({action:"menu_save",version:menuVersion,body:$("menuText").value});menuVersion=d.version;say("Menu atualizado. Versão "+menuVersion)}catch(e){say(e.message,true)}}
-$("loginForm").onsubmit=login;$("signout").onclick=logout;for(const b of document.querySelectorAll("[data-screen]"))b.onclick=()=>show(b.dataset.screen);$("toggleNav").onclick=()=>{$("sidebar").classList.add("open");$("overlay").classList.add("show")};$("overlay").onclick=()=>{$("sidebar").classList.remove("open");$("overlay").classList.remove("show")};$("refreshOverview").onclick=overview;$("reloadInbox").onclick=inbox;$("inboxFilter").onchange=renderInbox;$("sendReply").onclick=()=>{const t=$("replyText").value.trim();if(t)operate("reply",t)};$("saveNote").onclick=()=>{const t=$("replyText").value.trim();if(t)operate("note",t)};$("refreshContacts").onclick=contactLoad;$("contactQuery").oninput=renderContacts;$("academyRefresh").onclick=academy;$("notificationsRefresh").onclick=notifications;$("marketingRefresh").onclick=marketing;$("aiRefresh").onclick=aiDash;$("aiEmailSuggest").onclick=()=>{const v=$("aiEmailInput").value.trim();if(v.length<8)return say("Informe o texto do e-mail.",true);aiSuggest({channel:"email",message:v})};$("loadMenu").onclick=menuLoad;$("saveMenu").onclick=menuSave;
+$("loginForm").onsubmit=login;$("signout").onclick=logout;for(const b of document.querySelectorAll("[data-screen]"))b.onclick=()=>show(b.dataset.screen);$("toggleNav").onclick=()=>{$("sidebar").classList.add("open");$("overlay").classList.add("show")};$("overlay").onclick=()=>{$("sidebar").classList.remove("open");$("overlay").classList.remove("show")};$("refreshOverview").onclick=overview;$("reloadInbox").onclick=inbox;$("inboxFilter").onchange=renderInbox;$("sendReply").onclick=()=>{const t=$("replyText").value.trim();if(t)operate("reply",t)};$("saveNote").onclick=()=>{const t=$("replyText").value.trim();if(t)operate("note",t)};$("refreshContacts").onclick=contactLoad;$("contactQuery").oninput=renderContacts;$("academyRefresh").onclick=academy;$("notificationsRefresh").onclick=notifications;$("mktRefresh").onclick=marketing;$("aiRefresh").onclick=aiDash;$("aiEmailSuggest").onclick=()=>{const v=$("aiEmailInput").value.trim();if(v.length<8)return say("Informe o texto do e-mail.",true);aiSuggest({channel:"email",message:v})};$("loadMenu").onclick=menuLoad;$("saveMenu").onclick=menuSave;
 $("editorialRefresh").addEventListener("click",()=>editorialWa());
 $("editorialJournal").addEventListener("change",()=>{if(editorialCache)renderEditorial(editorialCache)});
 $("editorialSearch").addEventListener("input",()=>{if(editorialCache)renderEditorial(editorialCache)});
