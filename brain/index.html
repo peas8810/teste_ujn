@@ -1170,8 +1170,15 @@ function mktHealth(root,d){
  ["Orçamento mensal de marketing",mktMoney(d.settings.monthly_budget_cap_brl)],
  ["Eventos com falha registrados",d.events.filter(x=>x.event_type==="FAILED").length]
  ]));right.append(protection);
+ right.append(mktCreateForm("Limites preventivos","Defina orçamento e limite por contato. Isso NÃO habilita disparos.",[
+ {name:"monthly_budget_cap_brl",label:"Teto mensal de marketing (R$)",type:"number",placeholder:"0"},
+ {name:"max_messages_per_contact_per_7d",label:"Máximo de mensagens por contato / 7 dias",type:"number",placeholder:"2"}
+ ],"update_limits","Salvar limites"));
  const p=mktEl("div","Nenhuma função deste novo módulo envia campanhas automaticamente. A comunicação editorial já implantada permanece separada e inalterada.","mkt-notice warn");right.append(p);
  layout.append(left,right);root.append(layout);
+ const form=root.querySelector('form[data-mkt-form="update_limits"]');
+ if(form){form.elements.monthly_budget_cap_brl.value=String(d.settings.monthly_budget_cap_brl||0);
+ form.elements.max_messages_per_contact_per_7d.value=String(d.settings.max_messages_per_contact_per_7d||2)}
 }
 async function mktAssistant(root,d){
  const panel=mktPanel("Copiloto de Marketing","Recomendações analíticas sobre os dados disponíveis. Nesta versão, são regras verificáveis, não geração por IA.");
