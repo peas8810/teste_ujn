@@ -20,21 +20,23 @@ O Brain já possui um coletor de e-mails editoriais que envia **metadados** à f
 4. Execute primeiro manualmente para uma caixa de teste. Apenas após conferir os resultados, crie o cron sob o usuário que já opera as integrações do Brain.
 5. Para evitar trabalhos IMAP duplicados, se o coletor atual já possui acesso ao conteúdo integral dos e-mails, prefira integrar a chamada HTTP assinada ao seu processo existente em vez de agendar o adaptador separadamente.
 
-### Variáveis
+### Configuração de leitura — sem duplicar senhas
 
-```text
-UJN_IMAP_HOST=mail.ujn.ojsbr.com
-UJN_IMAP_PORT=993
-UJN_IMAP_USER=contato@ujn.ojsbr.com
-UJN_IMAP_PASSWORD=(segredo do servidor)
-UJN_MAILBOX=contato@ujn.ojsbr.com
-UJN_IMAP_FOLDERS=INBOX,Sent
-UJN_IMAP_SCAN_LIMIT=150
-UJN_EMAIL_DESK_ENDPOINT=https://leytqsyfrmzhectatcqm.supabase.co/functions/v1/ujn-email-desk-v1
-UJN_INGEST_CONFIG_PATH=/home/ujn/brain-ujn/ingest_config.json
-```
+O adaptador já está configurado para ler a conta `contato@ujn.ojsbr.com` no servidor `mail.ujn.ojsbr.com:993`.
 
-**Nunca copie valores de demonstração diretamente para produção.** A chave HMAC é de backend, não é uma chave pública do Supabase. O arquivo JSON precisa estar legível pelo usuário que executar o coletor. Não copie a chave para o GitHub, nem altere o arquivo original.
+**Ele carrega automaticamente estes dois arquivos privados do cPanel:**
+- `/home/ujn/brain-ujn/ingest_config.json`, campo `hmac_key` (assinatura HMAC).
+- `/home/ujn/brain-ujn/imap_config.json`, para a senha IMAP já existente.
+
+São reconhecidos nomes de campos usuais `password`, `senha`, `imap_password`, `mail_password` ou campos aninhados `imap.password`, `imap.senha`, `email.password`, `account.password` e `credentials.password`.
+
+Se a senha estiver em um campo de outro nome, informe **somente o caminho do campo** (nunca a senha) através da variável opcional `UJN_IMAP_PASSWORD_FIELD`; exemplo: `UJN_IMAP_PASSWORD_FIELD=servidor.credencial`.
+
+A URL de integração é `https://leytqsyfrmzhectatcqm.supabase.co/functions/v1/ujn-email-desk-v1`.
+
+Antes de executar pela primeira vez, valide a identificação da pasta `Sent` na conta; ela pode ter outro nome. A configuração opcional `UJN_IMAP_FOLDERS=INBOX,Sent` controla as pastas lidas.
+
+**Instalação pendente:** baixe o arquivo Python atualizado para o diretório privado `/home/ujn/brain-ujn/` e execute manualmente em homologação, nunca a partir do GitHub Pages. Não crie cron até a validação do teste. Não altere os arquivos de configuração originais.
 
 ## Comportamento
 
