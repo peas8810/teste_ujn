@@ -573,7 +573,7 @@ function crmManualDisplay(d){
  const list=d.manual_contacts||[],root=$("crmManualTable");if(!root)return;
  $("crmManualCount").textContent="("+list.length+")";
  makeEditorialTable(root,["E-mail","WhatsApp","Data","Situação"],list.map(x=>[
- x.email,x.phone_e164,stamp(x.created_at),"Salvo · Aguardando vinculação e autorização"
+ x.email,x.phone_e164,stamp(x.created_at),x.requested_by_author?"Pedido do autor registrado · Aguardando conferência OJS":"Contato salvo · Sem autorização editorial"
  ]));
 }
 async function crmManualSave(e){
