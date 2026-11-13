@@ -14,7 +14,17 @@ HOST = os.environ["UJN_IMAP_HOST"]
 USER = os.environ["UJN_IMAP_USER"]
 PASSWORD = os.environ["UJN_IMAP_PASSWORD"]
 ENDPOINT = os.environ["UJN_EMAIL_DESK_ENDPOINT"]
-HMAC_KEY = os.environ["UJN_MAIL_INGEST_KEY"]
+def load_ingest_key():
+    # Prefer the existing protected cPanel config; no second copy of the HMAC key.
+    config_path = os.environ.get("UJN_INGEST_CONFIG_PATH", "/home/ujn/brain-ujn/ingest_config.json")
+    with open(config_path, "r", encoding="utf-8") as fh:
+        config = json.load(fh)
+    key = config.get("hmac_key")
+    if not isinstance(key, str) or not re.fullmatch(r"[0-9a-fA-F]{64}", key):
+        raise RuntimeError("The existing ingest_config.json has no valid 64-hex hmac_key")
+    return key.lower()
+
+HMAC_KEY = load_ingest_key()
 FOLDERS = [x.strip() for x in os.getenv("UJN_IMAP_FOLDERS", "INBOX,Sent").split(",") if x.strip()]
 MAILBOX = os.environ["UJN_MAILBOX"].strip().lower()
 LIMIT = max(5,min(500,int(os.getenv("UJN_IMAP_SCAN_LIMIT", "150"))))
