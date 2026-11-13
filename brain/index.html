@@ -386,7 +386,7 @@ const say=(s,error=false)=>{const n=$("notice");n.textContent=s;n.className=erro
 const elem=(tag,content,cls)=>{const x=document.createElement(tag);if(content!==undefined)x.textContent=String(content);if(cls)x.className=cls;return x};
 const stamp=v=>v?new Date(v).toLocaleString("pt-BR"):"—";
 async function call(body){if(!token)throw Error("Faça login novamente.");const r=await fetch(API,{method:"POST",cache:"no-store",headers:{"apikey":PUB,"authorization":"Bearer "+token,"content-type":"application/json"},body:JSON.stringify(body)});const d=await r.json().catch(()=>({}));if(!r.ok||d.error)throw Error(d.error||"Erro HTTP "+r.status);return d}
-async function login(ev){ev.preventDefault();const pass=$("password").value;$("password").value="";say("Autenticando conta Academy...");try{const r=await fetch(BASE+"/auth/v1/token?grant_type=password",{method:"POST",cache:"no-store",headers:{"apikey":PUB,"content-type":"application/json"},body:JSON.stringify({email:$("email").value.trim(),password:pass})});const d=await r.json();if(!r.ok||!d.access_token)throw Error("Não foi possível autenticar. Verifique e-mail e senha.");token=d.access_token;editorialUserId=d.user?.id||null;const boot=await call({action:"bootstrap"});if(!boot.superuser&&!boot.allowed?.length){token=null;throw Error("Esta conta não possui permissão de operador.")}role=boot;$("notifyShell").hidden=!boot.superuser;if(boot.superuser)alertRefresh({toast:false,sync:true});serviceNames=Object.fromEntries((boot.services||[]).map(x=>[x.id,x.name]));$("login").classList.add("hidden");$("workspace").classList.remove("hidden");$("signout").hidden=false;$("mode").textContent=boot.superuser?"SUPERADMIN · Operacional":"OPERADOR · Operacional";for(const s of boot.services||[]){const o=elem("option",s.name);o.value=s.id;$("inboxFilter").appendChild(o)}show("overview");say("")}catch(e){token=null;say(e.message,true)}}
+async function login(ev){ev.preventDefault();const pass=$("password").value;$("password").value="";say("Autenticando conta Academy...");try{const r=await fetch(BASE+"/auth/v1/token?grant_type=password",{method:"POST",cache:"no-store",headers:{"apikey":PUB,"content-type":"application/json"},body:JSON.stringify({email:$("email").value.trim(),password:pass})});const d=await r.json();if(!r.ok||!d.access_token)throw Error("Não foi possível autenticar. Verifique e-mail e senha.");token=d.access_token;editorialUserId=d.user?.id||null;const boot=await call({action:"bootstrap"});if(!boot.superuser&&!boot.allowed?.length){token=null;throw Error("Esta conta não possui permissão de operador.")}role=boot;$("notifyShell").hidden=!(boot.superuser||(boot.allowed||[]).length);if(boot.superuser||(boot.allowed||[]).length)alertRefresh({toast:false,sync:true});serviceNames=Object.fromEntries((boot.services||[]).map(x=>[x.id,x.name]));$("login").classList.add("hidden");$("workspace").classList.remove("hidden");$("signout").hidden=false;$("mode").textContent=boot.superuser?"SUPERADMIN · Operacional":"OPERADOR · Operacional";for(const s of boot.services||[]){const o=elem("option",s.name);o.value=s.id;$("inboxFilter").appendChild(o)}show("overview");say("")}catch(e){token=null;say(e.message,true)}}
 function logout(){$("notifyShell").hidden=true;$("notifyPanel").classList.add("hidden");alertsCache=[];alertsSeen.clear();alertsInitialized=false;document.title="Brain UJN";editorialUserId=null;token=null;role=null;cases=[];current=null;$("password").value="";$("login").classList.remove("hidden");$("workspace").classList.add("hidden");$("signout").hidden=true;$("mode").textContent="Login obrigatório";say("Sessão encerrada.");}
 function show(page){if(!token)return;for(const x of document.querySelectorAll("[data-page]"))x.classList.toggle("hidden",x.dataset.page!==page);for(const x of document.querySelectorAll(".nav button"))x.classList.toggle("active",x.dataset.screen===page);$("crumb").textContent=names[page];$("sidebar").classList.remove("open");$("overlay").classList.remove("show");say("");if(page==="overview")overview();if(page==="inbox")inbox();if(page==="contacts")contactLoad();if(page==="academy")academy();if(page==="journals")renderJournals();if(page==="notifications")notifications();if(page==="marketing")marketing();if(page==="editorialwa")editorialWa();if(page==="ai")aiDash()}
 
@@ -1536,7 +1536,7 @@ const ALERT_API=BASE+"/functions/v1/ujn-brain-notifications";
 let alertsCache=[],alertsSeen=new Set(),alertsInitialized=false,alertsFilter="all",notifyBusy=false,notifyLastSync=0;
 const alertHost=(()=>{const h=document.createElement("div");h.className="notify-toast-host";h.id="notifyToasts";document.body.append(h);return h})();
 async function alertsRequest(action,other={}){
- if(!token||!role?.superuser)return null;
+ if(!token||!(role?.superuser||(role?.allowed||[]).length))return null;
  const res=await fetch(ALERT_API,{method:"POST",headers:{"authorization":"Bearer "+token,"apikey":PUB,"content-type":"application/json"},body:JSON.stringify({action,...other}),cache:"no-store"});
  const data=await res.json().catch(()=>({}));if(!res.ok||!data.ok)throw Error(data.error||"Notificações indisponíveis");return data;
 }
@@ -1567,7 +1567,7 @@ async function alertOpen(a){
  }else if(a.target_screen==="editorialwa"){show("editorialwa")}
 }
 async function alertRefresh(options={}){
- if(!token||!role?.superuser||notifyBusy)return;
+ if(!token||!(role?.superuser||(role?.allowed||[]).length)||notifyBusy)return;
  notifyBusy=true;
  try{
   if(options.sync||Date.now()-notifyLastSync>90000){try{await alertsRequest("sync");notifyLastSync=Date.now()}catch{}}
@@ -1588,7 +1588,7 @@ $("notifyBell").onclick=()=>{
 $("notifyMarkAll").onclick=async()=>{try{await alertsRequest("mark_all");await alertRefresh({toast:false})}catch(e){say(e.message,true)}};
 $("notifyFilters").onclick=e=>{const b=e.target.closest("button[data-alertfilter]");if(!b)return;alertsFilter=b.dataset.alertfilter;for(const n of $("notifyFilters").querySelectorAll("button"))n.classList.toggle("active",n===b);alertRender()};
 document.addEventListener("click",e=>{if(!$("notifyShell").contains(e.target)){$("notifyPanel").classList.add("hidden");$("notifyBell").setAttribute("aria-expanded","false")}});
-setInterval(()=>{if(token&&!document.hidden&&role?.superuser)alertRefresh()},15000);
+setInterval(()=>{if(token&&!document.hidden&&(role?.superuser||(role?.allowed||[]).length))alertRefresh()},15000);
 
 $("loginForm").onsubmit=login;$("signout").onclick=logout;for(const b of document.querySelectorAll("[data-screen]"))b.onclick=()=>show(b.dataset.screen);$("toggleNav").onclick=()=>{$("sidebar").classList.add("open");$("overlay").classList.add("show")};$("overlay").onclick=()=>{$("sidebar").classList.remove("open");$("overlay").classList.remove("show")};$("refreshOverview").onclick=overview;$("reloadInbox").onclick=inbox;$("inboxAISuggest").onclick=inboxSuggest;
 setInterval(async()=>{
