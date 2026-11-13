@@ -1,5 +1,7 @@
 # Brain UJN — Conector Webmail (somente leitura)
 
+**Caixa escolhida para a primeira integração: `contato@ujn.ojsbr.com`.** A conta está registrada como pendente de credenciais e a sincronização permanece desativada.
+
 Este diretório contém o adaptador opcional para sincronização das pastas IMAP com a Central Inteligente de E-mails.
 
 **Situação:** código publicado, **não instalado** no cPanel. O Supabase não consegue ler o servidor IMAP sem configuração da conta e execução do coletor.
@@ -19,11 +21,11 @@ O Brain já possui um coletor de e-mails editoriais que envia **metadados** à f
 ### Variáveis
 
 ```text
-UJN_IMAP_HOST=apolo.ojsbr.com
+UJN_IMAP_HOST=(confirmar o nome do servidor em Connect Devices; não presumir apolo.ojsbr.com)
 UJN_IMAP_PORT=993
-UJN_IMAP_USER=conta-institucional@example.org
+UJN_IMAP_USER=contato@ujn.ojsbr.com
 UJN_IMAP_PASSWORD=(segredo do servidor)
-UJN_MAILBOX=conta-institucional@example.org
+UJN_MAILBOX=contato@ujn.ojsbr.com
 UJN_IMAP_FOLDERS=INBOX,Sent
 UJN_IMAP_SCAN_LIMIT=150
 UJN_EMAIL_DESK_ENDPOINT=https://leytqsyfrmzhectatcqm.supabase.co/functions/v1/ujn-email-desk-v1
