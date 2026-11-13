@@ -1,5 +1,7 @@
 # Brain UJN — Conector Webmail (somente leitura)
 
+**Configuração SSL/TLS confirmada no Webmail: IMAP `mail.ujn.ojsbr.com:993`; SMTP `mail.ujn.ojsbr.com:465`.** O SMTP está documentado apenas e permanece desativado.
+
 **Caixa escolhida para a primeira integração: `contato@ujn.ojsbr.com`.** A conta está registrada como pendente de credenciais e a sincronização permanece desativada.
 
 Este diretório contém o adaptador opcional para sincronização das pastas IMAP com a Central Inteligente de E-mails.
@@ -21,7 +23,7 @@ O Brain já possui um coletor de e-mails editoriais que envia **metadados** à f
 ### Variáveis
 
 ```text
-UJN_IMAP_HOST=(confirmar o nome do servidor em Connect Devices; não presumir apolo.ojsbr.com)
+UJN_IMAP_HOST=mail.ujn.ojsbr.com
 UJN_IMAP_PORT=993
 UJN_IMAP_USER=contato@ujn.ojsbr.com
 UJN_IMAP_PASSWORD=(segredo do servidor)
