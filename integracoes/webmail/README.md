@@ -10,7 +10,7 @@ Este diretório contém o adaptador opcional para sincronização das pastas IMA
 
 ## Integração existente
 
-O Brain já possui um coletor de e-mails editoriais que envia **metadados** à função `ujn-editorial-email-ingest`. Não altere esse coletor em produção sem comparar as configurações existentes. Este adaptador destina-se à captura do histórico de conversas (mensagens recebidas e enviadas), usando a mesma chave de autenticação HMAC. Não executa ações no OJS nem envia e-mails.
+O Brain já possui um coletor de e-mails editoriais que envia **metadados** à função `ujn-editorial-email-ingest`. Não altere esse coletor em produção sem comparar as configurações existentes. Este adaptador destina-se à captura do histórico de conversas (mensagens recebidas e enviadas), lendo a chave HMAC do campo `hmac_key` já existente no arquivo privado `/home/ujn/brain-ujn/ingest_config.json`. Não executa ações no OJS nem envia e-mails.
 
 ## Instalação em ambiente privado
 
@@ -31,10 +31,10 @@ UJN_MAILBOX=contato@ujn.ojsbr.com
 UJN_IMAP_FOLDERS=INBOX,Sent
 UJN_IMAP_SCAN_LIMIT=150
 UJN_EMAIL_DESK_ENDPOINT=https://leytqsyfrmzhectatcqm.supabase.co/functions/v1/ujn-email-desk-v1
-UJN_MAIL_INGEST_KEY=(mesma chave HMAC hex de 64 caracteres já utilizada no coletor existente)
+UJN_INGEST_CONFIG_PATH=/home/ujn/brain-ujn/ingest_config.json
 ```
 
-**Nunca copie valores de demonstração diretamente para produção.** A chave HMAC é de backend, não é uma chave pública do Supabase.
+**Nunca copie valores de demonstração diretamente para produção.** A chave HMAC é de backend, não é uma chave pública do Supabase. O arquivo JSON precisa estar legível pelo usuário que executar o coletor. Não copie a chave para o GitHub, nem altere o arquivo original.
 
 ## Comportamento
 
