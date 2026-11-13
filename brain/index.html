@@ -1025,7 +1025,7 @@ function mktCampaigns(root,d){
 function mktAudience(root,d){
  const layout=mktEl("div",undefined,"mkt-layout"),left=mktEl("div"),right=mktEl("div");
  const panel=mktPanel("Base de contatos e consentimento","A inclusão de um contato não autoriza campanhas. Apenas evidências específicas de marketing permitem o opt-in.");
- const controls=mktEl("div",undefined,"row");controls.style.marginBottom="12px";controls.append(mktBtn("Importar contatos da Central UJN (sem opt-in)","sync_contacts"));panel.append(controls);
+ const controls=mktEl("div",undefined,"row");controls.style.marginBottom="12px";controls.append(mktBtn("Sincronizar contatos da Central e do OJS (sem opt-in)","sync_contacts"));panel.append(controls);
  panel.append(mktTable(["Contato","WhatsApp","Origem","Marketing","Ações"],d.contacts.map(x=>{
   const action=mktEl("div");action.style.display="flex";action.style.gap="5px";
   action.append(mktBtn("Detalhes/consentimento","consent_contact",x.id));action.append(mktBtn("Editar perfil","edit_contact",x.id));
@@ -1233,7 +1233,7 @@ $("mktViewBody").addEventListener("click",e=>{
    mktRun("record_revenue",{opportunity_id:id,amount_brl:value,proof_ref:proof,source_system:"comprovante_conferido",confirmed:true});
   return;
  }
- if(action==="sync_contacts"){if(confirm("Importar telefones já atendidos para a base de contatos, SEM autorizar marketing?"))mktRun("sync_central_contacts",{});return}
+ if(action==="sync_contacts"){if(confirm("Importar números da Central UJN e dos cadastros OJS para a base de contatos, SEM conceder autorização comercial?"))mktRun("sync_central_contacts",{});return}
  if(action==="preview_segment"){mktRun("preview_segment",{segment_id:id});return}
  if(action==="review_campaign"||action==="draft_campaign"){mktRun("change_campaign",{id,status:action==="review_campaign"?"IN_REVIEW":"DRAFT"});return}
 });
