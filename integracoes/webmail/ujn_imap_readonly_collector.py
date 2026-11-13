@@ -86,6 +86,5 @@ def main():
                 try:post(item);sent+=1
                 except (urllib.error.HTTPError,urllib.error.URLError,RuntimeError) as exc:
                     errors+=1;print("Sync failed for folder/UID:",folder,uid.decode(),type(exc).__name__,file=sys.stderr)
-        conn.logout()
     print(json.dumps({"processed":sent,"errors":errors,"sent_email":False}))
 if __name__=="__main__":main()
