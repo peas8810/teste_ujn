@@ -353,6 +353,7 @@
    <div class="card"><h2>Temas identificados</h2><div id="aiTopics"></div></div>
    <div class="card"><h2>Base de conhecimento para aprovação</h2><p class="hint">Só orientações revisadas por um superadministrador são usadas como fonte aprovada pela IA.</p><div id="aiKnowledge"></div></div>
  </div>
+ <div class="card"><div class="head"><div><h2>Aprendizado com respostas humanas</h2><p class="hint">Respostas enviadas por operadores entram automaticamente como exemplos. Até aprovação, orientam apenas o estilo; após revisão, podem servir de referência, sempre respeitando as políticas atuais.</p></div><button class="btn" id="aiHumanRefresh">Atualizar exemplos</button></div><div id="aiHumanStats" class="grid"></div><div id="aiHumanExamples"></div></div>
  <div class="card"><h2>WhatsApp — solicitações recentes</h2><p class="hint">Selecione uma mensagem para gerar sugestão por IA. Dados pessoais são mascarados antes do processamento. Não há envio automático.</p><div id="aiRecent"></div></div>
  <div class="card"><h2>Analisar um e-mail</h2><p class="hint">Cole somente a solicitação pertinente. Remova anexos, dados financeiros e outras informações sensíveis antes da análise.</p><textarea id="aiEmailInput" maxlength="3000" placeholder="Cole aqui o texto de um e-mail de atendimento que precisa de resposta…"></textarea><div class="actions"><button class="btn primary" id="aiEmailSuggest">Criar rascunho de resposta</button></div></div>
  <div class="card"><h2>Respostas propostas — aprovação humana</h2><div id="aiDrafts"></div></div>
@@ -1473,7 +1474,7 @@ async function aiDash(){
  const st=$("aiStats"),aud=$("aiEmailStats"),topics=$("aiTopics"),kb=$("aiKnowledge"),recent=$("aiRecent"),drafts=$("aiDrafts");
  st.replaceChildren();empty(aud,"Consultando histórico…");
  try{
-  const d=await insight(INSIGHTS_AI,"dashboard");aiCache=d;st.replaceChildren();
+  const d=await insight(INSIGHTS_AI,"dashboard");aiCache=d;aiHumanLoad();st.replaceChildren();
   for(const [label,v] of [["Conversas no WhatsApp",d.counts.whatsapp_conversations],["Mensagens recebidas",d.counts.customer_messages],["Mensagens do bot anterior",d.counts.bot_messages],["Respostas humanas",d.counts.human_messages],["Conhecimentos em revisão",d.counts.knowledge_drafts],["Orientações aprovadas",d.counts.knowledge_approved],["Rascunhos por IA",d.counts.response_drafts],["Opt-ins comerciais",d.counts.marketing_optins]])st.append(stat(label,v));
   aud.replaceChildren();
   if(!(d.audits||[]).length)aud.append(elem("p","Nenhuma auditoria IMAP recebida.","hint"));
@@ -1486,6 +1487,30 @@ async function aiDash(){
   drafts.replaceChildren();if(!(d.drafts||[]).length)drafts.append(elem("p","Nenhum rascunho gerado ainda.","hint"));
   for(const x of d.drafts||[]){const b=elem("div",undefined,"metric-event");b.append(elem("strong",x.channel+" · "+x.state+" · "+stamp(x.created_at)),elem("p",x.suggested_reply));const btn=elem("button","Copiar rascunho","btn small");btn.onclick=()=>navigator.clipboard?.writeText(x.suggested_reply).then(()=>say("Rascunho copiado."),()=>say("Não foi possível copiar.",true));b.append(btn);drafts.append(b)}
  }catch(e){empty(aud,e.message);say(e.message,true)}
+}
+async function aiHumanLoad(){
+ const stats=$("aiHumanStats"),root=$("aiHumanExamples");if(!root)return;
+ stats.replaceChildren();root.replaceChildren(elem("p","Consultando respostas humanas…","hint"));
+ try{
+  const d=await insight(INSIGHTS_AI,"human_examples");root.replaceChildren();
+  for(const [label,k] of [["Aguardando revisão","pending"],["Aprovados","approved"],["Rejeitados","rejected"]])stats.append(stat(label,d.counts?.[k]||0));
+  if(!(d.examples||[]).length)root.append(elem("p","Nenhuma resposta humana enviada registrada.","hint"));
+  for(const x of d.examples||[]){
+   const b=elem("div",undefined,"metric-event");
+   b.append(elem("strong",(x.service_id||"Atendimento")+" · "+x.review_state+" · "+stamp(x.created_at)));
+   b.append(elem("p","Pergunta anterior: "+(x.question_excerpt||"(não identificada)")));
+   b.append(elem("p","Resposta humana: "+(x.answer_excerpt||"")));
+   if(x.review_state==="PENDING"){
+    const actions=elem("div",undefined,"actions");
+    for(const [decision,label] of [["APPROVED","Aprovar como referência"],["REJECTED","Descartar exemplo"]]){
+     const btn=elem("button",label,"btn small");
+     btn.onclick=async()=>{if(!confirm("Confirmar "+label.toLowerCase()+"? Revise as políticas, os dados pessoais e a atualidade da orientação."))return;try{await insight(INSIGHTS_AI,"human_review",{message_id:x.message_id,decision});await aiHumanLoad();say("Exemplo revisado.")}catch(e){say(e.message,true)}};actions.append(btn)
+    }
+    b.append(actions)
+   }
+   root.append(b)
+  }
+ }catch(e){root.replaceChildren(elem("p","Não foi possível consultar os exemplos: "+e.message,"hint"))}
 }
 async function aiSuggest(request){
  const dest=$("aiSuggestion");dest.classList.remove("hidden");dest.textContent="Gerando rascunho supervisionado...";
@@ -1504,7 +1529,7 @@ setInterval(async()=>{
   if(selected&&!editing&&!aiEditing)await detail(selected);
   $("inboxLiveStatus").textContent="Atualizado: "+new Date().toLocaleTimeString("pt-BR");
  }catch(e){$("inboxLiveStatus").textContent="Atualização indisponível — tente manualmente"}
-},20000);$("inboxFilter").onchange=renderInbox;$("sendReply").onclick=()=>{const t=$("replyText").value.trim();if(t)operate("reply",t)};$("saveNote").onclick=()=>{const t=$("replyText").value.trim();if(t)operate("note",t)};$("refreshContacts").onclick=contactLoad;$("contactQuery").oninput=renderContacts;$("academyRefresh").onclick=academy;$("notificationsRefresh").onclick=notifications;$("mktRefresh").onclick=marketing;$("aiRefresh").onclick=aiDash;$("aiEmailSuggest").onclick=()=>{const v=$("aiEmailInput").value.trim();if(v.length<8)return say("Informe o texto do e-mail.",true);aiSuggest({channel:"email",message:v})};$("loadMenu").onclick=menuLoad;$("saveMenu").onclick=menuSave;
+},20000);$("inboxFilter").onchange=renderInbox;$("sendReply").onclick=()=>{const t=$("replyText").value.trim();if(t)operate("reply",t)};$("saveNote").onclick=()=>{const t=$("replyText").value.trim();if(t)operate("note",t)};$("refreshContacts").onclick=contactLoad;$("contactQuery").oninput=renderContacts;$("academyRefresh").onclick=academy;$("notificationsRefresh").onclick=notifications;$("mktRefresh").onclick=marketing;$("aiRefresh").onclick=aiDash;$("aiHumanRefresh").onclick=aiHumanLoad;$("aiEmailSuggest").onclick=()=>{const v=$("aiEmailInput").value.trim();if(v.length<8)return say("Informe o texto do e-mail.",true);aiSuggest({channel:"email",message:v})};$("loadMenu").onclick=menuLoad;$("saveMenu").onclick=menuSave;
 $("editorialRefresh").addEventListener("click",()=>editorialWa());
 $("editorialJournal").addEventListener("change",()=>{if(editorialCache)renderEditorial(editorialCache)});
 $("editorialSearch").addEventListener("input",()=>{if(editorialCache)renderEditorial(editorialCache)});
