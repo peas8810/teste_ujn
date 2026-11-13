@@ -99,7 +99,10 @@ def post(item):
         return data
 def main():
     sent=0;errors=0
-    with imaplib.IMAP4_SSL(HOST,port=int(os.getenv("UJN_IMAP_PORT","993")),ssl_context=ssl.create_default_context(),timeout=25) as conn:
+    # Support older Python/imaplib versions on cPanel (no timeout= keyword).
+    import socket
+    socket.setdefaulttimeout(25)
+    with imaplib.IMAP4_SSL(HOST,port=int(os.getenv("UJN_IMAP_PORT","993")),ssl_context=ssl.create_default_context()) as conn:
         conn.login(USER,PASSWORD)
         for folder in FOLDERS:
             status,_=conn.select('"'+folder.replace('"','')+'"',readonly=True)
