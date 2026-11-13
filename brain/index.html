@@ -226,7 +226,7 @@
  <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg><span id="notifyCount" class="notify-count hidden">0</span></button>
  <div class="notify-panel hidden" id="notifyPanel" role="dialog" aria-label="Central de notificações">
   <div class="notify-panel-head"><strong>Notificações</strong><button class="btn small" id="notifyMarkAll" type="button">Marcar todas como lidas</button></div>
-  <div class="notify-filters" id="notifyFilters"><button type="button" data-alertfilter="all" class="active">Todas</button><button type="button" data-alertfilter="unread">Não lidas</button><button type="button" data-alertfilter="INBOUND">Mensagens</button><button type="button" data-alertfilter="EDITORIAL_EVENT">Editorial</button><button type="button" data-alertfilter="OUTBOUND_FAILURE">Falhas</button></div>
+  <div class="notify-filters" id="notifyFilters"><button type="button" data-alertfilter="all" class="active">Todas</button><button type="button" data-alertfilter="unread">Não lidas</button><button type="button" data-alertfilter="INBOUND">Mensagens</button><button type="button" data-alertfilter="EDITORIAL_EVENT">Editorial</button><button type="button" data-alertfilter="EMAIL_INBOUND">E-mails</button><button type="button" data-alertfilter="OUTBOUND_FAILURE">Falhas</button></div>
   <div id="notifyList" class="notify-list" aria-live="polite"><p class="hint">Atualizando...</p></div>
   <div class="notify-bottom">Atualização automática a cada 15 segundos · Ordem: mais recentes primeiro</div>
  </div>
@@ -1564,13 +1564,13 @@ async function alertOpen(a){
  if(a.target_screen==="inbox"){
   show("inbox");
   if(a.conversation_id)await detail(a.conversation_id);
- }else if(a.target_screen==="editorialwa"){show("editorialwa")}
+ }else if(a.target_screen==="editorialwa"){show("editorialwa")}else if(a.target_screen==="ai"){show("ai")}
 }
 async function alertRefresh(options={}){
  if(!token||!(role?.superuser||(role?.allowed||[]).length)||notifyBusy)return;
  notifyBusy=true;
  try{
-  if(options.sync||Date.now()-notifyLastSync>90000){try{await alertsRequest("sync");notifyLastSync=Date.now()}catch{}}
+  if(options.sync||Date.now()-notifyLastSync>30000){try{await alertsRequest("sync");notifyLastSync=Date.now()}catch{}}
   const r=await alertsRequest("list");if(!r)return;
   const fresh=(r.alerts||[]).filter(a=>!a.read&&!alertsSeen.has(a.id));
   if(alertsInitialized&&options.toast!==false)fresh.slice(0,2).reverse().forEach(alertToast);
