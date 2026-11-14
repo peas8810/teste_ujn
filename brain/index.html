@@ -283,7 +283,7 @@
  <div class="grid maildesk-stats"><div class="card"><small>Conversas</small><strong id="mailDeskTotal">—</strong></div><div class="card"><small>Possíveis pendências</small><strong id="mailDeskWaiting">—</strong></div><div class="card"><small>Respondidas registradas</small><strong id="mailDeskAnswered">—</strong></div></div>
  <div class="maildesk-layout">
   <div class="card"><h3>Caixa de entrada</h3><label for="mailDeskFilter">Filtrar situação</label>
-   <select id="mailDeskFilter"><option value="">Todas as situações</option><option value="AWAITING_REPLY">Aguardando resposta (provisório)</option><option value="ANSWERED">Respondidas</option></select>
+   <select id="mailDeskFilter"><option value="queue">Fila de atendimento — até 300</option><option value="answered">Respondidas / arquivadas — histórico</option></select>
    <div id="mailDeskList" class="maildesk-list" aria-live="polite"><p class="hint">Carregando…</p></div>
   </div>
   <div class="card"><h2 id="mailDeskTitle">Selecione uma conversa</h2><p id="mailDeskMeta" class="hint">Escolha um e-mail para analisar e responder.</p>
@@ -1745,8 +1745,7 @@ function mailDeskNotice(message,kind="info"){
 }
 function mailDeskListRender(){
  const box=$("mailDeskList");box.replaceChildren();
- const filter=$("mailDeskFilter").value;
- const items=MAILDESK.threads.filter(t=>!filter||t.state===filter);
+ const items=MAILDESK.threads;
  if(!items.length){box.append(elem("p","Nenhum e-mail neste filtro.","hint"));return;}
  for(const t of items){
   const b=elem("button",undefined,"maildesk-item"+(MAILDESK.selected===t.id?" active":"")+(t.unread?" unread":""));
@@ -1763,15 +1762,15 @@ async function mailDeskLoad(){
  if(MAILDESK.loading)return;MAILDESK.loading=true;
  $("mailDeskStatus").textContent="Consultando mensagens institucionais…";
  try{
-  const data=await mailDeskCall("list");
+  const data=await mailDeskCall("list",{view:$("mailDeskFilter").value});
   MAILDESK.threads=data.threads||[];
   MAILDESK.mailbox=data.mailbox||null;
   $("mailDeskTotal").textContent=MAILDESK.threads.length;
-  $("mailDeskWaiting").textContent=MAILDESK.threads.filter(t=>t.state==="AWAITING_REPLY").length;
-  $("mailDeskAnswered").textContent=MAILDESK.threads.filter(t=>t.state==="ANSWERED").length;
+  $("mailDeskWaiting").textContent=$("mailDeskFilter").value==="queue"?MAILDESK.threads.filter(t=>t.state==="AWAITING_REPLY").length:"—";
+  $("mailDeskAnswered").textContent=$("mailDeskFilter").value==="answered"?MAILDESK.threads.filter(t=>t.state==="ANSWERED").length:"—";
   $("mailDeskStatus").textContent="contato@ujn.ojsbr.com · IMAP "+(MAILDESK.mailbox?.connection_state==="VERIFIED"?"validado":"não validado")+
    " · SMTP "+(MAILDESK.mailbox?.smtp_enabled?(MAILDESK.mailbox?.sync_enabled?"habilitado para envio revisado":"homologado; aguardando conciliação IMAP"):"desativado")+
-   " · Pendências provisórias até a conciliação da pasta Enviados.";
+   " · Janela móvel: até 300 conversas desta categoria; registros anteriores preservados.";
   mailDeskListRender();
   if(MAILDESK.selected&&MAILDESK.threads.some(t=>t.id===MAILDESK.selected))await mailDeskOpen(MAILDESK.selected);
  }catch(err){$("mailDeskStatus").textContent="Não foi possível carregar a Central de E-mails: "+err.message;mailDeskNotice(err.message,"error")}
@@ -1987,7 +1986,7 @@ async function mailDeskPollStatus(){
 async function mailDeskLightRefresh(){
  if(!token || document.hidden || MAILDESK.loading || !document.querySelector('[data-page="emails"]:not(.hidden)'))return;
  try{
-  const d=await mailDeskCall("list");
+  const d=await mailDeskCall("list",{view:$("mailDeskFilter").value});
   MAILDESK.threads=d.threads||[];
   MAILDESK.mailbox=d.mailbox||null;
   $("mailDeskTotal").textContent=MAILDESK.threads.length;
@@ -1995,14 +1994,14 @@ async function mailDeskLightRefresh(){
   $("mailDeskAnswered").textContent=MAILDESK.threads.filter(t=>t.state==="ANSWERED").length;
   $("mailDeskStatus").textContent="Atualizado "+new Date().toLocaleTimeString("pt-BR")+
    " · "+(MAILDESK.mailbox?.sync_enabled?"IMAP sincronizado":"IMAP em atualização")+
-   " · histórico em recuperação gradual · atualização automática a cada 15 s.";
+   " · janela móvel de 300 conversas · atualização automática a cada 15 s.";
   mailDeskListRender(); // Never overwrite an operator's edited draft.
  }catch(err){$("mailDeskStatus").textContent="Atualização de e-mails indisponível: "+err.message}
 }
 setInterval(mailDeskLightRefresh,15000);
 
 $("mailDeskReload").onclick=mailDeskLoad;$("mailDeskToggleRead").onclick=()=>mailDeskSetRead($("mailDeskReadBadge").classList.contains("unread"));$("mailDeskReanalyze").onclick=()=>mailDeskAnalyze(MAILDESK.selected);$("mailDeskEscalate").onclick=()=>mailDeskWorkflow("MANUAL_REVIEW");$("mailDeskResolve").onclick=()=>mailDeskWorkflow("ARCHIVED");$("mailDeskLink").onclick=()=>mailDeskWorkflow("LINK");
-$("mailDeskFilter").onchange=mailDeskListRender;
+$("mailDeskFilter").onchange=()=>{MAILDESK.selected=null;mailDeskLoad()};
 $("mailDeskGenerate").onclick=mailDeskGenerate;
 $("mailDeskApprove").onclick=mailDeskApprove;
 $("mailDeskCopy").onclick=async()=>{try{await navigator.clipboard.writeText($("mailDeskText").value);mailDeskNotice("Texto copiado.");}catch{mailDeskNotice("Selecione o texto para copiar manualmente.","warn")}};
