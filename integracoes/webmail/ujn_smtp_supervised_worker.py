@@ -114,17 +114,61 @@ def send_one(password,key):
         raise SystemExit(2)
     print(json.dumps({"request_id":reqid,"status":status,"dispatched":1 if status=="SENT" else 0}))
 
+def send_test_once(password, recipient):
+    """Explicit recipient test, one attempt per installation even with repeating Cron."""
+    recipient = safe_header(recipient.strip().lower())
+    if not re.fullmatch(r"[^@\\s<>]+@[^@\\s<>]+\\.[A-Za-z]{2,}", recipient) or recipient == MAILBOX:
+        raise ValueError("Invalid test recipient")
+    marker = ROOT + "/state/smtp_test_once.lock"
+    try:
+        fd = os.open(marker, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+    except FileExistsError:
+        print(json.dumps({"test":"ALREADY_ATTEMPTED","sent_email":False,"action":"Check previous test output; do not retry blindly"}))
+        return
+    try:
+        with os.fdopen(fd, "w") as handle:
+            handle.write("SMTP test run reserved; check log and destination inbox.\\n")
+        msg = EmailMessage()
+        msg["From"] = MAILBOX
+        msg["To"] = recipient
+        msg["Subject"] = "[Brain UJN] Teste controlado de envio SMTP"
+        msg["Date"] = formatdate(localtime=False)
+        msg["Message-ID"] = "<" + uuid.uuid4().hex + "@ujn.ojsbr.com>"
+        msg.set_content(
+            "Teste autorizado do UJN Intelligence.\\n\\n"
+            "Esta mensagem confirma a verificacao de envio por SMTP da conta institucional. "
+            "Nenhuma resposta automatica ou decisao editorial foi executada.\\n\\n"
+            "Equipe Editora UJN",
+            subtype="plain", charset="utf-8"
+        )
+        with open_smtp(password) as smtp:
+            refused = smtp.send_message(msg, from_addr=MAILBOX, to_addrs=[recipient])
+        if refused:
+            print(json.dumps({"test":"RECIPIENT_REFUSED","sent_email":False,"retry_automatic":False}))
+        else:
+            print(json.dumps({"test":"SMTP_ACCEPTED","sent_email":True,"recipient":recipient,"message_id":msg["Message-ID"],"retry_automatic":False}))
+    except Exception as exc:
+        # An interrupted SMTP session may have already transmitted DATA.
+        # Keep lock; never automatically retry.
+        print(json.dumps({"test":"UNKNOWN","error_type":type(exc).__name__,"sent_email":"unconfirmed","retry_automatic":False}))
+        raise SystemExit(2)
+
 def main():
     password=read_password()
     if len(sys.argv)==1 or sys.argv[1]=="--test-auth":
         with open_smtp(password) as smtp:
             print(json.dumps({"smtp_authenticated":True,"sent_email":False,"host":SMTP_HOST,"port":SMTP_PORT}))
         return
+    if sys.argv[1]=="--send-test":
+        recipient=os.environ.get("UJN_SMTP_TEST_RECIPIENT", "").strip()
+        if not recipient:raise SystemExit("UJN_SMTP_TEST_RECIPIENT must be set for --send-test")
+        send_test_once(password,recipient)
+        return
     if sys.argv[1]=="--send-one":
         key=read_key()
         send_one(password,key)
         return
-    raise SystemExit("Usage: python3 ujn_smtp_supervised_worker.py [--test-auth | --send-one]")
+    raise SystemExit("Usage: python3 ujn_smtp_supervised_worker.py [--test-auth | --send-test | --send-one]")
 
 if __name__=="__main__":
     main()
