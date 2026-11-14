@@ -358,7 +358,7 @@
  <h3>Conversa da Central UJN</h3><p class="hint" id="editorialServiceWindow"></p>
  <div id="editorialChatMessages" style="max-height:370px;overflow:auto;border:1px solid var(--border);border-radius:10px;padding:12px"></div>
  <div class="actions" style="margin-top:12px"><button class="btn small" id="editorialClaimChat">Assumir atendimento</button><button class="btn small" id="editorialRefreshChat">Atualizar conversa</button></div>
- <label for="editorialReplyText" style="display:block;margin-top:12px">Mensagem de atendimento</label>
+ <label for="editorialReplyText" style="display:block;margin-top:12px">Mensagem personalizada de atendimento (somente após resposta do autor)</label>
  <textarea id="editorialReplyText" rows="4" maxlength="2500" placeholder="Escreva uma resposta ao autor..." style="width:100%"></textarea>
  <div class="actions"><button class="btn primary" id="editorialSendReply">Enviar pelo WhatsApp</button></div>
  <p class="hint" id="editorialReplyStatus" role="status"></p>
@@ -914,8 +914,12 @@ function editorialThreadAvailable(chat){
 function editorialServiceControls(){
  const found=editorialServiceChat,open=editorialThreadAvailable(found),claimed=found?.state==="HUMAN"&&found?.assigned_to===editorialUserId;
  $("editorialClaimChat").disabled=!found||!open||claimed||found.state==="CLOSED";
- $("editorialSendReply").disabled=!found||!open||!claimed;
- $("editorialReplyText").disabled=!found||!open||!claimed;
+ const canFreeText=!!found&&open&&claimed;
+ const canTemplate=!!$("editorialManualArticle")?.value;
+ $("editorialSendReply").disabled=!canFreeText&&!canTemplate;
+ $("editorialSendReply").textContent=canFreeText?"Enviar mensagem pelo WhatsApp":canTemplate?"Enviar aviso pelo WhatsApp (modelo Meta)":"Selecione um artigo autorizado para enviar aviso";
+ $("editorialReplyText").disabled=!canFreeText;
+ $("editorialReplyText").placeholder=canFreeText?"Escreva uma resposta ao autor...":"Mensagem personalizada disponível somente após o autor responder ao WhatsApp. Para iniciar o contato, selecione o artigo e envie o aviso aprovado pela Meta.";
  $("editorialServiceWindow").textContent=!found
  ?"Não há conversa iniciada por este número na Central UJN. O atendimento livre só fica disponível após o contato enviar uma mensagem ao WhatsApp oficial. Notificações automáticas usam modelos aprovados."
  :!open?"A última mensagem do usuário está fora da janela de atendimento. Textos livres não serão enviados; utilize uma mensagem de modelo aprovada pela Meta ou aguarde nova mensagem."
@@ -945,6 +949,7 @@ async function editorialOpenService(phone){
   if(![...select.options].some(o=>o.value===val))select.add(new Option(item.journal_code+" #"+item.submission_id,val));
  }
  $("editorialManualSend").disabled=!eligibleNotices.length;
+ editorialServiceControls();
  $("editorialManualStatus").textContent=eligibleNotices.length?"Modelo aprovado: ujn_editorial_update_ptbr · Somente contatos com autorização verificada.":"Nenhum vínculo editorial verificado e autorizado para este número.";
  
  const recipientIds=new Set(recipients.map(r=>r.id));
@@ -1017,10 +1022,15 @@ async function editorialSendManualNotice(){
   status.textContent="Aviso registrado na fila ("+result.state+"). Atualize o histórico para acompanhar envio e entrega.";
   await editorialWa();
  }catch(e){status.textContent="Não enviado: "+e.message}
- finally{editorialManualSending=false;$("editorialManualSend").disabled=!$("editorialManualArticle").value}
+ finally{editorialManualSending=false;$("editorialManualSend").disabled=!$("editorialManualArticle").value;editorialServiceControls()}
 }
 async function editorialSendService(){
  const text=$("editorialReplyText").value.trim(),x=editorialServiceChat;
+ if(!x||!editorialThreadAvailable(x)||x.state!=="HUMAN"||x.assigned_to!==editorialUserId){
+   if($("editorialManualArticle").value)return editorialSendManualNotice();
+   $("editorialReplyStatus").textContent="Selecione um artigo com consentimento verificado para enviar um aviso usando o modelo aprovado pela Meta.";
+   return;
+ }
  if(!x||!text||text.length>2500||!editorialThreadAvailable(x)||x.state!=="HUMAN"||x.assigned_to!==editorialUserId)return;
  if(!confirm("Enviar esta mensagem ao WhatsApp "+editorialServicePhone+" pela Central UJN?"))return;
  $("editorialSendReply").disabled=true;
@@ -1658,7 +1668,7 @@ $("editorialSearch").addEventListener("input",()=>{if(editorialCache)renderEdito
 $("editorialContacts").addEventListener("click",e=>{const phone=e.target.closest("button[data-editorialphone]");if(phone){editorialOpenService(phone.dataset.editorialphone);return}const target=e.target.closest("button[data-request]");if(target)editorialLink(target.dataset.request)});
 $("editorialCloseService").addEventListener("click",()=>{$("editorialContactService").classList.add("hidden");editorialServicePhone=null;editorialServiceChat=null});
 $("editorialClaimChat").addEventListener("click",editorialClaimService);
-$("editorialSendReply").addEventListener("click",editorialSendService);$("editorialManualSend").addEventListener("click",editorialSendManualNotice);$("editorialManualArticle").addEventListener("change",()=>{$("editorialManualSend").disabled=!$("editorialManualArticle").value||editorialManualSending});
+$("editorialSendReply").addEventListener("click",editorialSendService);$("editorialManualSend").addEventListener("click",editorialSendManualNotice);$("editorialManualArticle").addEventListener("change",()=>{$("editorialManualSend").disabled=!$("editorialManualArticle").value||editorialManualSending;editorialServiceControls()});
 $("editorialRefreshChat").addEventListener("click",editorialLoadServiceChat);
 $("crmPeriod").addEventListener("click",e=>{
  const button=e.target.closest("button[data-days]");if(!button)return;
