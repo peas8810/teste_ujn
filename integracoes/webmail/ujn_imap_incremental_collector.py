@@ -20,6 +20,12 @@ from email.utils import parseaddr
 from pathlib import Path
 import ujn_imap_readonly_collector as base
 
+# Optional additive MIME enrichment; default OFF until installed and tested.
+MIME_ENABLED = os.getenv("UJN_IMAP_MIME_ENABLED", "0") == "1"
+ATTACHMENTS_ENABLED = os.getenv("UJN_IMAP_ATTACHMENTS_ENABLED", "0") == "1"
+if MIME_ENABLED:
+    import ujn_email_mime_adapter as mime_adapter
+
 ROOT = Path("/home/ujn/brain-ujn/state")
 LOCK_PATH = ROOT / "maildesk_incremental.lock"
 STATE_PATH = ROOT / "maildesk_incremental_state.json"
@@ -90,7 +96,16 @@ def submit_uid(conn, folder, uid):
         "body_text": base.text_body(msg), "direction": direction,
         "occurred_at": base.iso(msg.get("Date")),
     }
+    if MIME_ENABLED:
+        extracted = mime_adapter.extract(msg)
+        if extracted["body_html"]:
+            item["body_html"] = extracted["body_html"]
+        if extracted["attachments"]:
+            item["attachments"] = extracted["attachments"]
     result = base.post(item)
+    if MIME_ENABLED and ATTACHMENTS_ENABLED:
+        for file in extracted["upload_files"]:
+            mime_adapter.upload(base, message_key, file)
     return "DUPLICATE" if result.get("duplicate") else "NEW"
 
 
@@ -166,7 +181,8 @@ def synchronize(conn, state, deadline):
         enabled = False
         stats["errors"] += 1
         print("health report error:", type(err).__name__, file=sys.stderr)
-    print(json.dumps({"mode": "incremental", "new": stats["new"],
+    print(json.dumps({"mode": "incremental", "mime_enabled": MIME_ENABLED,
+                      "attachment_capture_enabled": ATTACHMENTS_ENABLED, "new": stats["new"],
                       "historical": stats["historical"],
                       "duplicates": stats["duplicates"],
                       "skipped": stats["skipped"], "errors": stats["errors"],
