@@ -1806,7 +1806,7 @@ function mailDeskListRender(){
   b.type="button";
   b.append(elem("b",t.correspondent||"Contato desconhecido"),
    elem("span",t.subject||"(sem assunto)"),
-   elem("small",(t.article_links?.length?t.article_links.map(x=>x.journal_code+" #"+x.submission_id).join(" · "):(t.journal_code&&t.submission_id?t.journal_code+" #"+t.submission_id:"Sem artigo vinculado"))+" · "+stamp(t.updated_at),"maildesk-article-list"),
+   elem("small",(t.article_links?.length?t.article_links.map(x=>x.journal_code+" #"+x.submission_id).join(" · "):"Sem artigo vinculado")+" · "+stamp(t.updated_at),"maildesk-article-list"),
    elem("small",(t.unread?"● Não lido":"✓ Lido no Brain")+" · "+(t.state==="AWAITING_REPLY"?"Possivelmente pendente":"Respondida")));
   b.onclick=()=>mailDeskOpen(t.id);
   box.append(b);
