@@ -225,7 +225,31 @@
 #mailDeskDraftPanel{margin-top:17px;border-top:1px solid #dce7e9;padding-top:16px}#mailDeskDraftPanel label{margin-top:12px;display:block}#mailDeskDraftPanel textarea{min-height:220px}#brainEmailDesk .actions{margin-top:14px;display:flex;gap:10px;flex-wrap:wrap}
 @media(max-width:1080px){.maildesk-layout{grid-template-columns:1fr}}@media(max-width:700px){.maildesk-stats{grid-template-columns:1fr 1fr}}
 </style>
-</head><body><a class="skip" href="#maincontent">Pular para conteúdo</a><div id="overlay"></div><div class="shell">
+<style id="maildesk-dashboard-v2">
+.maildesk-toolbar{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin:11px 0 15px}
+.maildesk-readbadge{border-radius:20px;padding:5px 11px;font-size:12px;font-weight:700;background:#e5f3ee;color:#126b52}
+.maildesk-readbadge.unread{background:#e2efff;color:#174b8f}
+.maildesk-item.unread{border-left:4px solid #1c85b7;background:#f1f9ff}
+.maildesk-item.unread>b{font-weight:800;color:#0b4265}
+.maildesk-insight{margin-top:20px;border-top:1px solid #dfe8e9;padding-top:15px}
+.maildesk-insight h3{margin:18px 0 10px}.maildesk-insight h4{margin:12px 0 8px}
+.maildesk-docs{display:grid;gap:8px}
+.maildesk-doc{display:flex;justify-content:space-between;align-items:start;gap:12px;padding:11px 13px;border-radius:9px;border:1px solid #e1e9ed;background:#fbfdfe;overflow-wrap:anywhere}
+.maildesk-doc strong{display:block;font-size:13px}
+.maildesk-doc small{display:block;color:#6d8391;margin-top:4px}
+.maildesk-doc a{border:1px solid #bddad7;border-radius:8px;padding:6px 10px;color:#087666;text-decoration:none;white-space:nowrap}
+.maildesk-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:9px;margin:12px 0 17px}
+.maildesk-metric{padding:12px;border:1px solid #e1e8ec;border-radius:10px;background:#f8fafb}
+.maildesk-metric small{display:block;color:#6c8290;font-size:12px}.maildesk-metric strong{display:block;font-size:18px;color:#173e4f;margin-top:5px}
+.maildesk-insight-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}
+.maildesk-insight-grid>div{background:#f4f9f8;border-radius:9px;padding:13px}
+.maildesk-timeline{display:grid;gap:8px;margin-bottom:15px}
+.maildesk-time-row{display:grid;grid-template-columns:95px 1fr 110px;gap:8px;align-items:center;font-size:12px}
+.maildesk-time-bar{height:9px;background:#d8e7e7;border-radius:9px;overflow:hidden}.maildesk-time-bar>span{display:block;height:100%;background:#078577}
+.maildesk-msg .maildesk-quoted{display:block;margin-top:9px;padding:11px;border-radius:8px;background:#f4f7f8;color:#5b7280;white-space:pre-wrap;font-size:12px;max-height:160px;overflow:auto}
+.maildesk-msg .maildesk-message-main{white-space:pre-wrap}
+@media(max-width:850px){.maildesk-insight-grid{grid-template-columns:1fr}.maildesk-time-row{grid-template-columns:70px 1fr 80px}}
+</style></head><body><a class="skip" href="#maincontent">Pular para conteúdo</a><div id="overlay"></div><div class="shell">
 <aside class="sidebar" id="sidebar"><div class="brand"><svg width="38" height="38" viewBox="0 0 40 40" fill="none" aria-hidden="true"><path d="M10 30L20 10L32 28L10 30" stroke="#53bbbc" stroke-width="2.5"/><circle cx="10" cy="30" r="4" fill="#fff"/><circle cx="20" cy="10" r="4" fill="#fff"/><circle cx="32" cy="28" r="4" fill="#fff"/></svg>brain <small>UJN</small></div><div class="tagline">RELACIONAMENTO QUE CONECTA</div>
 <div class="navtitle">OPERAÇÃO</div><nav class="nav"><button data-screen="overview">▦　Visão geral</button><button data-screen="inbox">▤　Caixa de entrada</button><button data-screen="emails">✉　E-mails · IA e envios</button><button data-screen="contacts">♙　Contatos e vínculos</button></nav>
 <div class="navtitle">ECOSSISTEMA</div><nav class="nav"><button data-screen="academy">♧　Atendimento Academy</button><button data-screen="journals">▥　Revistas</button><button data-screen="submit">▤　Submissões · ArticleRun</button><button data-screen="genius">✧　ArticleGenius</button></nav>
@@ -263,7 +287,17 @@
    <div id="mailDeskList" class="maildesk-list" aria-live="polite"><p class="hint">Carregando…</p></div>
   </div>
   <div class="card"><h2 id="mailDeskTitle">Selecione uma conversa</h2><p id="mailDeskMeta" class="hint">Escolha um e-mail para analisar e responder.</p>
+   <div class="maildesk-toolbar"><span id="mailDeskReadBadge" class="maildesk-readbadge">Sem conversa selecionada</span><button type="button" class="btn small" id="mailDeskToggleRead" disabled>Marcar como não lido</button><span class="hint" id="mailDeskReadMeta"></span></div>
    <h3>Histórico da conversa</h3><div id="mailDeskHistory" class="maildesk-history"><p class="hint">Nenhuma conversa selecionada.</p></div>
+   <section class="maildesk-insight">
+    <h3>Documentos e anexos</h3><div id="mailDeskAttachments" class="maildesk-docs"><p class="hint">Selecione uma conversa para consultar documentos.</p></div>
+    <h3>Análise do histórico</h3><div id="mailDeskMetrics" class="maildesk-metrics"></div>
+    <div class="maildesk-insight-grid">
+      <div><h4>Resumo e assuntos</h4><div id="mailDeskSummary" class="hint">Aguardando seleção</div></div>
+      <div><h4>Situação e próxima ação</h4><div id="mailDeskNextAction" class="hint">Aguardando seleção</div></div>
+    </div>
+    <h4>Linha do tempo do atendimento</h4><div id="mailDeskTimeline" class="maildesk-timeline"></div>
+   </section>
    <div class="actions"><button type="button" class="btn primary" id="mailDeskGenerate" disabled>Gerar resposta com IA</button></div>
    <div id="mailDeskNotes" class="notice hidden" aria-live="polite"></div>
    <div id="mailDeskDraftPanel" class="hidden"><h3>Rascunho para revisão humana</h3>
@@ -1709,12 +1743,12 @@ function mailDeskListRender(){
  const items=MAILDESK.threads.filter(t=>!filter||t.state===filter);
  if(!items.length){box.append(elem("p","Nenhum e-mail neste filtro.","hint"));return;}
  for(const t of items){
-  const b=elem("button",undefined,"maildesk-item"+(MAILDESK.selected===t.id?" active":""));
+  const b=elem("button",undefined,"maildesk-item"+(MAILDESK.selected===t.id?" active":"")+(t.unread?" unread":""));
   b.type="button";
   b.append(elem("b",t.correspondent||"Contato desconhecido"),
    elem("span",t.subject||"(sem assunto)"),
    elem("small",(t.journal_code||"Revista não identificada")+" · "+(t.submission_id||"Sem ID")+" · "+stamp(t.updated_at)),
-   elem("small",t.state==="AWAITING_REPLY"?"Possivelmente pendente":"Respondida"));
+   elem("small",(t.unread?"● Não lido":"✓ Lido no Brain")+" · "+(t.state==="AWAITING_REPLY"?"Possivelmente pendente":"Respondida")));
   b.onclick=()=>mailDeskOpen(t.id);
   box.append(b);
  }
@@ -1737,27 +1771,113 @@ async function mailDeskLoad(){
  }catch(err){$("mailDeskStatus").textContent="Não foi possível carregar a Central de E-mails: "+err.message;mailDeskNotice(err.message,"error")}
  finally{MAILDESK.loading=false}
 }
+
+function mailDeskDuration(minutes){
+ if(minutes===null||minutes===undefined||!Number.isFinite(Number(minutes)))return "Sem dados";
+ const n=Math.max(0,Math.round(Number(minutes)));return n<60?n+" min":n<1440?(n/60).toFixed(1)+" h":(n/1440).toFixed(1)+" dias";
+}
+function mailDeskReadable(text){
+ const value=String(text||"");
+ const pos=value.search(/(?:\n\s*(?:Em .+ escreveu:|On .+ wrote:|De: .+|From: .+)|\n\s*>)/i);
+ return pos>35?{current:value.slice(0,pos).trim(),quoted:value.slice(pos).trim()}: {current:value,quoted:""};
+}
+function mailDeskMetric(root,name,value){
+ const b=elem("div",undefined,"maildesk-metric");b.append(elem("small",name),elem("strong",String(value)));root.append(b);
+}
+function mailDeskDrawAnalytics(data){
+ const a=data.analytics||{},root=$("mailDeskMetrics");root.replaceChildren();
+ for(const [name,value] of [
+ ["Mensagens",a.total??"—"],["Recebidas",a.received??"—"],["Enviadas",a.sent??"—"],
+ ["Anexos indexados",a.attachment_count??0],["Primeira resposta da equipe",mailDeskDuration(a.first_team_reply_minutes)],
+ ["Média de resposta da equipe",mailDeskDuration(a.avg_team_reply_minutes)],
+ ["Média de retorno do autor",mailDeskDuration(a.avg_author_reply_minutes)],
+ ["Maior intervalo observado",mailDeskDuration(a.max_reply_gap_minutes)],
+ ["Duração da conversa",mailDeskDuration(a.elapsed_minutes)],
+ ["Urgência estimada",a.urgency||"—"]
+ ])mailDeskMetric(root,name,value);
+ const summary=$("mailDeskSummary");summary.replaceChildren();
+ summary.append(elem("p",a.summary||"Ainda não há dados suficientes."));
+ summary.append(elem("p","Assunto principal: "+(a.main_topic||"Não identificado")));
+ if(a.secondary_topics?.length)summary.append(elem("p","Outros assuntos: "+a.secondary_topics.join(", ")));
+ if(a.cited_manuscripts?.length)summary.append(elem("p","IDs mencionados (não verificados): "+a.cited_manuscripts.join(", ")));
+ if(a.notes)summary.append(elem("p",a.notes,"hint"));
+ const next=$("mailDeskNextAction");next.replaceChildren();
+ next.append(elem("strong",a.state_hint||"Não identificado"),elem("p",a.next_action||"Verificar solicitação"));
+ next.append(elem("p","Primeiro contato: "+stamp(a.first_at||null),"hint"),elem("p","Última interação: "+stamp(a.last_at||null),"hint"));
+ next.append(elem("p","Amostras de tempo — equipe: "+(a.team_reply_samples||0)+"; autor: "+(a.author_reply_samples||0)+".","hint"));
+ const timeline=$("mailDeskTimeline");timeline.replaceChildren();
+ const messages=data.messages||[],first=Date.parse(a.first_at),last=Date.parse(a.last_at),span=Math.max(1,last-first);
+ messages.slice(-20).forEach(m=>{
+  const row=elem("div",undefined,"maildesk-time-row"),label=elem("span",m.direction==="INBOUND"?"Recebido":"Enviado");
+  const track=elem("div",undefined,"maildesk-time-bar"),bar=elem("span");
+  const point=Math.max(0,Math.min(100,((Date.parse(m.occurred_at)-first)/span)*100));
+  bar.style.width=Math.max(3,point)+"%";track.append(bar);
+  row.append(label,track,elem("span",stamp(m.occurred_at)));timeline.append(row);
+ });
+ if(!messages.length)timeline.append(elem("p","Não há eventos suficientes.","hint"));
+}
+function mailDeskDrawAttachments(data){
+ const root=$("mailDeskAttachments");root.replaceChildren();
+ const attachments=data.attachments||[],links=data.document_links||[];
+ for(const item of attachments){
+  const row=elem("div",undefined,"maildesk-doc"),left=elem("div");
+  left.append(elem("strong",item.filename),elem("small",(item.mime_type||"Tipo não identificado")+" · "+(item.size_bytes!=null?Math.ceil(item.size_bytes/1024)+" KB · ":"")+(item.availability==="METADATA_ONLY"?"Somente metadados; arquivo não disponível":item.availability)));
+  row.append(left);
+  if(item.external_url&&/^https:\/\//.test(item.external_url)){const a=document.createElement("a");a.href=item.external_url;a.target="_blank";a.rel="noopener noreferrer";a.textContent="Abrir documento";row.append(a)}
+  root.append(row);
+ }
+ for(const link of links){
+  const row=elem("div",undefined,"maildesk-doc"),left=elem("div");
+  left.append(elem("strong",link.name||"Link identificado"),elem("small","Endereço citado no e-mail · acesso sujeito às permissões do OJS"));
+  const a=document.createElement("a");a.href=link.url;a.target="_blank";a.rel="noopener noreferrer";a.textContent="Abrir link";
+  row.append(left,a);root.append(row);
+ }
+ if(!attachments.length&&!links.length)root.append(elem("p",data.analytics?.attachment_mentioned?
+  "O texto menciona anexo, mas o arquivo ainda não foi sincronizado. Consulte a mensagem original no Webmail.":"Não foram identificados anexos ou links disponibilizados nesta conversa.","hint"));
+}
+async function mailDeskSetRead(read){
+ if(!MAILDESK.selected)return;
+ try{
+  await mailDeskCall("mark_read",{thread_id:MAILDESK.selected,read});
+  const t=MAILDESK.threads.find(x=>x.id===MAILDESK.selected);if(t)t.unread=!read;
+  $("mailDeskReadBadge").textContent=read?"✓ Lido no Brain":"● Não lido";
+  $("mailDeskReadBadge").classList.toggle("unread",!read);
+  $("mailDeskToggleRead").textContent=read?"Marcar como não lido":"Marcar como lido";
+  mailDeskListRender();
+ }catch(e){mailDeskNotice("Falha ao registrar leitura: "+e.message,"error")}
+}
 async function mailDeskOpen(id){
  MAILDESK.selected=id;MAILDESK.activeDraft=null;MAILDESK.request=null;
  mailDeskListRender();
  $("mailDeskHistory").replaceChildren(elem("p","Carregando histórico…","hint"));
- $("mailDeskDraftPanel").classList.add("hidden");
- $("mailDeskSendStatus").classList.add("hidden");
- $("mailDeskNotes").classList.add("hidden");
- $("mailDeskGenerate").disabled=true;
+ $("mailDeskAttachments").replaceChildren(elem("p","Consultando anexos…","hint"));
+ $("mailDeskMetrics").replaceChildren();$("mailDeskSummary").textContent="Analisando histórico…";$("mailDeskNextAction").textContent="Analisando situação…";$("mailDeskTimeline").replaceChildren();
+ $("mailDeskDraftPanel").classList.add("hidden");$("mailDeskSendStatus").classList.add("hidden");
+ $("mailDeskNotes").classList.add("hidden");$("mailDeskGenerate").disabled=true;
  try{
   const data=await mailDeskCall("thread",{thread_id:id});
   if(id!==MAILDESK.selected)return;
-  const t=data.thread;
+  const t=data.thread;const r=MAILDESK.threads.find(x=>x.id===id);
   $("mailDeskTitle").textContent=t.subject||"Conversa";
-  $("mailDeskMeta").textContent=[t.correspondent,t.mailbox,t.journal_code||"Sem revista",t.submission_id?"Manuscrito "+t.submission_id:"Sem manuscrito"].join(" · ");
+  $("mailDeskMeta").textContent=[t.correspondent,t.mailbox,t.journal_code||"Revista não identificada",t.submission_id?"Manuscrito "+t.submission_id:"Manuscrito não identificado"].join(" · ");
+  const unread=!!r?.unread;
+  $("mailDeskReadBadge").textContent=unread?"● Não lido":"✓ Lido no Brain";
+  $("mailDeskReadBadge").classList.toggle("unread",unread);
+  $("mailDeskReadMeta").textContent=data.read_receipt?.last_read_at?"Última leitura: "+stamp(data.read_receipt.last_read_at):"Status registrado por operador, não é confirmação de leitura no Webmail";
+  $("mailDeskToggleRead").disabled=false;$("mailDeskToggleRead").textContent=unread?"Marcar como lido":"Marcar como não lido";
   const view=$("mailDeskHistory");view.replaceChildren();
   for(const m of data.messages||[]){
    const card=elem("div",undefined,"maildesk-msg"+(m.direction==="OUTBOUND"?" out":""));
-   card.append(elem("b",(m.direction==="OUTBOUND"?"Enviado":"Recebido")+" · "+stamp(m.occurred_at)),elem("div",m.body_text||""));
+   card.append(elem("b",(m.direction==="OUTBOUND"?"Enviado":"Recebido")+" · "+stamp(m.occurred_at)));
+   const parts=mailDeskReadable(m.body_text||"");
+   card.append(elem("div",parts.current||"(mensagem sem texto)","maildesk-message-main"));
+   if(parts.quoted){const details=document.createElement("details");const sum=document.createElement("summary");sum.textContent="Mostrar mensagens anteriores citadas";details.append(sum,elem("div",parts.quoted,"maildesk-quoted"));card.append(details)}
+   const files=(data.attachments||[]).filter(x=>x.message_id===m.id);
+   if(files.length)card.append(elem("small",files.length+" arquivo(s) identificado(s)"));
    view.append(card);
   }
   if(!(data.messages||[]).length)view.append(elem("p","Nenhuma mensagem registrada.","hint"));
+  mailDeskDrawAttachments(data);mailDeskDrawAnalytics(data);
   $("mailDeskGenerate").disabled=false;
   if(data.drafts?.length)mailDeskDrawDraft(data.drafts[0],null);
  }catch(err){mailDeskNotice("Falha ao carregar: "+err.message,"error")}
@@ -1817,7 +1937,7 @@ async function mailDeskPollStatus(){
   else mailDeskNotice("Solicitação "+state+". Aguardando execução supervisionada do SMTP.");
  }catch(err){mailDeskNotice("Não foi possível consultar o envio: "+err.message,"error")}
 }
-$("mailDeskReload").onclick=mailDeskLoad;
+$("mailDeskReload").onclick=mailDeskLoad;$("mailDeskToggleRead").onclick=()=>mailDeskSetRead($("mailDeskReadBadge").classList.contains("unread"));
 $("mailDeskFilter").onchange=mailDeskListRender;
 $("mailDeskGenerate").onclick=mailDeskGenerate;
 $("mailDeskApprove").onclick=mailDeskApprove;
