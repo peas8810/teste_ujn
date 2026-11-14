@@ -249,6 +249,21 @@
 .maildesk-msg .maildesk-quoted{display:block;margin-top:9px;padding:11px;border-radius:8px;background:#f4f7f8;color:#5b7280;white-space:pre-wrap;font-size:12px;max-height:160px;overflow:auto}
 .maildesk-msg .maildesk-message-main{white-space:pre-wrap}
 @media(max-width:850px){.maildesk-insight-grid{grid-template-columns:1fr}.maildesk-time-row{grid-template-columns:70px 1fr 80px}}
+</style><style id="mail-rich-editor-style">
+.mail-rich-shell{border:1px solid #c9dce1;border-radius:12px;overflow:hidden;background:white}
+.mail-rich-toolbar{display:flex;gap:4px;flex-wrap:wrap;align-items:center;padding:10px;background:#f4f8f9;border-bottom:1px solid #dbe6e9}
+.mail-rich-toolbar button,.mail-rich-toolbar select{border:1px solid #dce5e8;background:white;color:#173b4a;border-radius:6px;padding:6px 8px;min-height:33px;font-size:12px;cursor:pointer}
+.mail-rich-toolbar button:hover,.mail-rich-toolbar button:focus-visible{background:#dcf2ed;border-color:#5caa9f}
+.mail-rich-toolbar select{max-width:155px}
+.mail-rich-color{display:flex;gap:6px;align-items:center;font-size:12px;padding:3px 6px;color:#56707c}
+.mail-rich-color input{width:31px;height:27px;border:0;padding:0;background:transparent;cursor:pointer}
+.mail-rich-editor{min-height:270px;max-height:580px;overflow-y:auto;padding:18px 20px;outline:none;color:#152e3d;font-size:15px;line-height:1.7;white-space:normal;overflow-wrap:anywhere}
+.mail-rich-editor:focus{box-shadow:inset 0 0 0 2px #51b7be}
+.mail-rich-editor p,.mail-rich-editor div{margin:0 0 12px}
+.mail-rich-editor ul,.mail-rich-editor ol{padding-left:26px}
+.mail-rich-editor blockquote{border-left:3px solid #8ab7b2;padding-left:12px;color:#536e77}
+.mail-rich-editor a{color:#087e8b;text-decoration:underline}
+.mail-rich-footer{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;padding:8px 13px;border-top:1px solid #e1e9eb;font-size:11px;color:#607b87}
 </style></head><body><a class="skip" href="#maincontent">Pular para conteúdo</a><div id="overlay"></div><div class="shell">
 <aside class="sidebar" id="sidebar"><div class="brand"><svg width="38" height="38" viewBox="0 0 40 40" fill="none" aria-hidden="true"><path d="M10 30L20 10L32 28L10 30" stroke="#53bbbc" stroke-width="2.5"/><circle cx="10" cy="30" r="4" fill="#fff"/><circle cx="20" cy="10" r="4" fill="#fff"/><circle cx="32" cy="28" r="4" fill="#fff"/></svg>brain <small>UJN</small></div><div class="tagline">RELACIONAMENTO QUE CONECTA</div>
 <div class="navtitle">OPERAÇÃO</div><nav class="nav"><button data-screen="overview">▦　Visão geral</button><button data-screen="inbox">▤　Caixa de entrada</button><button data-screen="emails">✉　E-mails · IA e envios</button><button data-screen="contacts">♙　Contatos e vínculos</button></nav>
@@ -309,7 +324,33 @@
    <div id="mailDeskDraftPanel" class="hidden"><h3>Rascunho para revisão humana</h3>
     <label for="mailDeskRecipient">Destinatário</label><input type="email" id="mailDeskRecipient" autocomplete="off"/>
     <label for="mailDeskSubject">Assunto</label><input id="mailDeskSubject" maxlength="500"/>
-    <label for="mailDeskText">Resposta</label><textarea id="mailDeskText" maxlength="8000" rows="12"></textarea>
+    <label for="mailDeskRichEditor">Resposta — editor formatado</label>
+    <div class="mail-rich-shell">
+      <div class="mail-rich-toolbar" id="mailRichToolbar" role="toolbar" aria-label="Formatação da resposta">
+        <select id="mailRichBlock" title="Estilo do parágrafo" aria-label="Estilo do parágrafo"><option value="p">Parágrafo</option><option value="h2">Título</option><option value="h3">Subtítulo</option><option value="blockquote">Citação</option></select>
+        <select id="mailRichFont" title="Tipo de letra" aria-label="Tipo de letra"><option value="Arial">Arial</option><option value="Georgia">Georgia</option><option value="Times New Roman">Times New Roman</option><option value="Verdana">Verdana</option></select>
+        <select id="mailRichSize" title="Tamanho da letra" aria-label="Tamanho da letra"><option value="2">Pequena</option><option value="3" selected>Normal</option><option value="4">Grande</option><option value="5">Extra grande</option></select>
+        <button type="button" data-rich="bold" aria-label="Negrito" title="Negrito (Ctrl+B)"><b>B</b></button>
+        <button type="button" data-rich="italic" aria-label="Itálico" title="Itálico (Ctrl+I)"><i>I</i></button>
+        <button type="button" data-rich="underline" aria-label="Sublinhado" title="Sublinhado (Ctrl+U)"><u>U</u></button>
+        <button type="button" data-rich="strikeThrough" title="Tachado"><s>S</s></button>
+        <button type="button" data-rich="justifyLeft" title="Alinhar à esquerda">≡</button>
+        <button type="button" data-rich="justifyCenter" title="Centralizar">≡↔</button>
+        <button type="button" data-rich="justifyRight" title="Alinhar à direita">≡→</button>
+        <button type="button" data-rich="justifyFull" title="Justificar">☷</button>
+        <button type="button" data-rich="insertUnorderedList" title="Lista com marcadores">• Lista</button>
+        <button type="button" data-rich="insertOrderedList" title="Lista numerada">1. Lista</button>
+        <button type="button" data-rich-action="link" title="Inserir link">🔗</button>
+        <button type="button" data-rich="insertHorizontalRule" title="Linha horizontal">─</button>
+        <button type="button" data-rich="removeFormat" title="Limpar formatação">Tx</button>
+        <button type="button" data-rich="undo" title="Desfazer">↶</button>
+        <button type="button" data-rich="redo" title="Refazer">↷</button>
+        <label class="mail-rich-color" title="Cor do texto">Cor <input type="color" id="mailRichColor" value="#17394a" aria-label="Cor do texto"/></label>
+      </div>
+      <div id="mailDeskRichEditor" class="mail-rich-editor" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Resposta formatada ao autor" spellcheck="true"></div>
+      <textarea id="mailDeskText" maxlength="8000" rows="12" hidden aria-hidden="true"></textarea>
+      <div class="mail-rich-footer"><span id="mailRichCount">0 / 8000 caracteres</span><span>Ctrl+B negrito · Ctrl+I itálico · Ctrl+U sublinhado</span></div>
+    </div>
     <div class="actions"><button type="button" class="btn primary" id="mailDeskApprove">Autorizar envio</button><button type="button" class="btn" id="mailDeskCopy">Copiar texto</button></div>
     <p class="hint">O envio exige confirmação explícita. A IA não dispara mensagens por conta própria.</p>
    </div><div id="mailDeskSendStatus" class="notice hidden" aria-live="polite"></div>
@@ -1928,12 +1969,59 @@ async function mailDeskOpen(id){
   if(data.drafts?.length)mailDeskDrawDraft(data.drafts[0],null);
  }catch(err){mailDeskNotice("Falha ao carregar: "+err.message,"error")}
 }
+function mailRichPlain(){
+ return $("mailDeskRichEditor").innerText.replace(/\u00a0/g," ").trim();
+}
+function mailRichSync(){
+ const plain=mailRichPlain();
+ $("mailDeskText").value=plain;
+ $("mailRichCount").textContent=plain.length+" / 8000 caracteres";
+ $("mailRichCount").style.color=plain.length>8000?"#be263d":"";
+}
+function mailRichSetContent(text,html){
+ const target=$("mailDeskRichEditor");target.replaceChildren();
+ // Stored HTML comes from the server-side whitelist sanitizer.
+ if(typeof html==="string"&&html.trim())target.innerHTML=html;
+ else{
+  const lines=String(text||"").split(/\r?\n/);
+  for(const line of lines){const p=document.createElement("div");p.textContent=line||"\u00a0";target.append(p)}
+ }
+ mailRichSync();
+}
+function mailRichCommand(command,value=null){
+ const e=$("mailDeskRichEditor");e.focus();
+ document.execCommand("styleWithCSS",false,"false");
+ document.execCommand(command,false,value);
+ mailRichSync();
+}
+function mailRichInsertLink(){
+ const raw=prompt("Cole o endereço HTTPS do link:");
+ if(raw===null)return;
+ let url;
+ try{url=new URL(raw.trim());if(url.protocol!=="https:")throw Error("invalid")}catch{return mailDeskNotice("Use um endereço HTTPS válido.","error")}
+ mailRichCommand("createLink",url.toString());
+}
+$("mailRichToolbar").addEventListener("mousedown",e=>{if(e.target.closest("button"))e.preventDefault()});
+$("mailRichToolbar").addEventListener("click",e=>{
+ const b=e.target.closest("button");if(!b)return;
+ if(b.dataset.richAction==="link")return mailRichInsertLink();
+ if(b.dataset.rich)mailRichCommand(b.dataset.rich);
+});
+$("mailRichBlock").addEventListener("change",e=>mailRichCommand("formatBlock",e.target.value));
+$("mailRichFont").addEventListener("change",e=>mailRichCommand("fontName",e.target.value));
+$("mailRichSize").addEventListener("change",e=>mailRichCommand("fontSize",e.target.value));
+$("mailRichColor").addEventListener("input",e=>mailRichCommand("foreColor",e.target.value));
+$("mailDeskRichEditor").addEventListener("input",mailRichSync);
+$("mailDeskRichEditor").addEventListener("paste",e=>{
+ e.preventDefault();const value=e.clipboardData.getData("text/plain").slice(0,8000);
+ document.execCommand("insertText",false,value);mailRichSync();
+});
 function mailDeskDrawDraft(d,notes){
  MAILDESK.activeDraft=d;
  const t=MAILDESK.threads.find(x=>x.id===MAILDESK.selected);
  $("mailDeskRecipient").value=t?.correspondent||"";
  $("mailDeskSubject").value=/^re:/i.test(t?.subject||"")?(t.subject||""):"Re: "+(t?.subject||"");
- $("mailDeskText").value=d.body_text||"";
+ mailRichSetContent(d.body_text||"",d.body_html||null);
  $("mailDeskDraftPanel").classList.remove("hidden");
  $("mailDeskApprove").disabled=!(MAILDESK.mailbox?.smtp_enabled&&MAILDESK.mailbox?.sync_enabled);
  $("mailDeskApprove").textContent=MAILDESK.mailbox?.smtp_enabled&&MAILDESK.mailbox?.sync_enabled?"Autorizar e colocar na fila de envio":"Envio aguarda sincronização de Entrada e Enviados";
@@ -1955,8 +2043,8 @@ async function mailDeskApprove(){
  if(!d||!t)return;
  const recipient=$("mailDeskRecipient").value.trim().toLowerCase();
  const subject=$("mailDeskSubject").value.trim();
- const body=$("mailDeskText").value.trim();
- if(!recipient||recipient!==String(t.correspondent||"").toLowerCase()||!subject||body.length<10){
+ const body=mailRichPlain();const body_html=$("mailDeskRichEditor").innerHTML;
+ if(!recipient||recipient!==String(t.correspondent||"").toLowerCase()||!subject||body.length<10||body.length>8000){
   mailDeskNotice("Confira o destinatário original, o assunto e o texto da resposta.","error");return;
  }
  const real=MAILDESK.mailbox?.smtp_enabled===true&&MAILDESK.mailbox?.sync_enabled===true;
@@ -1965,9 +2053,9 @@ async function mailDeskApprove(){
  if(!confirm(warning+"\n\nConfirma esta ação?"))return;
  $("mailDeskApprove").disabled=true;
  try{
-  const out=await mailDeskCall("approve_send",{draft_id:d.id,recipient,subject,body_text:body});
+  const out=await mailDeskCall("approve_send",{draft_id:d.id,recipient,subject,body_text:body,body_html});
   MAILDESK.request=out.request_id;
-  mailDeskNotice(out.status==="QUEUED"?"Solicitação aprovada e colocada na fila supervisionada. O envio ainda depende do executor SMTP.":"Aprovação registrada. Envio pendente de ativação SMTP.");
+  mailDeskNotice("Resposta aprovada e registrada com versão HTML e texto simples. A preservação da formatação no destinatário depende da confirmação do executor SMTP do cPanel.");
   $("mailDeskApprove").textContent="Autorização registrada";
   if(out.status==="QUEUED")mailDeskPollStatus();
  }catch(err){mailDeskNotice("A autorização não foi gravada: "+err.message,"error");$("mailDeskApprove").disabled=false}
@@ -2004,7 +2092,7 @@ $("mailDeskReload").onclick=mailDeskLoad;$("mailDeskToggleRead").onclick=()=>mai
 $("mailDeskFilter").onchange=()=>{MAILDESK.selected=null;mailDeskLoad()};
 $("mailDeskGenerate").onclick=mailDeskGenerate;
 $("mailDeskApprove").onclick=mailDeskApprove;
-$("mailDeskCopy").onclick=async()=>{try{await navigator.clipboard.writeText($("mailDeskText").value);mailDeskNotice("Texto copiado.");}catch{mailDeskNotice("Selecione o texto para copiar manualmente.","warn")}};
+$("mailDeskCopy").onclick=async()=>{try{await navigator.clipboard.writeText(mailRichPlain());mailDeskNotice("Texto copiado.");}catch{mailDeskNotice("Selecione o texto para copiar manualmente.","warn")}};
 $("aiToMailDesk").onclick=()=>show("emails");
 let mailDeskStatusBusy=false;setInterval(async()=>{if(!token||!MAILDESK.request||document.hidden||mailDeskStatusBusy)return;mailDeskStatusBusy=true;try{await mailDeskPollStatus()}finally{mailDeskStatusBusy=false}},3000);
 
