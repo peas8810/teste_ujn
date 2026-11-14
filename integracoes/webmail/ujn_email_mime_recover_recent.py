@@ -69,7 +69,7 @@ def main():
                         collector.submit_uid(conn, folder, uid)
                         done.add(uid)
                         state["folders"][key] = sorted(done.intersection(recent))
-                        collector.save_state_to(STATE_FILE,state) if hasattr(collector,"save_state_to") else save(state)
+                        save(state)
                         stats["newly_processed"] += 1
                     except Exception as error:
                         stats["errors"] += 1
