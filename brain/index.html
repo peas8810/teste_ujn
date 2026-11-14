@@ -378,7 +378,7 @@
    <div class="actions"><button type="button" class="btn primary" id="mailDeskGenerate" disabled>Gerar resposta com IA</button></div>
    <div id="mailDeskNotes" class="notice hidden" aria-live="polite"></div>
    <div id="mailDeskDraftPanel" class="hidden"><div class="maildesk-draft-title"><h3>Escrever resposta</h3><span id="mailDeskDraftState" class="hint">Não salvo</span></div>
-    <label for="mailDeskRecipient">Destinatário</label><input type="email" id="mailDeskRecipient" autocomplete="off"/>
+    <label for="mailDeskRecipient">Destinatário</label><input type="email" id="mailDeskRecipient" autocomplete="off" readonly/>
     <label for="mailDeskSubject">Assunto</label><input id="mailDeskSubject" maxlength="500"/>
     <label for="mailDeskRichEditor">Resposta — editor formatado</label>
     <div class="mail-rich-shell">
@@ -2135,7 +2135,7 @@ function mailDeskDrawDraft(d,notes){
  MAILDESK.draftDirty=false;
  $("mailDeskDraftState").textContent=d.manual_saved_at?"Salvo em "+stamp(d.manual_saved_at):"Aguardando salvamento";
  $("mailDeskDraftPanel").classList.remove("hidden");
- $("mailDeskApprove").disabled=!(MAILDESK.mailbox?.smtp_enabled&&MAILDESK.mailbox?.sync_enabled);
+ $("mailDeskApprove").disabled=!d?.id||!(MAILDESK.mailbox?.smtp_enabled&&MAILDESK.mailbox?.sync_enabled);
  $("mailDeskApprove").textContent=MAILDESK.mailbox?.smtp_enabled&&MAILDESK.mailbox?.sync_enabled?"Autorizar e colocar na fila de envio":"Envio aguarda sincronização de Entrada e Enviados";
  if(notes){$("mailDeskNotes").textContent=notes;$("mailDeskNotes").classList.remove("hidden")}
 }
@@ -2146,7 +2146,8 @@ function mailDeskNewReply(){
   const t=MAILDESK.threads.find(x=>x.id===MAILDESK.selected);
   mailDeskDrawDraft({id:null,body_text:"",body_html:null,subject_override:"",state:"DRAFT"},null);
   MAILDESK.activeDraft=null;
-  $("mailDeskDraftState").textContent="Novo rascunho — ainda não salvo";
+  $("mailDeskApprove").disabled=true;
+  $("mailDeskDraftState").textContent="Novo rascunho — salve antes de autorizar envio";
  }
  $("mailDeskDraftPanel").scrollIntoView({behavior:"smooth",block:"start"});
 }
@@ -2166,6 +2167,7 @@ async function mailDeskSaveDraft(){
   if(MAILDESK.selected!==id)return;
   MAILDESK.activeDraft=resp.draft;MAILDESK.lastDraft=resp.draft;
   MAILDESK.draftDirty=false;
+  $("mailDeskApprove").disabled=!(MAILDESK.mailbox?.smtp_enabled&&MAILDESK.mailbox?.sync_enabled);
   $("mailDeskDraftState").textContent="✓ Rascunho salvo em "+stamp(resp.draft.manual_saved_at);
   $("mailDeskOpenSavedDraft").disabled=false;$("mailDeskOpenSavedDraft").textContent="Abrir rascunho salvo";
   mailDeskNotice("Rascunho salvo no Brain UJN. Nenhum e-mail foi enviado.");
@@ -2178,6 +2180,7 @@ function mailDeskCloseComposer(){
 }
 async function mailDeskGenerate(){
  const id=MAILDESK.selected;if(!id)return;
+ if(MAILDESK.draftDirty&&!confirm("Você tem mudanças não salvas no rascunho atual. Descartar e gerar uma nova resposta com IA?"))return;
  $("mailDeskGenerate").disabled=true;
  try{
   const d=await mailDeskCall("generate",{thread_id:id});
