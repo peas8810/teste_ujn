@@ -1011,7 +1011,7 @@ async function editorialSendManualNotice(){
   const request_id=crypto.randomUUID();
   const r=await fetch(BASE+"/functions/v1/ujn-brain-manual-editorial-notice",{
    method:"POST",cache:"no-store",headers:{apikey:PUB,authorization:"Bearer "+token,"content-type":"application/json"},
-   body:JSON.stringify({action:"manual_notice",phone:editorialServicePhone,journal,submission_id,event_type,request_id})});
+   body:JSON.stringify({action:"manual_notice",phone:"+"+canonicalPhone(editorialServicePhone),journal,submission_id,event_type,request_id})});
   const result=await r.json().catch(()=>({}));
   if(!r.ok||!result.ok)throw Error(({verified_consent_required:"Contato sem consentimento e vínculo verificados.",dispatch_disabled:"Disparos editoriais desabilitados.",superadmin_required:"Somente superadministrador pode enviar avisos."})[result.error]||result.error||"Falha ao registrar aviso.");
   status.textContent="Aviso registrado na fila ("+result.state+"). Atualize o histórico para acompanhar envio e entrega.";
