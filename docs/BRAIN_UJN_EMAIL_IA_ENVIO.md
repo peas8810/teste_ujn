@@ -60,3 +60,26 @@ O teste `--send-test` anterior deve ficar DESATIVADO, sem Cron recorrente. **Nã
 - Sem sincronização IMAP completa, o indicador “aguardando resposta” é **provisório**; não deve ser usado como decisão definitiva. A fila de envios permanece bloqueada até que Entrada e Enviados tenham sido detectadas e sincronizadas sem erro.
 - A autenticação cruzada só permite acesso por superadministrador Academy com e-mail confirmado e vínculo ativo de operador UJN. A autenticação Academy não substitui a verificação de autorização no banco UJN.
 - O worker não tenta repetir uma mensagem que já entrou em execução e ficou em status `UNKNOWN`, para evitar duplicidade de envios.
+
+
+## Melhoria de atualização IMAP — 14/11/2026
+
+O novo arquivo `integracoes/webmail/ujn_imap_incremental_collector.py` implementa:
+- Priorização de novas mensagens por UID, sem reler todas a cada execução.
+- Recuperação gradual do histórico anterior em pequenos lotes (`backfill`).
+- Checkpoints privados e atômicos em `/home/ujn/brain-ujn/state/maildesk_incremental_state.json`.
+- Bloqueio de concorrência (`flock` interno) e proteção da pasta INBOX e Enviados.
+- Reaproveitamento do módulo `ujn_imap_readonly_collector.py`, que deve permanecer no mesmo diretório.
+- Consulta somente leitura, com `BODY.PEEK[]`, sem envio SMTP pelo coletor.
+
+Edite a tarefa existente `imap_maildesk_cron.log` em vez de criar outra. Configure frequência de um minuto, com cinco campos * no cPanel. Substitua seu comando por:
+
+```sh
+UJN_IMAP_NEW_LIMIT=30 UJN_IMAP_BACKFILL_LIMIT=10 UJN_IMAP_MAX_SECONDS=95 timeout 110s /usr/bin/python3 /home/ujn/brain-ujn/ujn_imap_incremental_collector.py >> /home/ujn/brain-ujn/state/imap_maildesk_cron.log 2>&1
+```
+
+O SMTP de um minuto permanece com o mesmo comando. Não mantenha o coletor IMAP antigo executando em paralelo como tarefa recorrente. Preserve os demais monitores anteriores do Brain até auditoria de suas funções.
+
+Cada log traz `mode: incremental`, `new`, `historical`, `errors`, `sync_enabled` e `backfill_remaining`. O histórico completo pode levar várias horas. Enquanto `backfill_remaining=true`, não afirmar que todas as mensagens históricas foram coletadas.
+
+A fila SMTP agora exige relatório IMAP recente (menos de quatro minutos), validação de Entrada e Enviados e ausência de erros. Não apague o arquivo de checkpoint e não aumente os limites de lotes sem medir o tempo de execução.
