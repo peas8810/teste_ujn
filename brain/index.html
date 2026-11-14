@@ -1730,7 +1730,7 @@ async function mailDeskLoad(){
   $("mailDeskWaiting").textContent=MAILDESK.threads.filter(t=>t.state==="AWAITING_REPLY").length;
   $("mailDeskAnswered").textContent=MAILDESK.threads.filter(t=>t.state==="ANSWERED").length;
   $("mailDeskStatus").textContent="contato@ujn.ojsbr.com · IMAP "+(MAILDESK.mailbox?.connection_state==="VERIFIED"?"validado":"não validado")+
-   " · SMTP "+(MAILDESK.mailbox?.smtp_enabled?"habilitado (envio somente após aprovação)":"desativado")+
+   " · SMTP "+(MAILDESK.mailbox?.smtp_enabled?(MAILDESK.mailbox?.sync_enabled?"habilitado para envio revisado":"homologado; aguardando conciliação IMAP"):"desativado")+
    " · Pendências provisórias até a conciliação da pasta Enviados.";
   mailDeskListRender();
   if(MAILDESK.selected&&MAILDESK.threads.some(t=>t.id===MAILDESK.selected))await mailDeskOpen(MAILDESK.selected);
@@ -1769,8 +1769,8 @@ function mailDeskDrawDraft(d,notes){
  $("mailDeskSubject").value=/^re:/i.test(t?.subject||"")?(t.subject||""):"Re: "+(t?.subject||"");
  $("mailDeskText").value=d.body_text||"";
  $("mailDeskDraftPanel").classList.remove("hidden");
- $("mailDeskApprove").disabled=false;
- $("mailDeskApprove").textContent=MAILDESK.mailbox?.smtp_enabled?"Autorizar e colocar na fila de envio":"Registrar aprovação (SMTP desativado)";
+ $("mailDeskApprove").disabled=!(MAILDESK.mailbox?.smtp_enabled&&MAILDESK.mailbox?.sync_enabled);
+ $("mailDeskApprove").textContent=MAILDESK.mailbox?.smtp_enabled&&MAILDESK.mailbox?.sync_enabled?"Autorizar e colocar na fila de envio":"Envio aguarda sincronização de Entrada e Enviados";
  if(notes){$("mailDeskNotes").textContent=notes;$("mailDeskNotes").classList.remove("hidden")}
 }
 async function mailDeskGenerate(){
@@ -1793,7 +1793,8 @@ async function mailDeskApprove(){
  if(!recipient||recipient!==String(t.correspondent||"").toLowerCase()||!subject||body.length<10){
   mailDeskNotice("Confira o destinatário original, o assunto e o texto da resposta.","error");return;
  }
- const real=MAILDESK.mailbox?.smtp_enabled===true;
+ const real=MAILDESK.mailbox?.smtp_enabled===true&&MAILDESK.mailbox?.sync_enabled===true;
+ if(!real){mailDeskNotice("Primeiro conclua a sincronização segura de Entrada e Enviados no cPanel.","warn");return;}
  const warning=real?"ATENÇÃO: Você está autorizando o envio REAL para "+recipient+". A mensagem será transmitida pelo servidor SMTP quando o executor estiver ativo.":"Você está registrando aprovação sem envio; o SMTP está desativado.";
  if(!confirm(warning+"\n\nConfirma esta ação?"))return;
  $("mailDeskApprove").disabled=true;
