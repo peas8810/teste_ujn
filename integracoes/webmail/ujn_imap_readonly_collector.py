@@ -107,7 +107,7 @@ def detect_sent_folder(conn):
         if not isinstance(raw, bytes):
             continue
         entry = raw.decode("utf-8", errors="replace")
-        found = re.match(r'^\(([^)]*)\)\s+"[^"]*"\s+("([^"]+)"|([^\s]+))    sent=0;errors=0
+        found = re.match(r'^\(([^)]*)\)\s+"[^"]*"\s+("([^"]+)"|([^\s]+))    sent=0;errors=0;verified_folders=set();sent_folder_name=None
     # Support older Python/imaplib versions on cPanel (no timeout= keyword).
     import socket
     socket.setdefaulttimeout(25)
@@ -120,10 +120,12 @@ def detect_sent_folder(conn):
                 actual_folders.append(actual)
             elif folder == "AUTO_SENT" and not actual:
                 print("IMAP Sent folder could not be identified; only available folders will sync.", file=sys.stderr)
+        sent_folder_name=next((x for x in actual_folders if x.upper()!="INBOX"),None)
         for folder in actual_folders:
             status,_=conn.select('"'+folder.replace('"','')+'"',readonly=True)
             if status!="OK":
                 print("IMAP folder not available:",folder,file=sys.stderr);errors+=1;continue
+            verified_folders.add(folder)
             status,data=conn.uid("SEARCH",None,"ALL")
             if status!="OK" or not data:continue
             for uid in data[0].split()[-LIMIT:]:
@@ -144,7 +146,19 @@ def detect_sent_folder(conn):
                 try:post(item);sent+=1
                 except (urllib.error.HTTPError,urllib.error.URLError,RuntimeError) as exc:
                     errors+=1;print("Sync failed for folder/UID:",folder,uid.decode(),type(exc).__name__,file=sys.stderr)
-    print(json.dumps({"processed":sent,"errors":errors,"sent_email":False}))
+    # An operator-approved SMTP send may be dispatched only once BOTH INBOX
+    # and the real Sent folder are confirmed by the signed collector report.
+    try:
+        confirmed=post({"action":"collector_status","mailbox":MAILBOX,
+            "inbox_ok":"INBOX" in verified_folders,
+            "sent_ok":bool(sent_folder_name and sent_folder_name in verified_folders),
+            "sent_folder":sent_folder_name,"errors":errors})
+        synchronized=bool(confirmed.get("sync_enabled"))
+    except (urllib.error.HTTPError,urllib.error.URLError,RuntimeError) as exc:
+        errors+=1;synchronized=False
+        print("Could not register collector health:",type(exc).__name__,file=sys.stderr)
+    print(json.dumps({"processed":sent,"errors":errors,"sent_email":False,
+                      "sync_enabled":synchronized,"sent_folder_detected":bool(sent_folder_name)}))
 if __name__=="__main__":main()
 , entry)
         if found:
