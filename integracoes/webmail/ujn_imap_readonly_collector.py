@@ -127,7 +127,8 @@ def detect_sent_folder(conn):
                 print("IMAP folder not available:",folder,file=sys.stderr);errors+=1;continue
             verified_folders.add(folder)
             status,data=conn.uid("SEARCH",None,"ALL")
-            if status!="OK" or not data:continue
+            if status!="OK":errors+=1;continue
+            if not data:continue
             for uid in data[0].split()[-LIMIT:]:
                 status,items=conn.uid("FETCH",uid,"(BODY.PEEK[])")
                 if status!="OK" or not items or not isinstance(items[0],tuple):errors+=1;continue
