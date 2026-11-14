@@ -93,6 +93,12 @@ def send_one(password,key):
         message_id="<"+uuid.uuid4().hex+"@ujn.ojsbr.com>"
         msg["Message-ID"]=message_id
         msg["X-UJN-Desk-Request-ID"]=reqid
+        parent = job.get("reply_to_message_id")
+        root = job.get("root_message_id")
+        valid_mid = lambda x: isinstance(x,str) and re.fullmatch(r"<[A-Za-z0-9_.@+\-]+>", x)
+        if valid_mid(parent):
+            msg["In-Reply-To"] = parent
+            msg["References"] = (root + " " + parent) if valid_mid(root) and root != parent else parent
         msg.set_content(job["body_text"],subtype="plain",charset="utf-8")
         with open_smtp(password) as smtp:
             refused=smtp.send_message(msg,from_addr=MAILBOX,to_addrs=[recipient])
