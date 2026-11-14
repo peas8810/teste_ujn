@@ -117,7 +117,7 @@ def send_one(password,key):
 def send_test_once(password, recipient):
     """Explicit recipient test, one attempt per installation even with repeating Cron."""
     recipient = safe_header(recipient.strip().lower())
-    if not re.fullmatch(r"[^@\\s<>]+@[^@\\s<>]+\\.[A-Za-z]{2,}", recipient) or recipient == MAILBOX:
+    if not re.fullmatch(r"[^@\s<>]+@[^@\s<>]+\.[A-Za-z]{2,}", recipient) or recipient == MAILBOX:
         raise ValueError("Invalid test recipient")
     marker = ROOT + "/state/smtp_test_once.lock"
     try:
@@ -127,7 +127,7 @@ def send_test_once(password, recipient):
         return
     try:
         with os.fdopen(fd, "w") as handle:
-            handle.write("SMTP test run reserved; check log and destination inbox.\\n")
+            handle.write("SMTP test run reserved; check log and destination inbox.\n")
         msg = EmailMessage()
         msg["From"] = MAILBOX
         msg["To"] = recipient
@@ -135,9 +135,9 @@ def send_test_once(password, recipient):
         msg["Date"] = formatdate(localtime=False)
         msg["Message-ID"] = "<" + uuid.uuid4().hex + "@ujn.ojsbr.com>"
         msg.set_content(
-            "Teste autorizado do UJN Intelligence.\\n\\n"
+            "Teste autorizado do UJN Intelligence.\n\n"
             "Esta mensagem confirma a verificacao de envio por SMTP da conta institucional. "
-            "Nenhuma resposta automatica ou decisao editorial foi executada.\\n\\n"
+            "Nenhuma resposta automatica ou decisao editorial foi executada.\n\n"
             "Equipe Editora UJN",
             subtype="plain", charset="utf-8"
         )
