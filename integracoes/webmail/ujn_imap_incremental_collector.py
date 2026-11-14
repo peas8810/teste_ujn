@@ -4,7 +4,7 @@
 Uses the EXISTING private IMAP credentials and HMAC signer from the proven
 ujn_imap_readonly_collector.py in this same private cPanel directory.
 No SMTP operations or read-flag changes. New mail is processed before
-gradual historical backfill; UID checkpoints persist atomically.
+a rolling window of the newest 300 UIDs per folder; checkpoints persist atomically.
 """
 import email
 import fcntl
@@ -24,8 +24,8 @@ ROOT = Path("/home/ujn/brain-ujn/state")
 LOCK_PATH = ROOT / "maildesk_incremental.lock"
 STATE_PATH = ROOT / "maildesk_incremental_state.json"
 BATCH_NEW = max(5, min(100, int(os.getenv("UJN_IMAP_NEW_LIMIT", "30"))))
-BATCH_OLD = max(0, min(60, int(os.getenv("UJN_IMAP_BACKFILL_LIMIT", "10"))))
-INITIAL_RECENT = max(50, min(1000, int(os.getenv("UJN_IMAP_INITIAL_RECENT", "150"))))
+BATCH_OLD = 0  # Explicit operating policy: no historical backfill
+INITIAL_RECENT = 300  # Keep a rolling recent-mail window per folder
 MAX_SECONDS = max(20, min(150, int(os.getenv("UJN_IMAP_MAX_SECONDS", "95"))))
 LOCK_PATH.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
 
@@ -99,7 +99,7 @@ def synchronize(conn, state, deadline):
     healthy = set()
     sent_folder = base.detect_sent_folder(conn)
     folders = ["INBOX"] + ([sent_folder] if sent_folder and sent_folder != "INBOX" else [])
-    history_remaining = False
+    history_remaining = False  # Archived mail beyond the window is not imported
     for folder in folders:
         if time.monotonic() > deadline - 8:
             stats["errors"] += 1
@@ -113,14 +113,22 @@ def synchronize(conn, state, deadline):
         if status != "OK" or not values:
             stats["errors"] += 1
             continue
-        uids = [iso_uid(x) for x in values[0].split()]
+        all_uids = [iso_uid(x) for x in values[0].split()]
+        uids = all_uids[-INITIAL_RECENT:]  # newest 300 INBOX/Sent UIDs only
         cursor = state["folders"].get(folder)
         if cursor is None or cursor.get("uidvalidity") != valid:
-            first_recent = max(0, len(uids) - INITIAL_RECENT)
-            seed = uids[first_recent - 1] if first_recent > 0 else 0
+            seed = uids[0] - 1 if uids else 0
             cursor = {"uidvalidity": valid, "last_uid": seed,
                       "history_before": seed, "history_done": seed == 0}
             state["folders"][folder] = cursor
+            save_state(state)
+        # If the stored checkpoint is older than the rolling window, skip the
+        # expired historical range. Messages are not deleted from Supabase.
+        floor_uid = uids[0] - 1 if uids else cursor["last_uid"]
+        if cursor["last_uid"] < floor_uid:
+            cursor["last_uid"] = floor_uid
+            cursor["history_before"] = floor_uid
+            cursor["history_done"] = True
             save_state(state)
         # Forward cursor catches new messages without re-reading old ones.
         forward = [uid for uid in uids if uid > cursor["last_uid"]]
@@ -138,28 +146,7 @@ def synchronize(conn, state, deadline):
                 stats["errors"] += 1
                 print("forward error", folder, uid, type(error).__name__, file=sys.stderr)
                 break  # retry same UID on next run
-        # Backfill old messages in small resumable batches, without blocking
-        # new mail. Historical progress is independent per folder.
-        if BATCH_OLD and not cursor.get("history_done"):
-            older = [uid for uid in uids if uid <= cursor["history_before"]]
-            for uid in reversed(older[-BATCH_OLD:]):
-                if time.monotonic() >= deadline - 8:
-                    break
-                try:
-                    outcome = submit_uid(conn, folder, uid)
-                    cursor["history_before"] = uid - 1
-                    save_state(state)
-                    stats["historical"] += outcome == "NEW"
-                    stats["duplicates"] += outcome == "DUPLICATE"
-                    stats["skipped"] += outcome == "SKIPPED"
-                except Exception as error:
-                    stats["errors"] += 1
-                    print("backfill error", folder, uid, type(error).__name__, file=sys.stderr)
-                    break
-            if not [u for u in uids if u <= cursor["history_before"]]:
-                cursor["history_done"] = True
-                save_state(state)
-        history_remaining = history_remaining or not cursor.get("history_done", True)
+        history_remaining = False  # Rolling window, no older backfill
         # A successful initial selection is not enough; ensure all new UIDs
         # up to the snapshot are consumed before declaring healthy.
         if (not forward or cursor["last_uid"] >= forward[-1]) and stats["errors"] == 0:
@@ -183,7 +170,7 @@ def synchronize(conn, state, deadline):
                       "historical": stats["historical"],
                       "duplicates": stats["duplicates"],
                       "skipped": stats["skipped"], "errors": stats["errors"],
-                      "sync_enabled": enabled, "backfill_remaining": history_remaining,
+                      "sync_enabled": enabled, "backfill_remaining": False, "window": INITIAL_RECENT,
                       "sent_folder_detected": bool(sent_folder), "sent_email": False}))
 
 
