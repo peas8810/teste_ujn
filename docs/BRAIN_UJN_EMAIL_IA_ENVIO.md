@@ -30,7 +30,7 @@ UJN_IMAP_SCAN_LIMIT=30 timeout 180s python3 /home/ujn/brain-ujn/ujn_imap_readonl
 
 O coletor lê `INBOX` e tenta descobrir automaticamente a pasta Enviados. A leitura é somente leitura (`BODY.PEEK[]`); não altera flags nem envia respostas. A API deduplica pelo `Message-ID`. O limite de 30 mensagens por pasta em cada execução é uma janela de amostragem, **não** sincronização completa de todos os e-mails históricos.
 
-Só marcar `sync_enabled=true` no Supabase depois de verificar o primeiro log do cron sem erros.
+O próprio coletor envia um relatório HMAC assinado de saúde da INBOX e da pasta Enviados. O Supabase define `sync_enabled=true` **automaticamente** somente após ambas as pastas serem verificadas e não haver erros; não ative manualmente.
 
 ### 3. Agendar dispatcher SMTP
 
@@ -40,7 +40,7 @@ Em **Tarefas Cron**, agende a cada minuto (`* * * * *`) com:
 timeout 90s python3 /home/ujn/brain-ujn/ujn_smtp_supervised_worker.py --send-one >> /home/ujn/brain-ujn/state/smtp_maildesk_dispatch.log 2>&1
 ```
 
-`--send-one` não manda e-mail se não existir uma solicitação `QUEUED` aprovada por operador. Para teste seguro, sem autorizar um novo e-mail, a saída é `{"ready":true,"dispatched":0}`.
+`--send-one` não manda e-mail sem uma solicitação `QUEUED` aprovada por operador. Além disso, somente retira itens depois de `smtp_enabled=true`, `sync_enabled=true` e `sent_folder` validado. Antes do primeiro diagnóstico IMAP assinado, o log pode exibir `{"ready":false,"dispatched":0}`. Quando saudável e sem fila, será `{"ready":true,"dispatched":0}`.
 
 O teste `--send-test` anterior deve ficar DESATIVADO, sem Cron recorrente. **Não apague** `state/smtp_test_once.lock` apenas para repetir envio.
 
@@ -57,6 +57,6 @@ O teste `--send-test` anterior deve ficar DESATIVADO, sem Cron recorrente. **Nã
 
 - A rotina SMTP só entra em operação depois de o arquivo atual estar no cPanel e o Cron estar configurado.
 - A pasta Enviados ainda precisa ser confirmada através dos logs do primeiro teste operacional.
-- Sem sincronização IMAP completa, o indicador “aguardando resposta” é **provisório**; não deve ser usado como decisão definitiva.
+- Sem sincronização IMAP completa, o indicador “aguardando resposta” é **provisório**; não deve ser usado como decisão definitiva. A fila de envios permanece bloqueada até que Entrada e Enviados tenham sido detectadas e sincronizadas sem erro.
 - A autenticação cruzada só permite acesso por superadministrador Academy com e-mail confirmado e vínculo ativo de operador UJN. A autenticação Academy não substitui a verificação de autorização no banco UJN.
 - O worker não tenta repetir uma mensagem que já entrou em execução e ficou em status `UNKNOWN`, para evitar duplicidade de envios.
