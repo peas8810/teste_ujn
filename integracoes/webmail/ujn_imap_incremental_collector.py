@@ -1,0 +1,209 @@
+#!/usr/bin/env python3
+"""Brain UJN IMAP incremental sync: read-only, resumable and lock-protected.
+
+Uses the EXISTING private IMAP credentials and HMAC signer from the proven
+ujn_imap_readonly_collector.py in this same private cPanel directory.
+No SMTP operations or read-flag changes. New mail is processed before
+gradual historical backfill; UID checkpoints persist atomically.
+"""
+import email
+import fcntl
+import imaplib
+import json
+import os
+import re
+import socket
+import ssl
+import sys
+import time
+from email.utils import parseaddr
+from pathlib import Path
+import ujn_imap_readonly_collector as base
+
+ROOT = Path("/home/ujn/brain-ujn/state")
+LOCK_PATH = ROOT / "maildesk_incremental.lock"
+STATE_PATH = ROOT / "maildesk_incremental_state.json"
+BATCH_NEW = max(5, min(100, int(os.getenv("UJN_IMAP_NEW_LIMIT", "30"))))
+BATCH_OLD = max(0, min(60, int(os.getenv("UJN_IMAP_BACKFILL_LIMIT", "10"))))
+INITIAL_RECENT = max(50, min(1000, int(os.getenv("UJN_IMAP_INITIAL_RECENT", "150"))))
+MAX_SECONDS = max(20, min(150, int(os.getenv("UJN_IMAP_MAX_SECONDS", "95"))))
+LOCK_PATH.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+
+
+def read_state():
+    if not STATE_PATH.exists():
+        return {"version": 1, "folders": {}}
+    with STATE_PATH.open("r", encoding="utf-8") as file:
+        result = json.load(file)
+    if not isinstance(result, dict) or result.get("version") != 1:
+        raise RuntimeError("Incremental state version mismatch; do not reset automatically")
+    return result
+
+
+def save_state(state):
+    tmp = STATE_PATH.with_name(STATE_PATH.name + ".tmp")
+    fd = os.open(str(tmp), os.O_CREAT | os.O_TRUNC | os.O_WRONLY, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as handle:
+        json.dump(state, handle, ensure_ascii=False, sort_keys=True)
+        handle.flush()
+        os.fsync(handle.fileno())
+    os.replace(str(tmp), str(STATE_PATH))
+
+
+def iso_uid(raw):
+    return int(raw.decode("ascii") if isinstance(raw, bytes) else raw)
+
+
+def parse_uidvalidity(conn):
+    status, values = conn.response("UIDVALIDITY")
+    if status == "UIDVALIDITY" and values and values[0]:
+        return str(iso_uid(values[0]))
+    # Do not silently trust stale UIDs without identifying mailbox UIDVALIDITY
+    raise RuntimeError("UIDVALIDITY not available")
+
+
+def submit_uid(conn, folder, uid):
+    status, items = conn.uid("FETCH", str(uid), "(BODY.PEEK[])")
+    if status != "OK" or not items:
+        raise RuntimeError("IMAP FETCH failed")
+    result = next((i[1] for i in items if isinstance(i, tuple) and len(i) >= 2), None)
+    if not isinstance(result, bytes):
+        raise RuntimeError("IMAP FETCH missing message body")
+    msg = email.message_from_bytes(result)
+    sender = parseaddr(msg.get("From", ""))[1].lower()
+    recipients = base.addrs(msg.get("To", ""))
+    if not sender or not recipients:
+        return "SKIPPED"
+    direction = "OUTBOUND" if sender == base.MAILBOX else "INBOUND"
+    correspondent = recipients[0] if direction == "OUTBOUND" else sender
+    if direction == "INBOUND" and base.MAILBOX not in recipients and base.MAILBOX not in base.addrs(msg.get("Cc", "")):
+        return "SKIPPED"
+    mid = (msg.get("Message-ID") or "").strip()
+    message_key = mid[:240] if mid else "uid:" + folder + ":" + str(uid)
+    item = {
+        "action": "sync_message", "mailbox": base.MAILBOX,
+        "thread_key": base.stable_thread(msg, sender, correspondent),
+        "message_key": message_key,
+        "sender": sender,
+        "recipient": correspondent if direction == "OUTBOUND" else base.MAILBOX,
+        "subject": base.text_header(msg.get("Subject")),
+        "body_text": base.text_body(msg), "direction": direction,
+        "occurred_at": base.iso(msg.get("Date")),
+    }
+    result = base.post(item)
+    return "DUPLICATE" if result.get("duplicate") else "NEW"
+
+
+def synchronize(conn, state, deadline):
+    stats = {"new": 0, "historical": 0, "duplicates": 0, "skipped": 0, "errors": 0}
+    healthy = set()
+    sent_folder = base.detect_sent_folder(conn)
+    folders = ["INBOX"] + ([sent_folder] if sent_folder and sent_folder != "INBOX" else [])
+    history_remaining = False
+    for folder in folders:
+        if time.monotonic() > deadline - 8:
+            stats["errors"] += 1
+            break
+        status, _ = conn.select('"' + folder.replace('"', "") + '"', readonly=True)
+        if status != "OK":
+            stats["errors"] += 1
+            continue
+        valid = parse_uidvalidity(conn)
+        status, values = conn.uid("SEARCH", None, "ALL")
+        if status != "OK" or not values:
+            stats["errors"] += 1
+            continue
+        uids = [iso_uid(x) for x in values[0].split()]
+        cursor = state["folders"].get(folder)
+        if cursor is None or cursor.get("uidvalidity") != valid:
+            first_recent = max(0, len(uids) - INITIAL_RECENT)
+            seed = uids[first_recent - 1] if first_recent > 0 else 0
+            cursor = {"uidvalidity": valid, "last_uid": seed,
+                      "history_before": seed, "history_done": seed == 0}
+            state["folders"][folder] = cursor
+            save_state(state)
+        # Forward cursor catches new messages without re-reading old ones.
+        forward = [uid for uid in uids if uid > cursor["last_uid"]]
+        for uid in forward[:BATCH_NEW]:
+            if time.monotonic() >= deadline - 8:
+                break
+            try:
+                outcome = submit_uid(conn, folder, uid)
+                cursor["last_uid"] = uid
+                save_state(state)
+                stats["new"] += outcome == "NEW"
+                stats["duplicates"] += outcome == "DUPLICATE"
+                stats["skipped"] += outcome == "SKIPPED"
+            except Exception as error:
+                stats["errors"] += 1
+                print("forward error", folder, uid, type(error).__name__, file=sys.stderr)
+                break  # retry same UID on next run
+        # Backfill old messages in small resumable batches, without blocking
+        # new mail. Historical progress is independent per folder.
+        if BATCH_OLD and not cursor.get("history_done"):
+            older = [uid for uid in uids if uid <= cursor["history_before"]]
+            for uid in reversed(older[-BATCH_OLD:]):
+                if time.monotonic() >= deadline - 8:
+                    break
+                try:
+                    outcome = submit_uid(conn, folder, uid)
+                    cursor["history_before"] = uid - 1
+                    save_state(state)
+                    stats["historical"] += outcome == "NEW"
+                    stats["duplicates"] += outcome == "DUPLICATE"
+                    stats["skipped"] += outcome == "SKIPPED"
+                except Exception as error:
+                    stats["errors"] += 1
+                    print("backfill error", folder, uid, type(error).__name__, file=sys.stderr)
+                    break
+            if not [u for u in uids if u <= cursor["history_before"]]:
+                cursor["history_done"] = True
+                save_state(state)
+        history_remaining = history_remaining or not cursor.get("history_done", True)
+        # A successful initial selection is not enough; ensure all new UIDs
+        # up to the snapshot are consumed before declaring healthy.
+        if (not forward or cursor["last_uid"] >= forward[-1]) and stats["errors"] == 0:
+            healthy.add(folder)
+    # The worker must not be released after an incomplete or errored run.
+    is_healthy = bool(sent_folder and "INBOX" in healthy and sent_folder in healthy and stats["errors"] == 0)
+    try:
+        health = base.post({
+            "action": "collector_status", "mailbox": base.MAILBOX,
+            "inbox_ok": is_healthy,
+            "sent_ok": is_healthy,
+            "sent_folder": sent_folder,
+            "errors": stats["errors"],
+        })
+        enabled = bool(health.get("sync_enabled"))
+    except Exception as err:
+        enabled = False
+        stats["errors"] += 1
+        print("health report error:", type(err).__name__, file=sys.stderr)
+    print(json.dumps({"mode": "incremental", "new": stats["new"],
+                      "historical": stats["historical"],
+                      "duplicates": stats["duplicates"],
+                      "skipped": stats["skipped"], "errors": stats["errors"],
+                      "sync_enabled": enabled, "backfill_remaining": history_remaining,
+                      "sent_folder_detected": bool(sent_folder), "sent_email": False}))
+
+
+def main():
+    start = time.monotonic()
+    with open(str(LOCK_PATH), "a+") as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            print(json.dumps({"mode": "incremental", "status": "ALREADY_RUNNING", "sent_email": False}))
+            return
+        socket.setdefaulttimeout(20)
+        state = read_state()
+        with imaplib.IMAP4_SSL(
+            base.HOST, port=int(os.getenv("UJN_IMAP_PORT", "993")),
+            ssl_context=ssl.create_default_context()
+        ) as conn:
+            conn.login(base.USER, base.PASSWORD)
+            synchronize(conn, state, start + MAX_SECONDS)
+
+
+if __name__ == "__main__":
+    main()
