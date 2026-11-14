@@ -1824,7 +1824,7 @@ setInterval(()=>{if(token&&!document.hidden&&(role?.superuser||(role?.allowed||[
 /* Central de E-mails — usa a sessão Academy já autenticada; API verifica
    SUPERADMIN do Academy e o operador UJN correspondente no servidor. */
 const MAILDESK_API="https://leytqsyfrmzhectatcqm.supabase.co/functions/v1/ujn-email-desk-v1";
-const MAILDESK={threads:[],selected:null,activeDraft:null,mailbox:null,request:null,loading:false};
+const MAILDESK={threads:[],selected:null,activeDraft:null,mailbox:null,request:null,loading:false,search:"",unreadOnly:false,draftDirty:false,lastDraft:null};
 async function mailDeskCall(action,data={}){
  if(!token)throw Error("Faça login novamente.");
  const r=await fetch(MAILDESK_API,{method:"POST",cache:"no-store",
@@ -1841,7 +1841,7 @@ function mailDeskNotice(message,kind="info"){
 }
 function mailDeskListRender(){
  const box=$("mailDeskList");box.replaceChildren();
- const items=MAILDESK.threads;
+ const items=MAILDESK.threads.filter(t=>(!MAILDESK.unreadOnly||t.unread)&&(!MAILDESK.search||[t.correspondent,t.subject,...(t.article_links||[]).map(x=>x.journal_code+" "+x.submission_id)].join(" ").toLowerCase().includes(MAILDESK.search)));
  if(!items.length){box.append(elem("p","Nenhum e-mail neste filtro.","hint"));return;}
  for(const t of items){
   const b=elem("button",undefined,"maildesk-item"+(MAILDESK.selected===t.id?" active":"")+(t.unread?" unread":""));
@@ -1849,7 +1849,8 @@ function mailDeskListRender(){
   b.append(elem("b",t.correspondent||"Contato desconhecido"),
    elem("span",t.subject||"(sem assunto)"),
    elem("small",(t.article_links?.length?t.article_links.map(x=>x.journal_code+" #"+x.submission_id).join(" · "):"Sem artigo vinculado")+" · "+stamp(t.updated_at),"maildesk-article-list"),
-   elem("small",(t.unread?"● Não lido":"✓ Lido no Brain")+" · "+(t.state==="AWAITING_REPLY"?"Possivelmente pendente":"Respondida")));
+   elem("small",(t.unread?"● NÃO LIDA":"✓ Lida")+" · "+(t.state==="AWAITING_REPLY"?"Aguardando equipe":"Histórico")));
+  b.title="Clique para ler a mensagem";
   b.onclick=()=>mailDeskOpen(t.id);
   box.append(b);
  }
@@ -1868,7 +1869,7 @@ async function mailDeskLoad(){
    " · SMTP "+(MAILDESK.mailbox?.smtp_enabled?(MAILDESK.mailbox?.sync_enabled?"habilitado para envio revisado":"homologado; aguardando conciliação IMAP"):"desativado")+
    " · Janela móvel: até 300 conversas desta categoria; registros anteriores preservados.";
   mailDeskListRender();
-  if(MAILDESK.selected&&MAILDESK.threads.some(t=>t.id===MAILDESK.selected))await mailDeskOpen(MAILDESK.selected);
+  if(MAILDESK.selected&&MAILDESK.threads.some(t=>t.id===MAILDESK.selected)&&!MAILDESK.draftDirty)await mailDeskOpen(MAILDESK.selected,{refresh:true});
  }catch(err){$("mailDeskStatus").textContent="Não foi possível carregar a Central de E-mails: "+err.message;mailDeskNotice(err.message,"error")}
  finally{MAILDESK.loading=false}
 }
@@ -2012,8 +2013,10 @@ async function mailDeskSetRead(read){
   mailDeskListRender();
  }catch(e){mailDeskNotice("Falha ao registrar leitura: "+e.message,"error")}
 }
-async function mailDeskOpen(id){
- MAILDESK.selected=id;MAILDESK.activeDraft=null;MAILDESK.request=null;
+async function mailDeskOpen(id,options={}){
+ if(MAILDESK.draftDirty&&id!==MAILDESK.selected&&!confirm("Há alterações de rascunho não salvas. Descartar as alterações e abrir outra mensagem?"))return;
+ MAILDESK.draftDirty=false;
+ MAILDESK.selected=id;MAILDESK.activeDraft=null;MAILDESK.request=null;MAILDESK.lastDraft=null;
  mailDeskListRender();
  $("mailDeskHistory").replaceChildren(elem("p","Carregando histórico…","hint"));
  $("mailDeskAttachments").replaceChildren(elem("p","Consultando anexos…","hint"));
@@ -2024,6 +2027,10 @@ async function mailDeskOpen(id){
   const data=await mailDeskCall("thread",{thread_id:id});
   if(id!==MAILDESK.selected)return;
   const t=data.thread;const r=MAILDESK.threads.find(x=>x.id===id);
+  MAILDESK.lastDraft=(data.drafts||[]).find(x=>x.state==="DRAFT")||null;
+  $("mailDeskOpenSavedDraft").disabled=!MAILDESK.lastDraft;
+  $("mailDeskReply").disabled=false;
+  $("mailDeskMessageCount").textContent="· "+(data.messages?.length||0)+" mensagens";
   $("mailDeskTitle").textContent=t.subject||"Conversa";
   $("mailDeskMeta").textContent=[t.correspondent,t.mailbox,(data.article_links?.length?data.article_links.map(x=>x.journal_code+" #"+x.submission_id).join(", "):"Sem artigos associados")].join(" · ");
   mailDeskDrawArticleLinks(data.article_links||[]);
@@ -2036,8 +2043,11 @@ async function mailDeskOpen(id){
   $("mailDeskCaseStatus").textContent="Situação: "+(t.state==="ARCHIVED"?"Concluída":t.state==="MANUAL_REVIEW"?"Revisão humana":t.state==="AWAITING_REPLY"?"Aguardando equipe":t.state==="ANSWERED"?"Respondida":t.state||"Não classificada");
   const view=$("mailDeskHistory");view.replaceChildren();
   for(const m of data.messages||[]){
-   const card=elem("div",undefined,"maildesk-msg"+(m.direction==="OUTBOUND"?" out":""));
-   card.append(elem("b",(m.direction==="OUTBOUND"?"Enviado":"Recebido")+" · "+stamp(m.occurred_at)));
+   const card=elem("div",undefined,"maildesk-msg"+(m.direction==="OUTBOUND"?" out":"")+(m.id===data.messages[data.messages.length-1]?.id?" maildesk-current-message":""));
+   const meta=elem("div",undefined,"maildesk-message-meta");
+   meta.append(elem("b",(m.direction==="OUTBOUND"?"Enviado por: ":"Recebido de: ")+(m.sender||t.correspondent||"Remetente desconhecido")));
+   meta.append(elem("span",stamp(m.occurred_at)));
+   card.append(meta);
    const parts=mailDeskReadable(m.body_text||"");
    card.append(elem("div",parts.current||"(mensagem sem texto)","maildesk-message-main"));
    if(parts.quoted){const details=document.createElement("details");const sum=document.createElement("summary");sum.textContent="Mostrar mensagens anteriores citadas";details.append(sum,elem("div",parts.quoted,"maildesk-quoted"));card.append(details)}
@@ -2049,7 +2059,8 @@ async function mailDeskOpen(id){
   mailDeskDrawAttachments(data);mailDeskDrawAnalytics(data);
   mailDeskAnalyze(id);
   $("mailDeskGenerate").disabled=false;
-  if(data.drafts?.length)mailDeskDrawDraft(data.drafts[0],null);
+  if(MAILDESK.lastDraft){$("mailDeskOpenSavedDraft").textContent="Abrir rascunho salvo";}else $("mailDeskOpenSavedDraft").textContent="Sem rascunho salvo";
+  if(r?.unread&&!options.refresh){try{await mailDeskCall("mark_read",{thread_id:id,read:true});r.unread=false;mailDeskListRender();$("mailDeskReadBadge").textContent="✓ Lido no Brain";$("mailDeskReadBadge").classList.remove("unread");$("mailDeskToggleRead").textContent="Marcar como não lido";}catch(e){mailDeskNotice("Não foi possível marcar como lido: "+e.message,"warn")}}
  }catch(err){mailDeskNotice("Falha ao carregar: "+err.message,"error")}
 }
 function mailRichPlain(){
@@ -2117,12 +2128,51 @@ function mailDeskDrawDraft(d,notes){
  MAILDESK.activeDraft=d;
  const t=MAILDESK.threads.find(x=>x.id===MAILDESK.selected);
  $("mailDeskRecipient").value=t?.correspondent||"";
- $("mailDeskSubject").value=/^re:/i.test(t?.subject||"")?(t.subject||""):"Re: "+(t?.subject||"");
+ $("mailDeskSubject").value=d.subject_override||(/^re:/i.test(t?.subject||"")?(t.subject||""):"Re: "+(t?.subject||""));
  mailRichSetContent(d.body_text||"",d.body_html||null);
+ MAILDESK.draftDirty=false;
+ $("mailDeskDraftState").textContent=d.manual_saved_at?"Salvo em "+stamp(d.manual_saved_at):"Aguardando salvamento";
  $("mailDeskDraftPanel").classList.remove("hidden");
  $("mailDeskApprove").disabled=!(MAILDESK.mailbox?.smtp_enabled&&MAILDESK.mailbox?.sync_enabled);
  $("mailDeskApprove").textContent=MAILDESK.mailbox?.smtp_enabled&&MAILDESK.mailbox?.sync_enabled?"Autorizar e colocar na fila de envio":"Envio aguarda sincronização de Entrada e Enviados";
  if(notes){$("mailDeskNotes").textContent=notes;$("mailDeskNotes").classList.remove("hidden")}
+}
+function mailDeskNewReply(){
+ if(!MAILDESK.selected)return;
+ if(MAILDESK.lastDraft){mailDeskDrawDraft(MAILDESK.lastDraft,null)}
+ else{
+  const t=MAILDESK.threads.find(x=>x.id===MAILDESK.selected);
+  mailDeskDrawDraft({id:null,body_text:"",body_html:null,subject_override:"",state:"DRAFT"},null);
+  MAILDESK.activeDraft=null;
+  $("mailDeskDraftState").textContent="Novo rascunho — ainda não salvo";
+ }
+ $("mailDeskDraftPanel").scrollIntoView({behavior:"smooth",block:"start"});
+}
+async function mailDeskSaveDraft(){
+ const id=MAILDESK.selected;if(!id)return;
+ const t=MAILDESK.threads.find(x=>x.id===id);
+ if(!t)return;
+ const plain=mailRichPlain(),html=$("mailDeskRichEditor").innerHTML,subject=$("mailDeskSubject").value.trim();
+ const recipient=$("mailDeskRecipient").value.trim().toLowerCase();
+ if(recipient!==String(t.correspondent||"").trim().toLowerCase())return mailDeskNotice("O destinatário do rascunho deve permanecer igual ao e-mail do contato.","error");
+ if(!subject||subject.length>500||plain.length>8000)return mailDeskNotice("Confira o assunto e limite de 8.000 caracteres.","error");
+ const btn=$("mailDeskSaveDraft");btn.disabled=true;
+ $("mailDeskDraftState").textContent="Salvando…";
+ try{
+  const resp=await mailDeskCall("save_draft",{thread_id:id,draft_id:MAILDESK.activeDraft?.state==="DRAFT"?MAILDESK.activeDraft.id:null,
+    subject,body_text:plain,body_html:html});
+  if(MAILDESK.selected!==id)return;
+  MAILDESK.activeDraft=resp.draft;MAILDESK.lastDraft=resp.draft;
+  MAILDESK.draftDirty=false;
+  $("mailDeskDraftState").textContent="✓ Rascunho salvo em "+stamp(resp.draft.manual_saved_at);
+  $("mailDeskOpenSavedDraft").disabled=false;$("mailDeskOpenSavedDraft").textContent="Abrir rascunho salvo";
+  mailDeskNotice("Rascunho salvo no Brain UJN. Nenhum e-mail foi enviado.");
+ }catch(err){$("mailDeskDraftState").textContent="Não salvo";mailDeskNotice("Falha ao salvar rascunho: "+err.message,"error")}
+ finally{btn.disabled=false}
+}
+function mailDeskCloseComposer(){
+ if(MAILDESK.draftDirty&&!confirm("Existem alterações não salvas. Fechar e descartá-las?"))return;
+ MAILDESK.draftDirty=false;$("mailDeskDraftPanel").classList.add("hidden");
 }
 async function mailDeskGenerate(){
  const id=MAILDESK.selected;if(!id)return;
@@ -2186,7 +2236,16 @@ async function mailDeskLightRefresh(){
 setInterval(mailDeskLightRefresh,15000);
 
 $("mailDeskReload").onclick=mailDeskLoad;$("mailDeskToggleRead").onclick=()=>mailDeskSetRead($("mailDeskReadBadge").classList.contains("unread"));$("mailDeskReanalyze").onclick=()=>mailDeskAnalyze(MAILDESK.selected);$("mailDeskEscalate").onclick=()=>mailDeskWorkflow("MANUAL_REVIEW");$("mailDeskResolve").onclick=()=>mailDeskWorkflow("ARCHIVED");$("mailDeskLink").onclick=()=>mailDeskWorkflow("LINK");
-$("mailDeskFilter").onchange=()=>{MAILDESK.selected=null;mailDeskLoad()};
+$("mailDeskFilter").onchange=()=>{if(MAILDESK.draftDirty&&!confirm("Descartar alterações não salvas?"))return;MAILDESK.selected=null;MAILDESK.draftDirty=false;mailDeskLoad()};
+$("mailDeskSearch").addEventListener("input",e=>{MAILDESK.search=e.target.value.trim().toLowerCase();mailDeskListRender()});
+$("mailDeskShowAll").onclick=()=>{MAILDESK.unreadOnly=false;$("mailDeskShowAll").classList.add("active");$("mailDeskOnlyUnread").classList.remove("active");mailDeskListRender()};
+$("mailDeskOnlyUnread").onclick=()=>{MAILDESK.unreadOnly=true;$("mailDeskOnlyUnread").classList.add("active");$("mailDeskShowAll").classList.remove("active");mailDeskListRender()};
+$("mailDeskReply").onclick=mailDeskNewReply;
+$("mailDeskOpenSavedDraft").onclick=()=>{if(MAILDESK.lastDraft){mailDeskDrawDraft(MAILDESK.lastDraft,null);$("mailDeskDraftPanel").scrollIntoView({behavior:"smooth",block:"start"})}};
+$("mailDeskSaveDraft").onclick=mailDeskSaveDraft;
+$("mailDeskCloseDraft").onclick=mailDeskCloseComposer;
+$("mailDeskRichEditor").addEventListener("input",()=>{if(!$("mailDeskDraftPanel").classList.contains("hidden")){MAILDESK.draftDirty=true;$("mailDeskDraftState").textContent="Alterações não salvas"}});
+$("mailDeskSubject").addEventListener("input",()=>{MAILDESK.draftDirty=true;$("mailDeskDraftState").textContent="Alterações não salvas"});
 $("mailDeskGenerate").onclick=mailDeskGenerate;
 $("mailDeskApprove").onclick=mailDeskApprove;
 $("mailDeskCopy").onclick=async()=>{try{const plain=mailRichPlain(),html=$("mailDeskRichEditor").innerHTML;if(navigator.clipboard.write&&window.ClipboardItem){await navigator.clipboard.write([new ClipboardItem({"text/plain":new Blob([plain],{type:"text/plain"}),"text/html":new Blob([html],{type:"text/html"})})])}else await navigator.clipboard.writeText(plain);mailDeskNotice("Texto copiado.");}catch{mailDeskNotice("Selecione o texto para copiar manualmente.","warn")}};
