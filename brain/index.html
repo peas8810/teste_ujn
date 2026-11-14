@@ -359,13 +359,14 @@
     <button type="button" class="btn small" id="mailDeskLink" disabled>Adicionar artigo</button>
     <span id="mailDeskCaseStatus" class="hint"></span>
    </div>
+   <h3 class="maildesk-reading-label">Mensagens <span id="mailDeskMessageCount" class="hint"></span></h3><div id="mailDeskHistory" class="maildesk-history"><p class="hint">Nenhuma conversa selecionada.</p></div>
+   <details class="maildesk-insight" id="mailDeskDetails"><summary class="maildesk-details-toggle">Documentos, métricas, análise IA e linha do tempo</summary><div class="maildesk-details-body">
    <section class="maildesk-links-panel" id="mailDeskArticlePanel">
      <div class="maildesk-links-head"><strong>Artigos vinculados ao e-mail</strong><span id="mailDeskArticleCount" class="hint">0 artigos</span></div>
      <div id="mailDeskArticleLinks" class="maildesk-article-chips"><span class="hint">Selecione uma conversa.</span></div>
      <p class="hint">O mesmo endereço pode ter vários artigos, inclusive em revistas diferentes. Os vínculos são administrativos e não comprovam titularidade no OJS.</p>
    </section>
-   <h3 class="maildesk-reading-label">Mensagens <span id="mailDeskMessageCount" class="hint"></span></h3><div id="mailDeskHistory" class="maildesk-history"><p class="hint">Nenhuma conversa selecionada.</p></div>
-   <details class="maildesk-insight" id="mailDeskDetails"><summary class="maildesk-details-toggle">Documentos, métricas, análise IA e linha do tempo</summary><div class="maildesk-details-body">
+
     <h3>Documentos e anexos</h3><div id="mailDeskAttachments" class="maildesk-docs"><p class="hint">Selecione uma conversa para consultar documentos.</p></div>
     <h3>Análise do histórico</h3><div id="mailDeskMetrics" class="maildesk-metrics"></div>
     <div class="maildesk-insight-grid">
@@ -2018,7 +2019,8 @@ async function mailDeskOpen(id,options={}){
  MAILDESK.draftDirty=false;
  MAILDESK.selected=id;MAILDESK.activeDraft=null;MAILDESK.request=null;MAILDESK.lastDraft=null;
  mailDeskListRender();
- $("mailDeskHistory").replaceChildren(elem("p","Carregando histórico…","hint"));
+ $("mailDeskHistory").replaceChildren(elem("p","Carregando mensagens…","hint"));
+ $("mailDeskDetails").open=false;
  $("mailDeskAttachments").replaceChildren(elem("p","Consultando anexos…","hint"));
  $("mailDeskMetrics").replaceChildren();$("mailDeskSummary").textContent="Analisando histórico…";$("mailDeskNextAction").textContent="Analisando situação…";$("mailDeskTimeline").replaceChildren();
  $("mailDeskDraftPanel").classList.add("hidden");$("mailDeskSendStatus").classList.add("hidden");
@@ -2042,7 +2044,7 @@ async function mailDeskOpen(id,options={}){
   $("mailDeskEscalate").disabled=false;$("mailDeskResolve").disabled=false;$("mailDeskLink").disabled=false;
   $("mailDeskCaseStatus").textContent="Situação: "+(t.state==="ARCHIVED"?"Concluída":t.state==="MANUAL_REVIEW"?"Revisão humana":t.state==="AWAITING_REPLY"?"Aguardando equipe":t.state==="ANSWERED"?"Respondida":t.state||"Não classificada");
   const view=$("mailDeskHistory");view.replaceChildren();
-  for(const m of data.messages||[]){
+  for(const m of [...(data.messages||[])].reverse()){
    const card=elem("div",undefined,"maildesk-msg"+(m.direction==="OUTBOUND"?" out":"")+(m.id===data.messages[data.messages.length-1]?.id?" maildesk-current-message":""));
    const meta=elem("div",undefined,"maildesk-message-meta");
    meta.append(elem("b",(m.direction==="OUTBOUND"?"Enviado por: ":"Recebido de: ")+(m.sender||t.correspondent||"Remetente desconhecido")));
