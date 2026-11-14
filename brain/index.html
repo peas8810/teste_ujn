@@ -293,7 +293,7 @@
     <h3>Documentos e anexos</h3><div id="mailDeskAttachments" class="maildesk-docs"><p class="hint">Selecione uma conversa para consultar documentos.</p></div>
     <h3>Análise do histórico</h3><div id="mailDeskMetrics" class="maildesk-metrics"></div>
     <div class="maildesk-insight-grid">
-      <div><h4>Resumo e assuntos</h4><div id="mailDeskSummary" class="hint">Aguardando seleção</div></div>
+      <div><h4>Resumo e assuntos <button type="button" class="btn small" id="mailDeskReanalyze" style="margin-left:8px">Analisar com IA</button></h4><div id="mailDeskSummary" class="hint">Aguardando seleção</div><p id="mailDeskAISource" class="hint"></p></div>
       <div><h4>Situação e próxima ação</h4><div id="mailDeskNextAction" class="hint">Aguardando seleção</div></div>
     </div>
     <h4>Linha do tempo do atendimento</h4><div id="mailDeskTimeline" class="maildesk-timeline"></div>
@@ -1784,6 +1784,21 @@ function mailDeskReadable(text){
 function mailDeskMetric(root,name,value){
  const b=elem("div",undefined,"maildesk-metric");b.append(elem("small",name),elem("strong",String(value)));root.append(b);
 }
+async function mailDeskAnalyze(id){
+ if(!id)return;
+ const source=$("mailDeskAISource");source.textContent="Analisando os e-mails sincronizados…";
+ $("mailDeskReanalyze").disabled=true;
+ try{
+  const result=await mailDeskCall("analyze",{thread_id:id});
+  if(MAILDESK.selected!==id)return;
+  const a=result.analysis||{},sum=$("mailDeskSummary"),next=$("mailDeskNextAction");
+  sum.replaceChildren(elem("p",a.summary||"Resumo indisponível"),elem("p","Principal assunto: "+(a.main_topic||"Não classificado")));
+  if(a.secondary_topics?.length)sum.append(elem("p","Outros assuntos: "+a.secondary_topics.join(", ")));
+  next.replaceChildren(elem("strong",a.current_status||"Aguardando avaliação"),elem("p","Próxima ação: "+(a.next_action||"Conferir histórico")),elem("p","Prioridade: "+(a.urgency||"Não identificada")));
+  source.textContent=(a.method==="modelo_ia"?"Resumo gerado por IA":"Classificação por regras")+(result.cached?" · resultado reutilizado":"")+" · "+(a.caveat||"Considere apenas as mensagens disponíveis.");
+ }catch(e){if(MAILDESK.selected===id)source.textContent="Análise avançada indisponível: "+e.message}
+ finally{$("mailDeskReanalyze").disabled=false}
+}
 function mailDeskDrawAnalytics(data){
  const a=data.analytics||{},root=$("mailDeskMetrics");root.replaceChildren();
  for(const [name,value] of [
@@ -1878,6 +1893,7 @@ async function mailDeskOpen(id){
   }
   if(!(data.messages||[]).length)view.append(elem("p","Nenhuma mensagem registrada.","hint"));
   mailDeskDrawAttachments(data);mailDeskDrawAnalytics(data);
+  mailDeskAnalyze(id);
   $("mailDeskGenerate").disabled=false;
   if(data.drafts?.length)mailDeskDrawDraft(data.drafts[0],null);
  }catch(err){mailDeskNotice("Falha ao carregar: "+err.message,"error")}
@@ -1937,7 +1953,7 @@ async function mailDeskPollStatus(){
   else mailDeskNotice("Solicitação "+state+". Aguardando execução supervisionada do SMTP.");
  }catch(err){mailDeskNotice("Não foi possível consultar o envio: "+err.message,"error")}
 }
-$("mailDeskReload").onclick=mailDeskLoad;$("mailDeskToggleRead").onclick=()=>mailDeskSetRead($("mailDeskReadBadge").classList.contains("unread"));
+$("mailDeskReload").onclick=mailDeskLoad;$("mailDeskToggleRead").onclick=()=>mailDeskSetRead($("mailDeskReadBadge").classList.contains("unread"));$("mailDeskReanalyze").onclick=()=>mailDeskAnalyze(MAILDESK.selected);
 $("mailDeskFilter").onchange=mailDeskListRender;
 $("mailDeskGenerate").onclick=mailDeskGenerate;
 $("mailDeskApprove").onclick=mailDeskApprove;
