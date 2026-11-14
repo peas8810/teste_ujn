@@ -1962,6 +1962,17 @@ function mailDeskFormatMessage(m){
  }
  return body;
 }
+async function mailDeskOpenPrivateAttachment(item){
+ const current=MAILDESK.selected;
+ if(!current)return;
+ try{
+  const response=await mailDeskCall("attachment_url",{thread_id:current,attachment_id:item.id});
+  if(!response?.url)throw Error("Link não disponível");
+  const u=new URL(response.url);
+  if(u.origin!=="https://leytqsyfrmzhectatcqm.supabase.co")throw Error("Endereço não autorizado");
+  window.open(u.href,"_blank","noopener,noreferrer");
+ }catch(e){mailDeskNotice("Não foi possível abrir o anexo: "+e.message,"error")}
+}
 function mailDeskInlineAttachments(messageId,attachments){
  const files=(attachments||[]).filter(x=>x.message_id===messageId),box=elem("div",undefined,"maildesk-message-files");
  for(const f of files){
@@ -1969,7 +1980,8 @@ function mailDeskInlineAttachments(messageId,attachments){
   left.append(elem("strong","📎 "+f.filename));
   left.append(elem("small",((f.size_bytes!=null)?(Math.ceil(f.size_bytes/1024)+" KB · "):"")+(f.mime_type||"Arquivo")+" · "+(f.availability==="METADATA_ONLY"?"Arquivo ainda não sincronizado":"Disponível")));
   item.append(left);
-  if(f.external_url&&/^https:\/\//i.test(f.external_url)){
+  if(f.availability==="STORED"){const btn=elem("button","Abrir anexo","btn small");btn.type="button";btn.onclick=()=>mailDeskOpenPrivateAttachment(f);item.append(btn)}
+  else if(f.external_url&&/^https:\/\//i.test(f.external_url)){
    const a=document.createElement("a");a.href=f.external_url;a.target="_blank";a.rel="noopener noreferrer";a.referrerPolicy="no-referrer";a.textContent="Abrir anexo";item.append(a);
   }else item.append(elem("span","Aguardando captura IMAP","maildesk-file-unavailable"));
   box.append(item);
@@ -2038,7 +2050,8 @@ function mailDeskDrawAttachments(data){
   const row=elem("div",undefined,"maildesk-doc"),left=elem("div");
   left.append(elem("strong",item.filename),elem("small",(item.mime_type||"Tipo não identificado")+" · "+(item.size_bytes!=null?Math.ceil(item.size_bytes/1024)+" KB · ":"")+(item.availability==="METADATA_ONLY"?"Somente metadados; arquivo não disponível":item.availability)));
   row.append(left);
-  if(item.external_url&&/^https:\/\//.test(item.external_url)){const a=document.createElement("a");a.href=item.external_url;a.target="_blank";a.rel="noopener noreferrer";a.textContent="Abrir documento";row.append(a)}
+  if(item.availability==="STORED"){const btn=elem("button","Abrir documento","btn small");btn.type="button";btn.onclick=()=>mailDeskOpenPrivateAttachment(item);row.append(btn)}
+  else if(item.external_url&&/^https:\/\//.test(item.external_url)){const a=document.createElement("a");a.href=item.external_url;a.target="_blank";a.rel="noopener noreferrer";a.textContent="Abrir documento";row.append(a)}
   root.append(row);
  }
  for(const link of links){
