@@ -1984,6 +1984,23 @@ async function mailDeskPollStatus(){
   else mailDeskNotice("Solicitação "+state+". Aguardando execução supervisionada do SMTP.");
  }catch(err){mailDeskNotice("Não foi possível consultar o envio: "+err.message,"error")}
 }
+async function mailDeskLightRefresh(){
+ if(!token || document.hidden || MAILDESK.loading || !document.querySelector('[data-page="emails"]:not(.hidden)'))return;
+ try{
+  const d=await mailDeskCall("list");
+  MAILDESK.threads=d.threads||[];
+  MAILDESK.mailbox=d.mailbox||null;
+  $("mailDeskTotal").textContent=MAILDESK.threads.length;
+  $("mailDeskWaiting").textContent=MAILDESK.threads.filter(t=>t.state==="AWAITING_REPLY").length;
+  $("mailDeskAnswered").textContent=MAILDESK.threads.filter(t=>t.state==="ANSWERED").length;
+  $("mailDeskStatus").textContent="Atualizado "+new Date().toLocaleTimeString("pt-BR")+
+   " · "+(MAILDESK.mailbox?.sync_enabled?"IMAP sincronizado":"IMAP em atualização")+
+   " · histórico em recuperação gradual · atualização automática a cada 15 s.";
+  mailDeskListRender(); // Never overwrite an operator's edited draft.
+ }catch(err){$("mailDeskStatus").textContent="Atualização de e-mails indisponível: "+err.message}
+}
+setInterval(mailDeskLightRefresh,15000);
+
 $("mailDeskReload").onclick=mailDeskLoad;$("mailDeskToggleRead").onclick=()=>mailDeskSetRead($("mailDeskReadBadge").classList.contains("unread"));$("mailDeskReanalyze").onclick=()=>mailDeskAnalyze(MAILDESK.selected);$("mailDeskEscalate").onclick=()=>mailDeskWorkflow("MANUAL_REVIEW");$("mailDeskResolve").onclick=()=>mailDeskWorkflow("ARCHIVED");$("mailDeskLink").onclick=()=>mailDeskWorkflow("LINK");
 $("mailDeskFilter").onchange=mailDeskListRender;
 $("mailDeskGenerate").onclick=mailDeskGenerate;
