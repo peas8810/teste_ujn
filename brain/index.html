@@ -1814,7 +1814,7 @@ function mailDeskDrawAnalytics(data){
  ["Média de retorno do autor",mailDeskDuration(a.avg_author_reply_minutes)],
  ["Maior intervalo observado",mailDeskDuration(a.max_reply_gap_minutes)],
  ["Duração da conversa",mailDeskDuration(a.elapsed_minutes)],
- ["Urgência estimada",a.urgency||"—"]
+ ["Urgência estimada",a.urgency||"—"],["Tom identificado",a.tone||"—"],["Resolução provável",a.resolution_likelihood||"Não determinada"]
  ])mailDeskMetric(root,name,value);
  const summary=$("mailDeskSummary");summary.replaceChildren();
  summary.append(elem("p",a.summary||"Ainda não há dados suficientes."));
