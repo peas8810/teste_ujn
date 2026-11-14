@@ -336,6 +336,25 @@
  <div class="head"><div><h2 id="editorialServiceTitle">Atendimento por WhatsApp</h2><p class="hint" id="editorialServiceMeta">Selecione um contato.</p></div>
  <button class="btn small" id="editorialCloseService">Fechar</button></div>
  <h3>Notificações enviadas ao número</h3><p class="hint">Abaixo aparecem o modelo aprovado pela Meta e os parâmetros enviados. O texto integral do modelo é administrado na conta WhatsApp Business.</p><div id="editorialPhoneDeliveries"></div>
+ <div class="card" id="editorialManualNoticeBox" style="margin:14px 0;padding:15px;border:1px solid #d4e8e2;background:#f4faf8">
+  <h3 style="margin-top:0">Enviar aviso editorial pelo WhatsApp</h3>
+  <p class="hint">Para autores que ainda não iniciaram conversa, use o modelo de notificação já aprovado pela Meta. A mensagem contém a revista, o número do artigo e o tipo de movimentação. Não é possível incluir texto livre neste modelo.</p>
+  <label for="editorialManualArticle">Artigo com autorização editorial verificada</label>
+  <select id="editorialManualArticle" style="display:block;width:100%;margin:7px 0 12px"><option value="">Selecione um artigo</option></select>
+  <label for="editorialManualType">Tipo do aviso</label>
+  <select id="editorialManualType" style="display:block;width:100%;margin:7px 0 12px">
+    <option value="editor_message_available">Nova comunicação editorial</option>
+    <option value="review_started">Avaliação iniciada</option>
+    <option value="revision_requested">Correções solicitadas</option>
+    <option value="revision_submitted">Correções recebidas</option>
+    <option value="copyediting_started">Editoração iniciada</option>
+    <option value="production_started">Produção iniciada</option>
+    <option value="published">Artigo publicado</option>
+    <option value="other_activity">Movimentação editorial registrada</option>
+  </select>
+  <div class="actions"><button class="btn primary" id="editorialManualSend" type="button" disabled>Enviar aviso com modelo Meta</button></div>
+  <p class="hint" id="editorialManualStatus" role="status"></p>
+ </div>
  <h3>Conversa da Central UJN</h3><p class="hint" id="editorialServiceWindow"></p>
  <div id="editorialChatMessages" style="max-height:370px;overflow:auto;border:1px solid var(--border);border-radius:10px;padding:12px"></div>
  <div class="actions" style="margin-top:12px"><button class="btn small" id="editorialClaimChat">Assumir atendimento</button><button class="btn small" id="editorialRefreshChat">Atualizar conversa</button></div>
@@ -919,6 +938,15 @@ async function editorialOpenService(phone){
  $("editorialServiceTitle").textContent="Atendimento WhatsApp · "+phone;
  $("editorialServiceMeta").textContent=associated.map(r=>[r.email,r.journal_code,r.submission_id].filter(Boolean).join(" · ")).join(" | ");
  const recipients=(editorialCache.recipients||[]).filter(r=>canonicalPhone(r.phone_e164)===canonicalPhone(phone));
+ const eligibleNotices=recipients.filter(x=>x.consent_at&&x.verified_at&&!x.revoked_at&&["REMUNOM","RSV","RJNM","JIRRS","NEXUS"].includes(x.journal_code)&&Number.isSafeInteger(Number(x.submission_id))&&Number(x.submission_id)>0);
+ const select=$("editorialManualArticle");select.replaceChildren(new Option("Selecione um artigo",""));
+ for(const item of eligibleNotices){
+  const val=item.journal_code+"|"+Number(item.submission_id);
+  if(![...select.options].some(o=>o.value===val))select.add(new Option(item.journal_code+" #"+item.submission_id,val));
+ }
+ $("editorialManualSend").disabled=!eligibleNotices.length;
+ $("editorialManualStatus").textContent=eligibleNotices.length?"Modelo aprovado: ujn_editorial_update_ptbr · Somente contatos com autorização verificada.":"Nenhum vínculo editorial verificado e autorizado para este número.";
+ 
  const recipientIds=new Set(recipients.map(r=>r.id));
  const events=new Map((editorialCache.events||[]).map(e=>[e.id,e]));
  const deliveries=(editorialCache.deliveries||[]).filter(d=>recipientIds.has(d.recipient_id)).sort((a,b)=>Date.parse(a.created_at)-Date.parse(b.created_at));
@@ -968,6 +996,28 @@ async function editorialClaimService(){
  $("editorialReplyStatus").textContent="Atendimento assumido.";
  await editorialLoadServiceChat();
  }catch(e){$("editorialReplyStatus").textContent=e.message}
+}
+let editorialManualSending=false;
+async function editorialSendManualNotice(){
+ if(editorialManualSending||!editorialServicePhone)return;
+ const v=$("editorialManualArticle").value.split("|");
+ const journal=v[0],submission_id=Number(v[1]),event_type=$("editorialManualType").value;
+ if(!["REMUNOM","RSV","RJNM","JIRRS","NEXUS"].includes(journal)||!Number.isSafeInteger(submission_id)||submission_id<1)return say("Selecione um artigo autorizado.",true);
+ const labels=Object.fromEntries([...$("editorialManualType").options].map(x=>[x.value,x.textContent]));
+ if(!confirm("Enviar aviso editorial pelo modelo aprovado da Meta?\n\nDestinatário: "+editorialServicePhone+"\nArtigo: "+journal+" #"+submission_id+"\nAviso: "+labels[event_type]+"\n\nEste disparo real pode gerar cobrança na Meta."))return;
+ editorialManualSending=true;$("editorialManualSend").disabled=true;
+ const status=$("editorialManualStatus");status.textContent="Registrando aviso para envio…";
+ try{
+  const request_id=crypto.randomUUID();
+  const r=await fetch(BASE+"/functions/v1/ujn-brain-manual-editorial-notice",{
+   method:"POST",cache:"no-store",headers:{apikey:PUB,authorization:"Bearer "+token,"content-type":"application/json"},
+   body:JSON.stringify({action:"manual_notice",phone:editorialServicePhone,journal,submission_id,event_type,request_id})});
+  const result=await r.json().catch(()=>({}));
+  if(!r.ok||!result.ok)throw Error(({verified_consent_required:"Contato sem consentimento e vínculo verificados.",dispatch_disabled:"Disparos editoriais desabilitados.",superadmin_required:"Somente superadministrador pode enviar avisos."})[result.error]||result.error||"Falha ao registrar aviso.");
+  status.textContent="Aviso registrado na fila ("+result.state+"). Atualize o histórico para acompanhar envio e entrega.";
+  await editorialWa();
+ }catch(e){status.textContent="Não enviado: "+e.message}
+ finally{editorialManualSending=false;$("editorialManualSend").disabled=!$("editorialManualArticle").value}
 }
 async function editorialSendService(){
  const text=$("editorialReplyText").value.trim(),x=editorialServiceChat;
@@ -1608,7 +1658,7 @@ $("editorialSearch").addEventListener("input",()=>{if(editorialCache)renderEdito
 $("editorialContacts").addEventListener("click",e=>{const phone=e.target.closest("button[data-editorialphone]");if(phone){editorialOpenService(phone.dataset.editorialphone);return}const target=e.target.closest("button[data-request]");if(target)editorialLink(target.dataset.request)});
 $("editorialCloseService").addEventListener("click",()=>{$("editorialContactService").classList.add("hidden");editorialServicePhone=null;editorialServiceChat=null});
 $("editorialClaimChat").addEventListener("click",editorialClaimService);
-$("editorialSendReply").addEventListener("click",editorialSendService);
+$("editorialSendReply").addEventListener("click",editorialSendService);$("editorialManualSend").addEventListener("click",editorialSendManualNotice);$("editorialManualArticle").addEventListener("change",()=>{$("editorialManualSend").disabled=!$("editorialManualArticle").value||editorialManualSending});
 $("editorialRefreshChat").addEventListener("click",editorialLoadServiceChat);
 $("crmPeriod").addEventListener("click",e=>{
  const button=e.target.closest("button[data-days]");if(!button)return;
