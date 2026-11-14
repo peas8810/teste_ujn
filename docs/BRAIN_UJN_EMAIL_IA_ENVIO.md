@@ -101,3 +101,25 @@ UJN_IMAP_NEW_LIMIT=60 UJN_IMAP_MAX_SECONDS=95 timeout 110s /usr/bin/python3 /hom
 Não use mais `UJN_IMAP_BACKFILL_LIMIT=10`; a recuperação histórica está desativada na versão nova. A fila SMTP continua supervisionada e separada.
 
 Nota: se 300 e-mails por pasta não forem suficientes para conciliar uma conversa antiga, ela poderá precisar de reimportação pontual mediante solicitação. O estado já salvo de mensagens antigas no banco permanece preservado.
+
+## Envio SMTP mais rápido — monitoramento de fila a cada 10 segundos
+
+A execução da fila pelo cPanel a cada minuto provocava esperas de até ~60 segundos. O teste de 14/11/2026 foi autorizado às 11:14:27 e confirmado como SENT às 11:15:05 (cerca de 38 segundos).
+
+O novo `ujn_smtp_fast_runner.py` executa o `ujn_smtp_supervised_worker.py --send-one` aproximadamente a cada 10 segundos dentro de uma única janela Cron de um minuto.
+
+- **Instalar** o arquivo `integracoes/webmail/ujn_smtp_fast_runner.py` em `/home/ujn/brain-ujn/`, sem substituir o worker SMTP existente.
+- **Editar**, e não duplicar, a tarefa Cron SMTP de um minuto. O único comando SMTP agendado deve ser:
+
+```sh
+timeout 100s /usr/bin/python3 /home/ujn/brain-ujn/ujn_smtp_fast_runner.py >> /home/ujn/brain-ujn/state/smtp_maildesk_dispatch.log 2>&1
+```
+
+- Manter os cinco campos de periodicidade Cron em `*`.
+- Não alterar o Cron IMAP (um minuto).
+- O runner mantém lock em `state/smtp_fast_runner.lock` para impedir duas instâncias simultâneas. O worker somente envia solicitações `QUEUED` aprovadas, registrando `SENT`, `FAILED` ou `UNKNOWN` no banco, sem reprocessar automaticamente trabalhos reivindicados.
+- Se o processo exceder o tempo configurado, pode haver atraso superior a 10 segundos; trata-se de consulta periódica (polling), não envio instantâneo.
+- O Brain UJN consulta o estado do envio a cada 3 segundos enquanto existir uma solicitação pendente, exibindo `QUEUED`, `CLAIMED` e `SENT`.
+- Se ocorrer `WORKER_ERROR`, `WORKER_TIMEOUT`, `FAILED` ou `UNKNOWN`, não reenvie a solicitação sem conciliar com a pasta Enviados.
+
+Atualize o painel com Ctrl+F5 depois de alterar o Cron. Antes de ativar outro envio real, verifique o log do runner com a fila vazia. Não instale uma segunda tarefa Cron de SMTP.
