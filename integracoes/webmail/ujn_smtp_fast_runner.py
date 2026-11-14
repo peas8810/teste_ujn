@@ -6,6 +6,7 @@ local flock to prevent concurrent Cron instances. The database claims jobs
 atomically and NEVER retries CLAIMED/UNKNOWN automatically.
 """
 import fcntl
+import ast
 import json
 import os
 import subprocess
@@ -20,13 +21,34 @@ INTERVAL = 10.0
 DURATION = 54.0
 SINGLE_CALL_TIMEOUT = 36
 
+def diagnose():
+    """No network, no credentials, no SMTP, no queue claims."""
+    info = {"fast_runner":"DIAGNOSTIC", "sent_email":False,
+            "python_version":sys.version.split()[0],
+            "runner_exists":Path(__file__).is_file(),
+            "worker_exists":WORKER.is_file(),
+            "state_dir_exists":LOCK_FILE.parent.is_dir(),
+            "worker_syntax_valid":False}
+    if WORKER.is_file():
+        try:
+            ast.parse(WORKER.read_text(encoding="utf-8"), filename=str(WORKER))
+            info["worker_syntax_valid"]=True
+        except (SyntaxError, UnicodeError):
+            info["worker_syntax_valid"]=False
+    print(json.dumps(info),flush=True)
+    return 0 if all((info["runner_exists"],info["worker_exists"],
+                    info["state_dir_exists"],info["worker_syntax_valid"])) else 2
+
 def main():
+    if "--diagnose" in sys.argv[1:]:
+        raise SystemExit(diagnose())
     with open(str(LOCK_FILE), "a+") as lock:
         try:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except (IOError, OSError):
             print(json.dumps({"fast_runner": "ALREADY_RUNNING", "sent_email": False}), flush=True)
             return
+        print(json.dumps({"fast_runner":"STARTED","interval_seconds":INTERVAL,"sent_email":False}),flush=True)
         start = time.monotonic()
         run_index = 0
         while True:
