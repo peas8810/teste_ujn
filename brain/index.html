@@ -1980,7 +1980,7 @@ async function mailDeskPollStatus(){
   const state=out.request?.status||"UNKNOWN";
   if(state==="SENT"){mailDeskNotice("E-mail aceito pelo SMTP e registrado no histórico como enviado.");MAILDESK.request=null;await mailDeskLoad();}
   else if(["FAILED","UNKNOWN","CANCELLED"].includes(state)){mailDeskNotice("Envio com status "+state+". Verifique o log e não repita antes de conciliar.","error");MAILDESK.request=null;}
-  else mailDeskNotice("Solicitação "+state+". Aguardando execução supervisionada do SMTP.");
+  else mailDeskNotice(state==="QUEUED"?"Resposta aprovada. Aguardando a próxima verificação SMTP (aproximadamente 10 segundos).":state==="CLAIMED"?"Enviando pelo servidor institucional…":"Solicitação "+state+". Aguardando execução supervisionada do SMTP.");
  }catch(err){mailDeskNotice("Não foi possível consultar o envio: "+err.message,"error")}
 }
 async function mailDeskLightRefresh(){
@@ -2006,7 +2006,7 @@ $("mailDeskGenerate").onclick=mailDeskGenerate;
 $("mailDeskApprove").onclick=mailDeskApprove;
 $("mailDeskCopy").onclick=async()=>{try{await navigator.clipboard.writeText($("mailDeskText").value);mailDeskNotice("Texto copiado.");}catch{mailDeskNotice("Selecione o texto para copiar manualmente.","warn")}};
 $("aiToMailDesk").onclick=()=>show("emails");
-setInterval(()=>{if(token&&MAILDESK.request&&!document.hidden)mailDeskPollStatus()},15000);
+let mailDeskStatusBusy=false;setInterval(async()=>{if(!token||!MAILDESK.request||document.hidden||mailDeskStatusBusy)return;mailDeskStatusBusy=true;try{await mailDeskPollStatus()}finally{mailDeskStatusBusy=false}},3000);
 
 $("loginForm").onsubmit=login;$("signout").onclick=logout;for(const b of document.querySelectorAll("[data-screen]"))b.onclick=()=>show(b.dataset.screen);$("toggleNav").onclick=()=>{$("sidebar").classList.add("open");$("overlay").classList.add("show")};$("overlay").onclick=()=>{$("sidebar").classList.remove("open");$("overlay").classList.remove("show")};$("refreshOverview").onclick=overview;$("reloadInbox").onclick=inbox;$("inboxAISuggest").onclick=inboxSuggest;
 setInterval(async()=>{
