@@ -100,3 +100,16 @@ Esse comando **não envia e-mails**, mesmo com credenciais corretas. Se houver e
 
 O worker oferece `--send-one` para consumir **uma** solicitação `QUEUED` previamente aprovada, enviar pelo SMTP e atualizar o banco. O processo nunca deve ser executado automaticamente até o teste de ponta a ponta, confirmação de pasta Enviados e política de duplicidade.
 
+
+
+### Envio único de homologação (destinatário autorizado)
+
+Após confirmar `smtp_authenticated: true`, substitua o worker privado no cPanel pela versão atual do GitHub. Use `--send-test` em uma tarefa temporária, com a variável `UJN_SMTP_TEST_RECIPIENT` definida para um destinatário autorizado. O envio é único: o arquivo privado `state/smtp_test_once.lock` é criado antes de qualquer tentativa, impedindo repetição após reiniciar o Cron.
+
+Exemplo:
+
+```sh
+[ ! -e /home/ujn/brain-ujn/state/smtp_test_once.lock ] && UJN_SMTP_TEST_RECIPIENT=destinatario-autorizado@example.org timeout 45s python3 /home/ujn/brain-ujn/ujn_smtp_supervised_worker.py --send-test >> /home/ujn/brain-ujn/state/teste_smtp_envio.log 2>&1
+```
+
+Exclua a tarefa depois da execução. Verifique `state/teste_smtp_envio.log` e o recebimento na caixa de destino. `SMTP_ACCEPTED` prova aceitação pelo servidor SMTP, não necessariamente entrega. Se aparecer `UNKNOWN`, não repita: concilie nos logs antes. Não apague o arquivo de bloqueio por tentativa única para repetir inadvertidamente. O envio de teste não habilita o SMTP operacional do Brain e não utiliza a fila de respostas reais.
