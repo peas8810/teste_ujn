@@ -1974,7 +1974,7 @@ async function mailDeskOpenPrivateAttachment(item){
  }catch(e){mailDeskNotice("Não foi possível abrir o anexo: "+e.message,"error")}
 }
 function mailDeskInlineAttachments(messageId,attachments){
- const files=(attachments||[]).filter(x=>x.message_id===messageId),box=elem("div",undefined,"maildesk-message-files");
+ const files=mailDeskVisibleAttachments(attachments).filter(x=>x.message_id===messageId),box=elem("div",undefined,"maildesk-message-files");
  for(const f of files){
   const item=elem("div",undefined,"maildesk-file-card"),left=elem("div");
   left.append(elem("strong","📎 "+f.filename));
@@ -2043,9 +2043,14 @@ function mailDeskDrawAnalytics(data){
  });
  if(!messages.length)timeline.append(elem("p","Não há eventos suficientes.","hint"));
 }
+function mailDeskVisibleAttachments(items){
+ const all=items||[];
+ const stored=new Set(all.filter(x=>x.availability==="STORED").map(x=>x.message_id+"|"+x.filename));
+ return all.filter(x=>x.availability!=="METADATA_ONLY"||!stored.has(x.message_id+"|"+x.filename));
+}
 function mailDeskDrawAttachments(data){
  const root=$("mailDeskAttachments");root.replaceChildren();
- const attachments=data.attachments||[],links=data.document_links||[];
+ const attachments=mailDeskVisibleAttachments(data.attachments),links=data.document_links||[];
  for(const item of attachments){
   const row=elem("div",undefined,"maildesk-doc"),left=elem("div");
   left.append(elem("strong",item.filename),elem("small",(item.mime_type||"Tipo não identificado")+" · "+(item.size_bytes!=null?Math.ceil(item.size_bytes/1024)+" KB · ":"")+(item.availability==="METADATA_ONLY"?"Somente metadados; arquivo não disponível":item.availability)));
