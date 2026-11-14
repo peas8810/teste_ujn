@@ -288,6 +288,12 @@
   </div>
   <div class="card"><h2 id="mailDeskTitle">Selecione uma conversa</h2><p id="mailDeskMeta" class="hint">Escolha um e-mail para analisar e responder.</p>
    <div class="maildesk-toolbar"><span id="mailDeskReadBadge" class="maildesk-readbadge">Sem conversa selecionada</span><button type="button" class="btn small" id="mailDeskToggleRead" disabled>Marcar como não lido</button><span class="hint" id="mailDeskReadMeta"></span></div>
+   <div class="maildesk-toolbar" id="mailDeskWorkflows">
+    <button type="button" class="btn small" id="mailDeskEscalate" disabled>Encaminhar para revisão</button>
+    <button type="button" class="btn small" id="mailDeskResolve" disabled>Marcar como concluída</button>
+    <button type="button" class="btn small" id="mailDeskLink" disabled>Vincular revista e manuscrito</button>
+    <span id="mailDeskCaseStatus" class="hint"></span>
+   </div>
    <h3>Histórico da conversa</h3><div id="mailDeskHistory" class="maildesk-history"><p class="hint">Nenhuma conversa selecionada.</p></div>
    <section class="maildesk-insight">
     <h3>Documentos e anexos</h3><div id="mailDeskAttachments" class="maildesk-docs"><p class="hint">Selecione uma conversa para consultar documentos.</p></div>
@@ -1850,6 +1856,29 @@ function mailDeskDrawAttachments(data){
  if(!attachments.length&&!links.length)root.append(elem("p",data.analytics?.attachment_mentioned?
   "O texto menciona anexo, mas o arquivo ainda não foi sincronizado. Consulte a mensagem original no Webmail.":"Não foram identificados anexos ou links disponibilizados nesta conversa.","hint"));
 }
+async function mailDeskWorkflow(operation){
+ const id=MAILDESK.selected;if(!id)return;
+ const t=MAILDESK.threads.find(x=>x.id===id);
+ let payload={thread_id:id,operation},message="";
+ if(operation==="LINK"){
+  const journal=prompt("Revista (REMUNOM, RSV, RJNM, JIRRS ou NEXUS)",t?.journal_code||"REMUNOM");
+  if(journal===null)return;
+  const code=journal.trim().toUpperCase();
+  if(!["REMUNOM","RSV","RJNM","JIRRS","NEXUS"].includes(code))return mailDeskNotice("Revista inválida.","error");
+  const num=prompt("Número do manuscrito, conferido no OJS",t?.submission_id||"");
+  if(num===null)return;
+  if(!/^[1-9]\d{0,8}$/.test(num.trim()))return mailDeskNotice("Número inválido.","error");
+  payload={...payload,journal_code:code,submission_id:Number(num)};
+  message="Registrar vínculo administrativo "+code+" #"+num+"? Isso não comprova a autoria.";
+ }else message=operation==="ARCHIVED"?"Marcar esta conversa como concluída/arquivada?":"Encaminhar esta conversa para revisão humana?";
+ if(!confirm(message))return;
+ try{
+  const result=await mailDeskCall("update_thread",payload);
+  if(result.updated!==1)throw Error("O registro não foi atualizado.");
+  mailDeskNotice(operation==="LINK"?"Vínculo administrativo registrado. Confirme a titularidade no OJS.":"Situação da conversa atualizada.");
+  await mailDeskLoad();
+ }catch(e){mailDeskNotice("Falha na atualização: "+e.message,"error")}
+}
 async function mailDeskSetRead(read){
  if(!MAILDESK.selected)return;
  try{
@@ -1880,6 +1909,8 @@ async function mailDeskOpen(id){
   $("mailDeskReadBadge").classList.toggle("unread",unread);
   $("mailDeskReadMeta").textContent=data.read_receipt?.last_read_at?"Última leitura: "+stamp(data.read_receipt.last_read_at):"Status registrado por operador, não é confirmação de leitura no Webmail";
   $("mailDeskToggleRead").disabled=false;$("mailDeskToggleRead").textContent=unread?"Marcar como lido":"Marcar como não lido";
+  $("mailDeskEscalate").disabled=false;$("mailDeskResolve").disabled=false;$("mailDeskLink").disabled=false;
+  $("mailDeskCaseStatus").textContent="Situação: "+(t.state==="ARCHIVED"?"Concluída":t.state==="MANUAL_REVIEW"?"Revisão humana":t.state==="AWAITING_REPLY"?"Aguardando equipe":t.state==="ANSWERED"?"Respondida":t.state||"Não classificada");
   const view=$("mailDeskHistory");view.replaceChildren();
   for(const m of data.messages||[]){
    const card=elem("div",undefined,"maildesk-msg"+(m.direction==="OUTBOUND"?" out":""));
@@ -1953,7 +1984,7 @@ async function mailDeskPollStatus(){
   else mailDeskNotice("Solicitação "+state+". Aguardando execução supervisionada do SMTP.");
  }catch(err){mailDeskNotice("Não foi possível consultar o envio: "+err.message,"error")}
 }
-$("mailDeskReload").onclick=mailDeskLoad;$("mailDeskToggleRead").onclick=()=>mailDeskSetRead($("mailDeskReadBadge").classList.contains("unread"));$("mailDeskReanalyze").onclick=()=>mailDeskAnalyze(MAILDESK.selected);
+$("mailDeskReload").onclick=mailDeskLoad;$("mailDeskToggleRead").onclick=()=>mailDeskSetRead($("mailDeskReadBadge").classList.contains("unread"));$("mailDeskReanalyze").onclick=()=>mailDeskAnalyze(MAILDESK.selected);$("mailDeskEscalate").onclick=()=>mailDeskWorkflow("MANUAL_REVIEW");$("mailDeskResolve").onclick=()=>mailDeskWorkflow("ARCHIVED");$("mailDeskLink").onclick=()=>mailDeskWorkflow("LINK");
 $("mailDeskFilter").onchange=mailDeskListRender;
 $("mailDeskGenerate").onclick=mailDeskGenerate;
 $("mailDeskApprove").onclick=mailDeskApprove;
