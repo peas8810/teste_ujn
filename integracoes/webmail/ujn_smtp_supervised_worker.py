@@ -68,6 +68,151 @@ def safe_header(value):
         raise ValueError("Invalid mail header")
     return value
 
+def archive_sent_imap(message, password):
+    """Best-effort copy to the actual Sent folder; NEVER changes SMTP send result."""
+    import imaplib
+    socket.setdefaulttimeout(20)
+    conn = imaplib.IMAP4_SSL(SMTP_HOST, 993, ssl_context=ssl.create_default_context())
+    try:
+        conn.login(MAILBOX, password)
+        status, rows = conn.list()
+        if status != "OK":
+            return "FOLDER_LIST_UNAVAILABLE"
+        folders = []
+        for raw in rows or []:
+            if not isinstance(raw, bytes):
+                continue
+            entry=raw.decode("utf-8",errors="replace")
+            found=re.match(r'^\(([^)]*)\)\s+"[^"]*"\s+("([^"]+)"|([^\s]+))
+    # A job is atomically claimed only after SMTP has been explicitly enabled in Supabase.
+    # No automatic retry of a claimed job: prevents accidental duplicate delivery.
+    response=signed_request({"action":"worker_claim"},key)
+    job=response.get("item")
+    if not response.get("ready") or not job:
+        print(json.dumps({"ready":bool(response.get("ready")),"dispatched":0}))
+        return
+    reqid=job["id"]
+    status="UNKNOWN"
+    reason="UNKNOWN"
+    message_id=None
+    archive_status="NOT_ATTEMPTED"
+    try:
+        recipient=safe_header(job["recipient"])
+        if not re.fullmatch(r"[^@\s<>]+@[^@\s<>]+\.[A-Za-z]{2,}",recipient) or recipient.lower()==MAILBOX:
+            raise ValueError("Recipient not allowed")
+        subject=safe_header(job["subject"])
+        msg=EmailMessage()
+        msg["From"]=MAILBOX
+        msg["To"]=recipient
+        msg["Subject"]=subject
+        msg["Date"]=formatdate(localtime=False)
+        message_id="<"+uuid.uuid4().hex+"@ujn.ojsbr.com>"
+        msg["Message-ID"]=message_id
+        msg["X-UJN-Desk-Request-ID"]=reqid
+        parent = job.get("reply_to_message_id")
+        root = job.get("root_message_id")
+        valid_mid = lambda x: isinstance(x,str) and re.fullmatch(r"<[A-Za-z0-9_.@+\-]+>", x)
+        if valid_mid(parent):
+            msg["In-Reply-To"] = parent
+            msg["References"] = (root + " " + parent) if valid_mid(root) and root != parent else parent
+        msg.set_content(job["body_text"],subtype="plain",charset="utf-8")
+        with open_smtp(password) as smtp:
+            refused=smtp.send_message(msg,from_addr=MAILBOX,to_addrs=[recipient])
+        status="SENT" if not refused else "UNKNOWN"
+        reason="" if not refused else "SMTP_RECIPIENT_REFUSED"
+        if status=="SENT":
+            try:archive_status=archive_sent_imap(msg,password)
+            except Exception:archive_status="ARCHIVE_FAILED"
+    except (smtplib.SMTPAuthenticationError,ValueError,KeyError):
+        status="FAILED"
+        reason="AUTH_OR_DATA_ERROR"
+    except Exception:
+        # A network failure after DATA may mean SMTP accepted the email.
+        # Do NOT retry automatically. Operator must reconcile with the Sent folder/log.
+        status="UNKNOWN"
+        reason="SMTP_DELIVERY_UNCERTAIN"
+    try:
+        answer=signed_request({"action":"worker_report","request_id":reqid,"status":status,"message_id":message_id if status=="SENT" else None,"error_code":reason or None},key)
+        if not answer.get("ok"):raise RuntimeError("Status not recorded")
+    except Exception:
+        print(json.dumps({"status":"REPORT_FAILED","manual_reconciliation_required":True,"request_id":reqid}))
+        raise SystemExit(2)
+    print(json.dumps({"request_id":reqid,"status":status,"dispatched":1 if status=="SENT" else 0,"sent_archive":archive_status}))
+
+def send_test_once(password, recipient):
+    """Explicit recipient test, one attempt per installation even with repeating Cron."""
+    recipient = safe_header(recipient.strip().lower())
+    if not re.fullmatch(r"[^@\s<>]+@[^@\s<>]+\.[A-Za-z]{2,}", recipient) or recipient == MAILBOX:
+        raise ValueError("Invalid test recipient")
+    marker = ROOT + "/state/smtp_test_once.lock"
+    try:
+        fd = os.open(marker, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+    except FileExistsError:
+        print(json.dumps({"test":"ALREADY_ATTEMPTED","sent_email":False,"action":"Check previous test output; do not retry blindly"}))
+        return
+    try:
+        with os.fdopen(fd, "w") as handle:
+            handle.write("SMTP test run reserved; check log and destination inbox.\n")
+        msg = EmailMessage()
+        msg["From"] = MAILBOX
+        msg["To"] = recipient
+        msg["Subject"] = "[Brain UJN] Teste controlado de envio SMTP"
+        msg["Date"] = formatdate(localtime=False)
+        msg["Message-ID"] = "<" + uuid.uuid4().hex + "@ujn.ojsbr.com>"
+        msg.set_content(
+            "Teste autorizado do UJN Intelligence.\n\n"
+            "Esta mensagem confirma a verificacao de envio por SMTP da conta institucional. "
+            "Nenhuma resposta automatica ou decisao editorial foi executada.\n\n"
+            "Equipe Editora UJN",
+            subtype="plain", charset="utf-8"
+        )
+        with open_smtp(password) as smtp:
+            refused = smtp.send_message(msg, from_addr=MAILBOX, to_addrs=[recipient])
+        if refused:
+            print(json.dumps({"test":"RECIPIENT_REFUSED","sent_email":False,"retry_automatic":False}))
+        else:
+            print(json.dumps({"test":"SMTP_ACCEPTED","sent_email":True,"recipient":recipient,"message_id":msg["Message-ID"],"retry_automatic":False}))
+    except Exception as exc:
+        # An interrupted SMTP session may have already transmitted DATA.
+        # Keep lock; never automatically retry.
+        print(json.dumps({"test":"UNKNOWN","error_type":type(exc).__name__,"sent_email":"unconfirmed","retry_automatic":False}))
+        raise SystemExit(2)
+
+def main():
+    password=read_password()
+    if len(sys.argv)==1 or sys.argv[1]=="--test-auth":
+        with open_smtp(password) as smtp:
+            print(json.dumps({"smtp_authenticated":True,"sent_email":False,"host":SMTP_HOST,"port":SMTP_PORT}))
+        return
+    if sys.argv[1]=="--send-test":
+        recipient=os.environ.get("UJN_SMTP_TEST_RECIPIENT", "").strip()
+        if not recipient:raise SystemExit("UJN_SMTP_TEST_RECIPIENT must be set for --send-test")
+        send_test_once(password,recipient)
+        return
+    if sys.argv[1]=="--send-one":
+        key=read_key()
+        send_one(password,key)
+        return
+    raise SystemExit("Usage: python3 ujn_smtp_supervised_worker.py [--test-auth | --send-test | --send-one]")
+
+if __name__=="__main__":
+    main()
+,entry)
+            if found:
+                folders.append((found.group(3) or found.group(4), found.group(1)))
+        preferred=[name for name, flags in folders if re.search(r'\\Sent\b',flags,re.I)]
+        preferred+=["Sent","INBOX.Sent","Enviados","INBOX.Enviados","Sent Items","Sent Messages"]
+        available={name for name,_ in folders}
+        selected=next((x for x in preferred if x in available),None)
+        if not selected:
+            return "SENT_FOLDER_NOT_FOUND"
+        safe='"'+selected.replace('"','')+'"'
+        result,_=conn.append(safe,r'\Seen',imaplib.Time2Internaldate(time.time()),message.as_bytes())
+        return "ARCHIVED" if result=="OK" else "ARCHIVE_FAILED"
+    finally:
+        try:conn.logout()
+        except Exception:pass
+
 def send_one(password,key):
     # A job is atomically claimed only after SMTP has been explicitly enabled in Supabase.
     # No automatic retry of a claimed job: prevents accidental duplicate delivery.
