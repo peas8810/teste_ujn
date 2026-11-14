@@ -352,7 +352,7 @@
       <div class="mail-rich-footer"><span id="mailRichCount">0 / 8000 caracteres</span><span>Ctrl+B negrito · Ctrl+I itálico · Ctrl+U sublinhado</span></div>
     </div>
     <div class="actions"><button type="button" class="btn primary" id="mailDeskApprove">Autorizar envio</button><button type="button" class="btn" id="mailDeskCopy">Copiar texto</button></div>
-    <p class="hint">O envio exige confirmação explícita. A IA não dispara mensagens por conta própria.</p>
+    <p class="hint">O envio exige confirmação explícita. A IA não dispara mensagens por conta própria. A formatação HTML é armazenada junto com uma versão em texto simples; a entrega formatada depende de suporte no executor SMTP do cPanel.</p>
    </div><div id="mailDeskSendStatus" class="notice hidden" aria-live="polite"></div>
   </div>
  </div>
@@ -1988,11 +1988,25 @@ function mailRichSetContent(text,html){
  }
  mailRichSync();
 }
+let mailRichSavedRange=null;
+document.addEventListener("selectionchange",()=>{
+ const selection=window.getSelection();
+ if(!selection||!selection.rangeCount||!$("mailDeskRichEditor").contains(selection.anchorNode))return;
+ mailRichSavedRange=selection.getRangeAt(0).cloneRange();
+});
+function mailRichRestoreSelection(){
+ const editor=$("mailDeskRichEditor"),selection=window.getSelection();
+ editor.focus();
+ if(mailRichSavedRange&&editor.contains(mailRichSavedRange.commonAncestorContainer)){
+  selection.removeAllRanges();selection.addRange(mailRichSavedRange);
+ }
+}
 function mailRichCommand(command,value=null){
- const e=$("mailDeskRichEditor");e.focus();
+ mailRichRestoreSelection();
  document.execCommand("styleWithCSS",false,"false");
  document.execCommand(command,false,value);
  mailRichSync();
+ mailRichSavedRange=null;
 }
 function mailRichInsertLink(){
  const raw=prompt("Cole o endereço HTTPS do link:");
@@ -2092,7 +2106,7 @@ $("mailDeskReload").onclick=mailDeskLoad;$("mailDeskToggleRead").onclick=()=>mai
 $("mailDeskFilter").onchange=()=>{MAILDESK.selected=null;mailDeskLoad()};
 $("mailDeskGenerate").onclick=mailDeskGenerate;
 $("mailDeskApprove").onclick=mailDeskApprove;
-$("mailDeskCopy").onclick=async()=>{try{await navigator.clipboard.writeText(mailRichPlain());mailDeskNotice("Texto copiado.");}catch{mailDeskNotice("Selecione o texto para copiar manualmente.","warn")}};
+$("mailDeskCopy").onclick=async()=>{try{const plain=mailRichPlain(),html=$("mailDeskRichEditor").innerHTML;if(navigator.clipboard.write&&window.ClipboardItem){await navigator.clipboard.write([new ClipboardItem({"text/plain":new Blob([plain],{type:"text/plain"}),"text/html":new Blob([html],{type:"text/html"})})])}else await navigator.clipboard.writeText(plain);mailDeskNotice("Texto copiado.");}catch{mailDeskNotice("Selecione o texto para copiar manualmente.","warn")}};
 $("aiToMailDesk").onclick=()=>show("emails");
 let mailDeskStatusBusy=false;setInterval(async()=>{if(!token||!MAILDESK.request||document.hidden||mailDeskStatusBusy)return;mailDeskStatusBusy=true;try{await mailDeskPollStatus()}finally{mailDeskStatusBusy=false}},3000);
 
