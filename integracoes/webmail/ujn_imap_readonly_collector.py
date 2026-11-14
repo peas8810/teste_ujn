@@ -55,7 +55,7 @@ def load_ingest_key():
     return key.lower()
 
 HMAC_KEY = load_ingest_key()
-FOLDERS = [x.strip() for x in os.getenv("UJN_IMAP_FOLDERS", "INBOX,Sent").split(",") if x.strip()]
+FOLDERS = [x.strip() for x in os.getenv("UJN_IMAP_FOLDERS", "INBOX,AUTO_SENT").split(",") if x.strip()]
 LIMIT = max(5,min(500,int(os.getenv("UJN_IMAP_SCAN_LIMIT", "150"))))
 
 if not ENDPOINT.startswith("https://") or not re.match(r"^[a-f0-9]{64}$", HMAC_KEY):
@@ -97,6 +97,63 @@ def post(item):
         data=json.loads(result.read().decode("utf-8"))
         if not (data.get("ok") or data.get("duplicate")):raise RuntimeError("collector rejected message")
         return data
+def detect_sent_folder(conn):
+    """Find the actual IMAP Sent folder without guessing or changing any message."""
+    status, rows = conn.list()
+    if status != "OK":
+        return None
+    folders = []
+    for raw in rows or []:
+        if not isinstance(raw, bytes):
+            continue
+        entry = raw.decode("utf-8", errors="replace")
+        found = re.match(r'^\(([^)]*)\)\s+"[^"]*"\s+("([^"]+)"|([^\s]+))    sent=0;errors=0
+    # Support older Python/imaplib versions on cPanel (no timeout= keyword).
+    import socket
+    socket.setdefaulttimeout(25)
+    with imaplib.IMAP4_SSL(HOST,port=int(os.getenv("UJN_IMAP_PORT","993")),ssl_context=ssl.create_default_context()) as conn:
+        conn.login(USER,PASSWORD)
+        actual_folders = []
+        for folder in FOLDERS:
+            actual = detect_sent_folder(conn) if folder == "AUTO_SENT" else folder
+            if actual and actual not in actual_folders:
+                actual_folders.append(actual)
+            elif folder == "AUTO_SENT" and not actual:
+                print("IMAP Sent folder could not be identified; only available folders will sync.", file=sys.stderr)
+        for folder in actual_folders:
+            status,_=conn.select('"'+folder.replace('"','')+'"',readonly=True)
+            if status!="OK":
+                print("IMAP folder not available:",folder,file=sys.stderr);errors+=1;continue
+            status,data=conn.uid("SEARCH",None,"ALL")
+            if status!="OK" or not data:continue
+            for uid in data[0].split()[-LIMIT:]:
+                status,items=conn.uid("FETCH",uid,"(BODY.PEEK[])")
+                if status!="OK" or not items or not isinstance(items[0],tuple):errors+=1;continue
+                msg=email.message_from_bytes(items[0][1])
+                sender=parseaddr(msg.get("From",""))[1].lower()
+                recipients=addrs(msg.get("To",""))
+                if not sender or not recipients:continue
+                direction="OUTBOUND" if sender==MAILBOX else "INBOUND"
+                correspondent=recipients[0] if direction=="OUTBOUND" else sender
+                if direction=="INBOUND" and MAILBOX not in recipients and MAILBOX not in addrs(msg.get("Cc","")):continue
+                mid=(msg.get("Message-ID") or "").strip()
+                message_key=mid[:240] if mid else "uid:"+folder+":"+uid.decode()
+                item={"action":"sync_message","mailbox":MAILBOX,"thread_key":stable_thread(msg,sender,correspondent),"message_key":message_key,
+                    "sender":sender,"recipient":correspondent if direction=="OUTBOUND" else MAILBOX,"subject":text_header(msg.get("Subject")),
+                    "body_text":text_body(msg),"direction":direction,"occurred_at":iso(msg.get("Date"))}
+                try:post(item);sent+=1
+                except (urllib.error.HTTPError,urllib.error.URLError,RuntimeError) as exc:
+                    errors+=1;print("Sync failed for folder/UID:",folder,uid.decode(),type(exc).__name__,file=sys.stderr)
+    print(json.dumps({"processed":sent,"errors":errors,"sent_email":False}))
+if __name__=="__main__":main()
+, entry)
+        if found:
+            folders.append((found.group(3) or found.group(4), found.group(1)))
+    preferred = [name for name, flags in folders if re.search(r'\\Sent\b', flags, re.I)]
+    preferred += ["Sent", "INBOX.Sent", "Enviados", "INBOX.Enviados", "Sent Items", "Sent Messages"]
+    available = {name for name, flags in folders}
+    return next((x for x in preferred if x in available), None)
+
 def main():
     sent=0;errors=0
     # Support older Python/imaplib versions on cPanel (no timeout= keyword).
