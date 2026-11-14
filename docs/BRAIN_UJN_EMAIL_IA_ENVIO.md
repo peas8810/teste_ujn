@@ -83,3 +83,21 @@ O SMTP de um minuto permanece com o mesmo comando. Não mantenha o coletor IMAP 
 Cada log traz `mode: incremental`, `new`, `historical`, `errors`, `sync_enabled` e `backfill_remaining`. O histórico completo pode levar várias horas. Enquanto `backfill_remaining=true`, não afirmar que todas as mensagens históricas foram coletadas.
 
 A fila SMTP agora exige relatório IMAP recente (menos de quatro minutos), validação de Entrada e Enviados e ausência de erros. Não apague o arquivo de checkpoint e não aumente os limites de lotes sem medir o tempo de execução.
+## Política de janela móvel de 300 — atualização 14/11/2026
+
+- O coletor incremental carrega e acompanha **até os 300 UIDs mais recentes em cada pasta IMAP** (Entrada e Enviados), sem buscar os e-mails anteriores à janela atual. Não é um limite combinado de 300 mensagens entre pastas.
+- O servidor entrega **até 300 conversas ativas** na vista principal. Respostas e casos arquivados saem dessa fila e continuam consultáveis na vista de histórico, com até 300 conversas por consulta.
+- As novas mensagens entram a cada ciclo do Cron de um minuto. O checkpoint avança por UID; mensagens além da janela não são apagadas do Webmail ou do Supabase.
+- O retorno de histórico foi desativado; o coletor não continuará a importar mensagens antigas só para completar o banco.
+- Preserve `/home/ujn/brain-ujn/state/maildesk_incremental_state.json`. Não apague nem reinicie checkpoints apenas para forçar a fila a carregar do começo.
+- Use apenas `ujn_imap_incremental_collector.py` no Cron principal de e-mails. Substitua o arquivo no cPanel pela nova versão; os demais programas do projeto não são afetados.
+
+Configuração recomendada em **Editar** na tarefa IMAP já existente (todos os campos de tempo `*`):
+
+```sh
+UJN_IMAP_NEW_LIMIT=60 UJN_IMAP_MAX_SECONDS=95 timeout 110s /usr/bin/python3 /home/ujn/brain-ujn/ujn_imap_incremental_collector.py >> /home/ujn/brain-ujn/state/imap_maildesk_cron.log 2>&1
+```
+
+Não use mais `UJN_IMAP_BACKFILL_LIMIT=10`; a recuperação histórica está desativada na versão nova. A fila SMTP continua supervisionada e separada.
+
+Nota: se 300 e-mails por pasta não forem suficientes para conciliar uma conversa antiga, ela poderá precisar de reimportação pontual mediante solicitação. O estado já salvo de mensagens antigas no banco permanece preservado.
