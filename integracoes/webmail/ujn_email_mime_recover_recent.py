@@ -23,6 +23,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--limit", type=int, default=10)
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--reindex", action="store_true", help="Re-read up to 300 recent MIME messages and refresh document text without resetting the regular checkpoint")
     args = parser.parse_args()
     if args.limit < 1 or args.limit > 30:
         parser.error("--limit must be 1 to 30")
@@ -41,7 +42,7 @@ def main():
             if state.get("version") != 1:
                 raise RuntimeError("MIME recovery state version invalid")
         socket.setdefaulttimeout(20)
-        stats = {"mode":"mime_recover","newly_processed":0,"errors":0,
+        stats = {"mode":"mime_reindex" if args.reindex else "mime_recover","newly_processed":0,"errors":0,
                  "dry_run":bool(args.dry_run),"sent_email":False,"per_folder":{}}
         with imaplib.IMAP4_SSL(base.HOST, port=int(os.getenv("UJN_IMAP_PORT","993")),
                               ssl_context=ssl.create_default_context()) as conn:
@@ -59,7 +60,9 @@ def main():
                     continue
                 recent = [int(x) for x in rows[0].split()][-300:]
                 key = folder + ":" + valid
-                done = set(state["folders"].get(key, []))
+                checkpoint_group = "reindex" if args.reindex else "folders"
+                state.setdefault(checkpoint_group, {})
+                done = set(state[checkpoint_group].get(key, []))
                 candidates = [uid for uid in reversed(recent) if uid not in done]
                 stats["per_folder"][folder] = {"remaining":len(candidates)}
                 if args.dry_run:
@@ -68,7 +71,7 @@ def main():
                     try:
                         collector.submit_uid(conn, folder, uid)
                         done.add(uid)
-                        state["folders"][key] = sorted(done.intersection(recent))
+                        state[checkpoint_group][key] = sorted(done.intersection(recent))
                         save(state)
                         stats["newly_processed"] += 1
                     except Exception as error:
