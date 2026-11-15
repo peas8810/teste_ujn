@@ -2291,14 +2291,21 @@ function mailDeskDrawDraft(d,notes){
  MAILDESK.activeDraft=d;
  const t=MAILDESK.threads.find(x=>x.id===MAILDESK.selected);
  $("mailDeskRecipient").value=t?.correspondent||"";
+ const technicalRecipient=String(t?.correspondent||"").trim().toLowerCase()==="ujn@journals.ojsbr.com";
+ $("mailDeskRecipient").style.borderColor=technicalRecipient?"#d34542":"";
+ $("mailDeskRecipient").title=technicalRecipient?"ATENÇÃO: remetente técnico OJS. Confira Reply-To no Webmail; este endereço está bloqueado para envio.":"";
  $("mailDeskSubject").value=d.subject_override||(/^re:/i.test(t?.subject||"")?(t.subject||""):"Re: "+(t?.subject||""));
  mailRichSetContent(d.body_text||"",d.body_html||null);
  MAILDESK.draftDirty=false;
  $("mailDeskDraftState").textContent=d.manual_saved_at?"Salvo em "+stamp(d.manual_saved_at):"Aguardando salvamento";
  $("mailDeskDraftPanel").classList.remove("hidden");
- $("mailDeskApprove").disabled=!d?.id||!(MAILDESK.mailbox?.smtp_enabled&&MAILDESK.mailbox?.sync_enabled);
+ $("mailDeskApprove").disabled=technicalRecipient||!d?.id||!(MAILDESK.mailbox?.smtp_enabled&&MAILDESK.mailbox?.sync_enabled);
  $("mailDeskApprove").textContent=MAILDESK.mailbox?.smtp_enabled&&MAILDESK.mailbox?.sync_enabled?"Autorizar e colocar na fila de envio":"Envio aguarda sincronização de Entrada e Enviados";
- if(notes){$("mailDeskNotes").textContent=notes;$("mailDeskNotes").classList.remove("hidden")}
+ if(technicalRecipient){
+   $("mailDeskDraftState").textContent="⚠️ Envio bloqueado: o endereço técnico do OJS não é o Reply-To do autor.";
+   $("mailDeskNotes").textContent="Confira o campo Responder para no Webmail. Para esta mensagem, a captura do Reply-To ainda não está disponível no Brain UJN. Não envie para ujn@journals.ojsbr.com.";
+   $("mailDeskNotes").classList.remove("hidden");
+ }else if(notes){$("mailDeskNotes").textContent=notes;$("mailDeskNotes").classList.remove("hidden")}
 }
 function mailDeskNewReply(){
  if(!MAILDESK.selected)return;
