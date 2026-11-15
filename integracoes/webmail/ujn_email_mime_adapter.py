@@ -102,6 +102,11 @@ def extract_document_text(item):
                 if info.file_size > 1500000:
                     return ""
                 data = z.read("word/document.xml")
+                relations = b""
+                if "word/_rels/document.xml.rels" in names:
+                    rel_info = z.getinfo("word/_rels/document.xml.rels")
+                    if rel_info.file_size < 200000:
+                        relations = z.read("word/_rels/document.xml.rels")
             root = ET.fromstring(data)
             ns = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
             paragraphs = []
@@ -111,6 +116,13 @@ def extract_document_text(item):
                     paragraphs.append(line.strip())
                 if sum(len(v) for v in paragraphs) > 16500:
                     break
+            if relations:
+                rel_root = ET.fromstring(relations)
+                for relation in rel_root.iter():
+                    address = relation.attrib.get("Target", "")
+                    if (relation.attrib.get("TargetMode") == "External"
+                            and address.startswith("https://") and len(address) < 350):
+                        paragraphs.append(address)
             return "\n".join(paragraphs)[:16000]
         except (ValueError, KeyError, zipfile.BadZipFile, ET.ParseError, RuntimeError, OSError):
             return ""
