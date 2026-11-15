@@ -105,7 +105,14 @@ def submit_uid(conn, folder, uid):
     result = base.post(item)
     if MIME_ENABLED and ATTACHMENTS_ENABLED:
         for file in extracted["upload_files"]:
-            mime_adapter.upload(base, message_key, file)
+            try:
+                mime_adapter.upload(base, message_key, file)
+            except Exception as err:
+                status = getattr(err, "code", None)
+                # The message was synced successfully; leave attachment
+                # remediation to the independent resumable recovery task.
+                print("MIME_ATTACHMENT_UPLOAD_FAILED", folder, uid,
+                      type(err).__name__, "http_status", status, file=sys.stderr)
     return "DUPLICATE" if result.get("duplicate") else "NEW"
 
 
