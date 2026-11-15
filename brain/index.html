@@ -2013,6 +2013,12 @@ function mailDeskRenderArticleEvidence(items){
    const ids=item.submission_id_candidates||[];
    body.append(elem("p","ID de submissão: "+(ids.length?ids.join(", ")+" (candidato)":"não encontrado no documento")));
    if(item.journal_hint)body.append(elem("p","Revista mencionada: "+item.journal_hint));
+   for(const pub of (item.published_ojs_matches||[])){
+    const result=elem("div");result.append(elem("strong","Publicação localizada no OJS: "+pub.journal+" #"+pub.id+" — "+pub.title));
+    const a=document.createElement("a");a.href=pub.url;a.target="_blank";a.rel="noopener noreferrer";a.textContent="Abrir publicação confirmada pelo OJS";result.append(a);
+    result.append(elem("small","O artigo foi localizado como publicado. Confirme separadamente que o remetente é seu autor."));
+    body.append(result);
+   }
    const links=[...(item.dois||[]).map(x=>x.url),...(item.links||[])];
    const seen=new Set();
    for(const url of links){
