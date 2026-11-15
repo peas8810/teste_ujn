@@ -339,6 +339,10 @@
 .inbox-ai-audit .audit-tag{padding:5px 9px;font-size:12px;border:1px solid #cfdfdf;border-radius:7px;background:#f1f6f6;color:#214b57}
 .inbox-ai-audit .audit-panel{border-left:3px solid #168d84;background:#f4f9f8;padding:11px 13px;border-radius:5px;white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px;line-height:1.55}
 .inbox-ai-audit .audit-warning{border-left-color:#c68c34;background:#fff9ed}
+</style><style id="ai-bubble-audit-style">
+.inbox-ai-message-audit{margin-top:9px;border-top:1px solid #bad8d1;padding-top:8px;font-size:12px}
+.inbox-ai-message-audit summary{color:#0a756d;cursor:pointer;font-weight:700}
+.inbox-ai-message-audit p{margin:6px 0;color:#527278}
 </style></head><body><a class="skip" href="#maincontent">Pular para conteúdo</a><div id="overlay"></div><div class="shell">
 <aside class="sidebar" id="sidebar"><div class="brand"><svg width="38" height="38" viewBox="0 0 40 40" fill="none" aria-hidden="true"><path d="M10 30L20 10L32 28L10 30" stroke="#53bbbc" stroke-width="2.5"/><circle cx="10" cy="30" r="4" fill="#fff"/><circle cx="20" cy="10" r="4" fill="#fff"/><circle cx="32" cy="28" r="4" fill="#fff"/></svg>brain <small>UJN</small></div><div class="tagline">RELACIONAMENTO QUE CONECTA</div>
 <div class="navtitle">OPERAÇÃO</div><nav class="nav"><button data-screen="overview">▦　Visão geral</button><button data-screen="inbox">▤　Caixa de entrada</button><button data-screen="emails">✉　E-mails · IA e envios</button><button data-screen="contacts">♙　Contatos e vínculos</button></nav>
@@ -1276,7 +1280,18 @@ async function detail(id){try{
   const label=elem("strong",m.sender==="BOT"?"Assistente":m.sender==="AGENT"?"Operador":m.sender==="CUSTOMER"?"Autor":m.sender);
   x.append(label);
   if(m.payload?.source==="brain_ujn_editorial_ai")x.append(elem("span","IA editorial","ai-label"));
-  x.append(elem("div",m.body||"(arquivo)"),elem("small",stamp(m.created_at)));box.append(x)
+  x.append(elem("div",m.body||"(arquivo)"),elem("small",stamp(m.created_at)));
+  const audit=m.payload?.audit;
+  if(m.payload?.source==="brain_ujn_editorial_ai"&&audit){
+   const block=document.createElement("details");block.className="inbox-ai-message-audit";
+   const header=document.createElement("summary");header.textContent="Verificar decisão e fontes desta resposta";
+   block.append(header);
+   for(const [label,value] of [["Intenção",audit.intent],["Confiança",audit.confidence],["Decisão",audit.decision],["Identidade",audit.verification],["Fontes utilizadas",(audit.tools_used||[]).join(", ")],["Consulta OJS",audit.checked_at],["Revisão humana",audit.escalated?"Indicada":"Não indicada"]]){
+    if(value!==undefined&&value!==null&&value!=="")block.append(elem("p",label+": "+value,"hint"));
+   }
+   x.append(block);
+  }
+  box.append(x)
  }
  box.scrollTop=box.scrollHeight;
  const dest=$("caseActions");dest.replaceChildren();
