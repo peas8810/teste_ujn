@@ -73,8 +73,13 @@ def main():
                         stats["newly_processed"] += 1
                     except Exception as error:
                         stats["errors"] += 1
-                        stats["per_folder"][folder]["last_error_type"] = type(error).__name__
-                        break
+                        info = {"type": type(error).__name__, "uid": uid}
+                        if hasattr(error, "code"):
+                            info["http_status"] = int(error.code)
+                        stats["per_folder"][folder]["last_error"] = info
+                        # Keep failed UID out of checkpoint for safe retry,
+                        # but do not block other recent messages in this batch.
+                        continue
                 stats["per_folder"][folder]["remaining"] = len([x for x in recent if x not in done])
         print(json.dumps(stats,ensure_ascii=False))
 
