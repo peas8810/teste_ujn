@@ -72,6 +72,9 @@ def reply_routing(message, sender):
     """Parse RFC 5322 Reply-To conservatively; fail closed on ambiguity."""
     fields = message.get_all("Reply-To", [])
     if not fields:
+        authors = getaddresses(message.get_all("From", []))
+        if len(authors) != 1 or authors[0][1].strip().lower() != sender:
+            return {"reply_to_source": "ambiguous_from_header"}
         return {"reply_to_source": "from_header"}
     recipients = getaddresses(fields)
     parsed = [(name, addr.strip().lower()) for name, addr in recipients]
