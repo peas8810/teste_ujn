@@ -332,6 +332,13 @@
 #brainEmailDesk .maildesk-file-missing{background:#fff7e8;border:1px solid #f2d4a1;border-radius:9px;padding:10px 13px;font-size:12px;color:#845718;margin-top:13px}
 #brainEmailDesk .maildesk-quoted-details{margin-top:16px;border-top:1px solid #e2ebee;padding-top:10px}
 #brainEmailDesk .maildesk-quoted-details summary{font-size:12px;color:#286783;cursor:pointer}
+</style><style id="inbox-audit-style">
+.inbox-ai-audit{margin:12px 0;padding:14px;border:1px solid #c9ddd9;background:#fff;border-radius:10px;display:grid;gap:10px}
+.inbox-ai-audit.hidden{display:none}
+.inbox-ai-audit .audit-row{display:flex;gap:10px;flex-wrap:wrap}
+.inbox-ai-audit .audit-tag{padding:5px 9px;font-size:12px;border:1px solid #cfdfdf;border-radius:7px;background:#f1f6f6;color:#214b57}
+.inbox-ai-audit .audit-panel{border-left:3px solid #168d84;background:#f4f9f8;padding:11px 13px;border-radius:5px;white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px;line-height:1.55}
+.inbox-ai-audit .audit-warning{border-left-color:#c68c34;background:#fff9ed}
 </style></head><body><a class="skip" href="#maincontent">Pular para conteúdo</a><div id="overlay"></div><div class="shell">
 <aside class="sidebar" id="sidebar"><div class="brand"><svg width="38" height="38" viewBox="0 0 40 40" fill="none" aria-hidden="true"><path d="M10 30L20 10L32 28L10 30" stroke="#53bbbc" stroke-width="2.5"/><circle cx="10" cy="30" r="4" fill="#fff"/><circle cx="20" cy="10" r="4" fill="#fff"/><circle cx="32" cy="28" r="4" fill="#fff"/></svg>brain <small>UJN</small></div><div class="tagline">RELACIONAMENTO QUE CONECTA</div>
 <div class="navtitle">OPERAÇÃO</div><nav class="nav"><button data-screen="overview">▦　Visão geral</button><button data-screen="inbox">▤　Caixa de entrada</button><button data-screen="emails">✉　E-mails · IA e envios</button><button data-screen="contacts">♙　Contatos e vínculos</button></nav>
@@ -354,7 +361,7 @@
 <section data-page="overview" class="screen"><div class="eyebrow">OPERAÇÃO EM TEMPO REAL</div><div class="head"><div><h1>Visão geral</h1><p class="lead">Atendimentos reais registrados na Central UJN.</p></div><button class="btn" id="refreshOverview">Atualizar</button></div><div class="grid" id="stats"></div><div class="card"><h2>Serviços ativos</h2><div id="serviceStats" class="notice">Carregando…</div></div><div class="notice warn">Os indicadores são um retrato do banco, não uma garantia de entrega pelo WhatsApp. Pagamentos e certificados comerciais do Academy continuam sujeitos à homologação.</div></section>
 <section data-page="inbox" class="screen hidden"><div class="eyebrow">OPERAÇÃO</div><div class="head"><div><h1>Caixa de entrada</h1><p class="lead">Conversas do WhatsApp, respostas humanas e trilha de atendimento.</p></div><div class="actions" style="align-items:center"><span id="inboxLiveStatus" class="hint">Atualização automática a cada 20 s</span><button class="btn" id="reloadInbox">Atualizar conversas</button></div></div><div class="split"><div class="card"><h3>Conversas</h3><label>Filtrar por serviço</label><select id="inboxFilter"><option value="">Todos os serviços</option></select><div class="inbox-list" id="inboxList"></div></div><div class="card"><h3 id="conversationTitle">Selecione uma conversa</h3><p class="hint" id="conversationMeta">Os detalhes aparecerão aqui.</p><div class="messages" id="messages"></div><div class="actions" id="caseActions"></div>
 <div id="inboxAI" class="inbox-ai">
- <div class="inbox-ai-head"><div><strong>✧ Assistência IA</strong><span id="inboxAIStatus">Selecione uma conversa para consultar a IA.</span></div><button class="btn small" id="inboxAISuggest" type="button">Gerar sugestão</button></div>
+ <div class="inbox-ai-head"><div><strong>✧ Assistência IA</strong><span id="inboxAIStatus">Selecione uma conversa para consultar a IA.</span></div><div class="actions"><button class="btn small" id="inboxAIAudit" type="button">Verificar e auditar resposta</button><button class="btn small" id="inboxAISuggest" type="button">Gerar sugestão</button></div></div><div id="inboxAIAuditResult" class="hidden inbox-ai-audit"></div>
  <div id="inboxAISuggestion" class="hidden"></div>
  <p class="hint">A IA responde automaticamente quando a conversa está em modo BOT. Se a equipe assumir, o envio manual permanece na própria Caixa de entrada. Nenhum link de pagamento será enviado.</p>
 </div>
@@ -1280,10 +1287,43 @@ async function detail(id){try{
  $("delivery").textContent=(d.deliveries||[]).map(x=>"Entrega "+x.state+(x.error?" · falha registrada":"")).join(" · ");
  $("inboxAIStatus").textContent=current.state==="HUMAN"?"Atendimento humano assumido — a IA prepara sugestões, sem enviar sozinha.":current.state==="BOT"?"Atendimento automático habilitado nesta conversa.":"Conversa em "+current.state+" — revisão ou encaminhamento humano.";
  $("inboxAISuggest").disabled=!inboxCurrentMessages.some(x=>x.sender==="CUSTOMER")||!role?.superuser;
+ $("inboxAIAudit").disabled=$("inboxAISuggest").disabled;
+ $("inboxAIAuditResult").classList.add("hidden");$("inboxAIAuditResult").replaceChildren();
  $("inboxAISuggestion").classList.add("hidden");$("inboxAISuggestion").textContent="";
  $("replyText").value="";
 }catch(e){say(e.message,true)}}
 let inboxCurrentMessages=[];
+async function inboxAIAudit(){
+ if(!current)return say("Selecione uma conversa.",true);
+ const latest=[...inboxCurrentMessages].reverse().find(x=>x.sender==="CUSTOMER");
+ if(!latest)return say("Nenhuma mensagem do autor para auditar.",true);
+ const btn=$("inboxAIAudit"),panel=$("inboxAIAuditResult");
+ btn.disabled=true;panel.classList.remove("hidden");panel.replaceChildren(elem("p","Consultando fontes editoriais e verificando a intenção atual…","hint"));
+ try{
+  const result=await insight(INSIGHTS_AI,"audit_whatsapp",{message_id:latest.id});
+  if(!current||![...inboxCurrentMessages].some(x=>x.id===latest.id))return;
+  panel.replaceChildren();
+  panel.append(elem("strong","Auditoria da resposta — verificação atual"));
+  const r=elem("div",undefined,"audit-row");
+  for(const value of ["Intenção: "+result.intent,"Confiança: "+result.confidence,"Verificação: "+result.audit?.verification,"Decisão: "+result.audit?.decision]){
+   r.append(elem("span",value,"audit-tag"));
+  }
+  panel.append(r);
+  const sources=(result.audit?.tools_used||[]).join(" · ")||"Nenhuma ferramenta registrada";
+  panel.append(elem("p","Fontes e procedimentos consultados: "+sources,"hint"));
+  panel.append(elem("p","Origem: "+(result.audit?.source||"indeterminada")+" · "+(result.audit?.checked_at||result.checked_at),"hint"));
+  if(result.audit?.requested_submission)panel.append(elem("p","Manuscrito informado pelo autor: "+result.audit.requested_submission,"hint"));
+  const draft=elem("div",undefined,"audit-panel"+(result.escalate?" audit-warning":""));
+  draft.append(elem("strong",result.escalate?"Revisão humana recomendada":"Resposta verificada, não enviada"),elem("p",result.answer||"Sem resposta"));
+  panel.append(draft);
+  panel.append(elem("p","Esta é uma nova avaliação do atendimento, não uma reprodução dos pensamentos internos da IA ou comprovação de uma mensagem anterior. Nenhuma resposta foi enviada.","hint"));
+  const copy=elem("button","Usar no editor do operador","btn small");
+  copy.onclick=()=>{if(current?.state!=="HUMAN")return say("Assuma o atendimento antes de responder.",true);$("replyText").value=String(result.answer||"");$("replyText").focus()};
+  panel.append(copy);
+ }catch(e){panel.replaceChildren(elem("p","Não foi possível concluir a auditoria: "+e.message,"hint"))}
+ finally{btn.disabled=false}
+}
+
 async function inboxSuggest(){
  if(!current)return say("Selecione uma conversa.",true);
  const last=[...inboxCurrentMessages].reverse().find(x=>x.sender==="CUSTOMER");
@@ -2441,7 +2481,7 @@ $("mailDeskCopy").onclick=async()=>{try{const plain=mailRichPlain(),html=$("mail
 $("aiToMailDesk").onclick=()=>show("emails");
 let mailDeskStatusBusy=false;setInterval(async()=>{if(!token||!MAILDESK.request||document.hidden||mailDeskStatusBusy)return;mailDeskStatusBusy=true;try{await mailDeskPollStatus()}finally{mailDeskStatusBusy=false}},3000);
 
-$("loginForm").onsubmit=login;$("signout").onclick=logout;for(const b of document.querySelectorAll("[data-screen]"))b.onclick=()=>show(b.dataset.screen);$("toggleNav").onclick=()=>{$("sidebar").classList.add("open");$("overlay").classList.add("show")};$("overlay").onclick=()=>{$("sidebar").classList.remove("open");$("overlay").classList.remove("show")};$("refreshOverview").onclick=overview;$("reloadInbox").onclick=inbox;$("inboxAISuggest").onclick=inboxSuggest;
+$("loginForm").onsubmit=login;$("signout").onclick=logout;for(const b of document.querySelectorAll("[data-screen]"))b.onclick=()=>show(b.dataset.screen);$("toggleNav").onclick=()=>{$("sidebar").classList.add("open");$("overlay").classList.add("show")};$("overlay").onclick=()=>{$("sidebar").classList.remove("open");$("overlay").classList.remove("show")};$("refreshOverview").onclick=overview;$("reloadInbox").onclick=inbox;$("inboxAISuggest").onclick=inboxSuggest;$("inboxAIAudit").onclick=inboxAIAudit;
 setInterval(async()=>{
  if(!token||document.hidden||!document.querySelector('[data-page="inbox"]:not(.hidden)'))return;
  try{
