@@ -52,7 +52,7 @@ def main():
         with imaplib.IMAP4_SSL(base.HOST, port=int(os.getenv("UJN_IMAP_PORT","993")),
                               ssl_context=ssl.create_default_context()) as conn:
             conn.login(base.USER, base.PASSWORD)
-            sent = base.detect_sent_folder(conn)
+            sent = None if args.reply_to_reconcile else base.detect_sent_folder(conn)
             for folder in ["INBOX"] + ([sent] if sent and sent != "INBOX" else []):
                 status, _ = conn.select('"' + folder.replace('"','') + '"',readonly=True)
                 if status != "OK":
@@ -89,6 +89,11 @@ def main():
                         # but do not block other recent messages in this batch.
                         continue
                 stats["per_folder"][folder]["remaining"] = len([x for x in recent if x not in done])
+        if args.reply_to_reconcile and not args.dry_run and stats["errors"] == 0 and stats["per_folder"] and all(v.get("remaining") == 0 for v in stats["per_folder"].values()):
+            flag = STATE_FILE.with_name("reply_to_reconcile_done.flag")
+            with flag.open("w", encoding="utf-8") as handle:
+                handle.write("IMAP Reply-To reconciliation finished for the recent 300-message INBOX window.\\n")
+            stats["completed"] = True
         print(json.dumps(stats,ensure_ascii=False))
 
 def save(state):
