@@ -13,6 +13,11 @@ import os
 import re
 import time
 import urllib.request
+import zipfile
+import io
+import xml.etree.ElementTree as ET
+import subprocess
+import shutil
 from email.header import decode_header, make_header
 
 ENDPOINT = "https://leytqsyfrmzhectatcqm.supabase.co/functions/v1/ujn-email-attachment-ingest"
@@ -80,6 +85,50 @@ def extract(message):
         total_bytes += size
     return {"body_html": html, "attachments": metadata, "upload_files": uploads}
 
+def extract_document_text(item):
+    """Best-effort OCR-free reading of DOCX, TXT and text-based PDF."""
+    filename = item["filename"].lower()
+    mime = item["mime_type"]
+    raw = item["bytes"]
+    if mime == "text/plain" or filename.endswith(".txt"):
+        return raw[:36000].decode("utf-8", errors="replace")[:16000]
+    if mime == "application/vnd.openxmlformats-officedocument.wordprocessingml.document" and filename.endswith(".docx"):
+        try:
+            with zipfile.ZipFile(io.BytesIO(raw), "r") as z:
+                names = z.namelist()
+                if "word/document.xml" not in names:
+                    return ""
+                info = z.getinfo("word/document.xml")
+                if info.file_size > 1500000:
+                    return ""
+                data = z.read("word/document.xml")
+            root = ET.fromstring(data)
+            ns = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
+            paragraphs = []
+            for p in root.iter(ns + "p"):
+                line = "".join(t.text or "" for t in p.iter(ns + "t"))
+                if line.strip():
+                    paragraphs.append(line.strip())
+                if sum(len(v) for v in paragraphs) > 16500:
+                    break
+            return "\n".join(paragraphs)[:16000]
+        except (ValueError, KeyError, zipfile.BadZipFile, ET.ParseError, RuntimeError, OSError):
+            return ""
+    if mime == "application/pdf" and filename.endswith(".pdf"):
+        tool = shutil.which("pdftotext")
+        if not tool:
+            return ""
+        try:
+            result = subprocess.run([tool, "-f", "1", "-l", "8", "-layout", "-", "-"],
+                                    input=raw, stdout=subprocess.PIPE,
+                                    stderr=subprocess.DEVNULL, timeout=12)
+            if result.returncode == 0:
+                return result.stdout[:36000].decode("utf-8", errors="replace")[:16000]
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+    return ""
+
+
 def upload(base, message_key, item):
     """HMAC-shared with normal ingest; idempotent by SHA-256 on the backend."""
     payload = {
@@ -88,7 +137,8 @@ def upload(base, message_key, item):
         "message_key": message_key,
         "filename": item["filename"],
         "mime_type": item["mime_type"],
-        "base64": base64.b64encode(item["bytes"]).decode("ascii")
+        "base64": base64.b64encode(item["bytes"]).decode("ascii"),
+        "extracted_text": extract_document_text(item)
     }
     raw = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
     stamp = str(int(time.time()))
