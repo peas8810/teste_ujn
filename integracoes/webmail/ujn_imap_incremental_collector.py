@@ -16,7 +16,7 @@ import socket
 import ssl
 import sys
 import time
-from email.utils import parseaddr
+from email.utils import parseaddr, getaddresses
 from pathlib import Path
 import ujn_imap_readonly_collector as base
 
@@ -68,6 +68,25 @@ def parse_uidvalidity(conn):
     raise RuntimeError("UIDVALIDITY not available")
 
 
+def reply_routing(message, sender):
+    """Parse RFC 5322 Reply-To conservatively; fail closed on ambiguity."""
+    fields = message.get_all("Reply-To", [])
+    if not fields:
+        return {"reply_to_source": "from_header"}
+    recipients = getaddresses(fields)
+    parsed = [(name, addr.strip().lower()) for name, addr in recipients]
+    valid = [(name, address) for name, address in parsed
+             if re.fullmatch(r"[^\\s@<>]+@[^\\s@<>]+\\.[a-zA-Z]{2,}", address or "")]
+    if len(fields) > 1 or len(parsed) != 1 or len(valid) != 1:
+        return {"reply_to_source": "ambiguous_reply_to_header"}
+    name, address = valid[0]
+    if address in (base.MAILBOX, "ujn@journals.ojsbr.com"):
+        return {"reply_to_source": "unsafe_reply_to_header"}
+    return {"reply_to": address,
+            "reply_to_name": base.text_header(name)[:160] if name else "",
+            "reply_to_source": "mime_reply_to_header"}
+
+
 def submit_uid(conn, folder, uid):
     status, items = conn.uid("FETCH", str(uid), "(BODY.PEEK[])")
     if status != "OK" or not items:
@@ -96,6 +115,8 @@ def submit_uid(conn, folder, uid):
         "body_text": base.text_body(msg), "direction": direction,
         "occurred_at": base.iso(msg.get("Date")),
     }
+    if direction == "INBOUND":
+        item.update(reply_routing(msg, sender))
     if MIME_ENABLED:
         extracted = mime_adapter.extract(msg)
         if extracted["body_html"]:
