@@ -79,7 +79,7 @@ def reply_routing(message, sender):
     recipients = getaddresses(fields)
     parsed = [(name, addr.strip().lower()) for name, addr in recipients]
     valid = [(name, address) for name, address in parsed
-             if re.fullmatch(r"[^\\s@<>]+@[^\\s@<>]+\\.[a-zA-Z]{2,}", address or "")]
+             if re.fullmatch(r"[^\s@<>]+@[^\s@<>]+\.[a-zA-Z]{2,}", address or "")]
     if len(fields) > 1 or len(parsed) != 1 or len(valid) != 1:
         return {"reply_to_source": "ambiguous_reply_to_header"}
     name, address = valid[0]
