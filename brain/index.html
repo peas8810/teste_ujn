@@ -386,6 +386,7 @@
    </section>
 
     <h3>Documentos e anexos</h3><div id="mailDeskAttachments" class="maildesk-docs"><p class="hint">Selecione uma conversa para consultar documentos.</p></div>
+    <h3>Identificação do artigo nos anexos</h3><div id="mailDeskArticleEvidence" class="maildesk-docs"><p class="hint">A IA verificará títulos, IDs, DOIs e links nos arquivos armazenados. Confirme o vínculo no OJS.</p></div>
     <h3>Análise do histórico</h3><div id="mailDeskMetrics" class="maildesk-metrics"></div>
     <div class="maildesk-insight-grid">
       <div><h4>Resumo e assuntos <button type="button" class="btn small" id="mailDeskReanalyze" style="margin-left:8px">Analisar com IA</button></h4><div id="mailDeskSummary" class="hint">Aguardando seleção</div><p id="mailDeskAISource" class="hint"></p></div>
@@ -1996,6 +1997,40 @@ function mailDeskReadable(text){
 function mailDeskMetric(root,name,value){
  const b=elem("div",undefined,"maildesk-metric");b.append(elem("small",name),elem("strong",String(value)));root.append(b);
 }
+function mailDeskRenderArticleEvidence(items){
+ const root=$("mailDeskArticleEvidence");root.replaceChildren();
+ if(!Array.isArray(items)||!items.length){
+  root.append(elem("p","Nenhum anexo armazenado identificado nesta conversa. Arquivos antigos só serão analisados após nova captura do conteúdo.","hint"));return;
+ }
+ for(const item of items){
+  const box=elem("div",undefined,"maildesk-doc"),body=elem("div");
+  body.style.minWidth="0";body.style.flex="1";
+  body.append(elem("strong","📎 "+(item.filename||"Arquivo")));
+  if(!item.extracted){
+   body.append(elem("p","Texto indisponível para extração automática; PDF digitalizado e imagens podem exigir OCR.","hint"));
+  }else{
+   if(item.title_candidate)body.append(elem("p","Possível título: "+item.title_candidate));
+   const ids=item.submission_id_candidates||[];
+   body.append(elem("p","ID de submissão: "+(ids.length?ids.join(", ")+" (candidato)":"não encontrado no documento")));
+   if(item.journal_hint)body.append(elem("p","Revista mencionada: "+item.journal_hint));
+   const links=[...(item.dois||[]).map(x=>x.url),...(item.links||[])];
+   const seen=new Set();
+   for(const url of links){
+    if(seen.has(url))continue;seen.add(url);
+    try{
+     const parsed=new URL(url);if(parsed.protocol!=="https:")continue;
+     const row=elem("div");const a=document.createElement("a");
+     a.href=parsed.href;a.target="_blank";a.rel="noopener noreferrer";a.referrerPolicy="no-referrer";
+     a.textContent=(parsed.hostname==="doi.org"?"Abrir DOI: ":"Abrir link encontrado: ")+parsed.href;
+     row.append(a);body.append(row);
+    }catch(e){}
+   }
+   body.append(elem("small",item.confidence||"Identificação não verificada"));
+  }
+  box.append(body);root.append(box);
+ }
+ root.append(elem("p","A identificação é baseada no conteúdo extraído dos arquivos. IDs e links não comprovam autoria ou vínculo no OJS; confirme antes de associar um artigo.","hint"));
+}
 async function mailDeskAnalyze(id){
  if(!id)return;
  const source=$("mailDeskAISource");source.textContent="Analisando os e-mails sincronizados…";
@@ -2004,6 +2039,7 @@ async function mailDeskAnalyze(id){
   const result=await mailDeskCall("analyze",{thread_id:id});
   if(MAILDESK.selected!==id)return;
   const a=result.analysis||{},sum=$("mailDeskSummary"),next=$("mailDeskNextAction");
+  mailDeskRenderArticleEvidence(result.article_identification||[]);
   sum.replaceChildren(elem("p",a.summary||"Resumo indisponível"),elem("p","Principal assunto: "+(a.main_topic||"Não classificado")));
   if(a.secondary_topics?.length)sum.append(elem("p","Outros assuntos: "+a.secondary_topics.join(", ")));
   next.replaceChildren(elem("strong",a.current_status||"Aguardando avaliação"),elem("p","Próxima ação: "+(a.next_action||"Conferir histórico")),elem("p","Prioridade: "+(a.urgency||"Não identificada")));
