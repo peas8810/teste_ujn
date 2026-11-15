@@ -2195,7 +2195,7 @@ async function mailDeskOpen(id,options={}){
   $("mailDeskReply").disabled=false;
   $("mailDeskMessageCount").textContent="· "+(data.messages?.length||0)+" mensagens";
   $("mailDeskTitle").textContent=t.subject||"Conversa";
-  $("mailDeskMeta").textContent=[t.correspondent,t.mailbox,(data.article_links?.length?data.article_links.map(x=>x.journal_code+" #"+x.submission_id).join(", "):"Sem artigos associados")].join(" · ");
+  $("mailDeskMeta").textContent=[t.correspondent,t.mailbox,(MAILDESK.replyTarget?.safe?"Responder para: "+MAILDESK.replyTarget.email:"Responder para: aguardando conferência do cabeçalho"),(data.article_links?.length?data.article_links.map(x=>x.journal_code+" #"+x.submission_id).join(", "):"Sem artigos associados")].join(" · ");
   mailDeskDrawArticleLinks(data.article_links||[]);
   const unread=!!r?.unread;
   $("mailDeskReadBadge").textContent=unread?"● Não lido":"✓ Lido no Brain";
@@ -2210,6 +2210,18 @@ async function mailDeskOpen(id,options={}){
    const meta=elem("div",undefined,"maildesk-message-meta");
    meta.append(elem("b",(m.direction==="OUTBOUND"?"Enviado por: ":"Recebido de: ")+(m.sender||t.correspondent||"Remetente desconhecido")));
    meta.append(elem("span",stamp(m.occurred_at)));
+   if(m.direction==="INBOUND"){
+    const label=m.reply_to_source==="mime_reply_to_header"&&m.reply_to_email?
+      "Responder para (Reply-To): "+m.reply_to_email:
+      m.reply_to_source==="from_header"?"Responder para (From): "+m.sender:
+      "Destinatário ainda não verificado — resposta bloqueada";
+    const destination=elem("small",label,"hint");
+    if(m.reply_to_source==="mime_reply_to_header"&&m.reply_to_email&&m.reply_to_email.toLowerCase()!==String(m.sender||"").toLowerCase()){
+      destination.style.fontWeight="700";
+      destination.style.color="#985f12";
+    }
+    card.append(destination);
+   }
    card.append(meta);
    card.append(mailDeskFormatMessage(m));
    const files=(data.attachments||[]).filter(x=>x.message_id===m.id);
@@ -2293,7 +2305,7 @@ function mailDeskDrawDraft(d,notes){
  const t=MAILDESK.threads.find(x=>x.id===MAILDESK.selected);
  const target=MAILDESK.replyTarget;
  $("mailDeskRecipient").value=target?.safe?target.email:"";
- const technicalRecipient=!target?.safe;
+ const technicalRecipient=!target?.safe||!target?.header_verified;
  $("mailDeskRecipient").placeholder=technicalRecipient?"Destinatário indisponível — aguardando cabeçalho Reply-To":"";
 
  $("mailDeskRecipient").style.borderColor=technicalRecipient?"#d34542":"";
