@@ -48,7 +48,10 @@ def decode_text(part, cap):
     raw = part.get_payload(decode=True) or b""
     if len(raw) > 256000:
         raw = raw[:256000]
-    return raw.decode(part.get_content_charset() or "utf-8", errors="replace")[:cap]
+    try:
+        return raw.decode(part.get_content_charset() or "utf-8", errors="replace")[:cap]
+    except (LookupError, UnicodeError, TypeError):
+        return raw.decode("utf-8", errors="replace")[:cap]
 
 def extract(message):
     """No external access; contents are sanitized again by Supabase."""
