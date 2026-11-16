@@ -64,13 +64,34 @@ def text_header(value):
     try: return str(make_header(decode_header(value or "")))[:500]
     except Exception: return str(value or "")[:500]
 def text_body(message):
-    parts=[p for p in message.walk() if p.get_content_type()=="text/plain" and p.get_content_disposition()!="attachment"]
-    if not parts and message.get_content_type()=="text/plain":parts=[message]
-    if not parts:return ""
-    part=parts[0]
-    raw=part.get_payload(decode=True) or b""
-    try:return raw.decode(part.get_content_charset() or "utf-8",errors="replace")[:19000]
-    except Exception:return raw.decode("utf-8",errors="replace")[:19000]
+    """Decode readable MIME text safely, including HTML-only messages."""
+    import html as htmllib
+    candidates = []
+    for part in message.walk():
+        if part.is_multipart():
+            continue
+        if part.get_content_disposition() == "attachment" or part.get_filename():
+            continue
+        if part.get_content_type() not in ("text/plain", "text/html"):
+            continue
+        raw = part.get_payload(decode=True)
+        if raw is None:
+            payload = part.get_payload()
+            raw = payload.encode("utf-8", errors="replace") if isinstance(payload, str) else b""
+        try:
+            value = raw[:300000].decode(part.get_content_charset() or "utf-8", errors="replace")
+        except (LookupError, UnicodeError, TypeError):
+            value = raw[:300000].decode("utf-8", errors="replace")
+        if part.get_content_type() == "text/html":
+            value = re.sub(r"(?is)<(script|style|head|noscript|svg|template)\\b[^>]*>.*?</\\1>", " ", value)
+            value = re.sub(r"(?i)<(?:br|/p|/div|/li|/tr|/h[1-6])\\b[^>]*>", "\\n", value)
+            value = htmllib.unescape(re.sub(r"(?s)<[^>]*>", " ", value))
+            value = re.sub(r"[ \\t]+", " ", value)
+        value = value.replace("\\x00", "").strip()
+        if value:
+            candidates.append((0 if part.get_content_type()=="text/plain" else 1, value[:19000]))
+    candidates.sort(key=lambda entry:entry[0])
+    return candidates[0][1] if candidates else ""
 def addrs(value):
     from email.utils import getaddresses
     return [a.lower() for _,a in getaddresses([value or ""]) if "@" in a]
