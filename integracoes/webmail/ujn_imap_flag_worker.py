@@ -133,9 +133,29 @@ def run():
             conn.logout()
         print(json.dumps(outcome), flush=True)
 
+def diagnose():
+    """No database jobs claimed, no flags changed, no SMTP."""
+    socket.setdefaulttimeout(15)
+    conn = imaplib.IMAP4_SSL(base.HOST, port=int(os.getenv("UJN_IMAP_PORT", "993")),
+                             ssl_context=ssl.create_default_context())
+    try:
+        conn.login(base.USER, base.PASSWORD)
+        typ, _ = conn.select('"INBOX"', readonly=True)
+        if typ != "OK":
+            raise RuntimeError("INBOX_READONLY_FAILED")
+        validity = uid_validity(conn)
+        print(json.dumps({"imap_flags": "DIAGNOSTIC", "connection": "VERIFIED",
+                          "inbox_readonly": True, "uidvalidity_available": validity > 0,
+                          "flags_changed": False, "sent_email": False}), flush=True)
+    finally:
+        conn.logout()
+
 if __name__ == "__main__":
     try:
-        run()
+        if "--diagnose" in sys.argv[1:]:
+            diagnose()
+        else:
+            run()
     except Exception as exc:
         print(json.dumps({"imap_flags": "ERROR", "error_type": type(exc).__name__,
                           "sent_email": False}), flush=True)
