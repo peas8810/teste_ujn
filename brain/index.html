@@ -400,7 +400,17 @@
 .mkt-review-item{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:10px 0;border-top:1px solid #dce8e8;flex-wrap:wrap}
 .mkt-review-buttons{display:flex;gap:7px;flex-wrap:wrap}
 @media(max-width:700px){.mkt-review-item{display:block}.mkt-review-buttons{margin-top:8px}}
-</style></head><body><a class="skip" href="#maincontent">Pular para conteúdo</a><div id="overlay"></div><div class="shell">
+</style><style id="maildesk-training-style">
+.maildesk-training-control{margin:12px 0 16px;padding:15px;border:1px solid #c7dce1;background:#fbfdfd;border-radius:13px}
+.maildesk-training-header,.maildesk-training-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.maildesk-training-header>div{flex:1;min-width:220px}
+.maildesk-training-header strong{font-size:15px;color:#153e55}
+.maildesk-training-header .hint{margin:7px 0}
+.maildesk-training-footer{padding-top:8px}
+.maildesk-training-example{padding:10px 0;border-top:1px solid #dce8ed;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.maildesk-training-example>div{flex:1;min-width:180px}
+</style>
+</head><body><a class="skip" href="#maincontent">Pular para conteúdo</a><div id="overlay"></div><div class="shell">
 <aside class="sidebar" id="sidebar"><div class="brand"><svg width="38" height="38" viewBox="0 0 40 40" fill="none" aria-hidden="true"><path d="M10 30L20 10L32 28L10 30" stroke="#53bbbc" stroke-width="2.5"/><circle cx="10" cy="30" r="4" fill="#fff"/><circle cx="20" cy="10" r="4" fill="#fff"/><circle cx="32" cy="28" r="4" fill="#fff"/></svg>brain <small>UJN</small></div><div class="tagline">RELACIONAMENTO QUE CONECTA</div>
 <div class="navtitle">OPERAÇÃO</div><nav class="nav"><button data-screen="overview">▦　Visão geral</button><button data-screen="inbox">▤　Caixa de entrada</button><button data-screen="emails">✉　E-mails · IA e envios</button><button data-screen="contacts">♙　Contatos e vínculos</button></nav>
 <div class="navtitle">ECOSSISTEMA</div><nav class="nav"><button data-screen="academy">♧　Atendimento Academy</button><button data-screen="journals">▥　Revistas</button><button data-screen="submit">▤　Submissões · ArticleRun</button><button data-screen="genius">✧　ArticleGenius</button></nav>
@@ -433,6 +443,17 @@
  <div class="maildesk-tabs" role="group" aria-label="Áreas da Central de E-mails">
    <button class="btn primary" type="button" id="mailDeskTabMailbox">Caixa postal</button>
    <button class="btn" type="button" id="mailDeskTabDashboard">Dashboard estatístico</button>
+ </div>
+ <div class="card maildesk-training-control" id="mailDeskTrainingControl">
+   <div class="maildesk-training-header">
+    <div><strong>Aprendizado supervisionado da IA</strong>
+      <p class="hint">Quando ativado, registra o e-mail recebido, a sugestão original e a resposta que você editou ou escreveu, somente após confirmação de envio. Não envia mensagens automaticamente.</p>
+    </div>
+    <button type="button" id="mailDeskTrainingToggle" class="btn" disabled>Consultar configuração…</button>
+   </div>
+   <div class="maildesk-training-footer"><span id="mailDeskTrainingStatus" class="hint">Aprendizado não consultado</span>
+    <button type="button" id="mailDeskTrainingReview" class="btn small">Revisar exemplos</button></div>
+   <div id="mailDeskTrainingExamples" class="hidden" aria-live="polite"></div>
  </div>
  <div id="mailDeskMailboxPanel">
  <div class="notice" id="mailDeskStatus">Consultando conta institucional…</div>
@@ -2282,6 +2303,65 @@ function mailDeskNotice(message,kind="info"){
  node.className="notice"+(kind==="error"?" error":kind==="warn"?" warn":"");
 }
 
+const MAILDESK_TRAINING={enabled:false,loaded:false,count:0,open:false};
+async function mailDeskTrainingLoad(){
+ const button=$("mailDeskTrainingToggle"),status=$("mailDeskTrainingStatus");
+ try{
+  const data=await mailDeskCall("training_preferences");
+  MAILDESK_TRAINING.enabled=data.enabled===true;MAILDESK_TRAINING.loaded=true;MAILDESK_TRAINING.count=data.examples||0;
+  button.disabled=false;
+  button.textContent=MAILDESK_TRAINING.enabled?"Desativar aprendizado":"Ativar aprendizado";
+  button.classList.toggle("primary",!MAILDESK_TRAINING.enabled);
+  status.textContent=(MAILDESK_TRAINING.enabled?"Ativo":"Desativado")+" · "+MAILDESK_TRAINING.count+" pares revisados na base · somente respostas confirmadas enviadas";
+ }catch(e){
+  button.disabled=true;status.textContent="Configuração indisponível: "+e.message;
+ }
+}
+async function mailDeskTrainingToggle(){
+ if(!MAILDESK_TRAINING.loaded)return;
+ const next=!MAILDESK_TRAINING.enabled;
+ if(!confirm(next?
+  "Ativar aprendizado com os seus e-mails recebidos e respostas revisadas? Apenas respostas realmente enviadas serão adicionadas. Dados permanecerão no Supabase privado da UJN.":
+  "Desativar a captura de novos exemplos? Os exemplos já salvos continuarão disponíveis até que você os exclua."))return;
+ const button=$("mailDeskTrainingToggle");button.disabled=true;
+ try{
+  await mailDeskCall("training_toggle",{enabled:next});
+  await mailDeskTrainingLoad();mailDeskNotice(next?"Aprendizado supervisionado ativado para suas próximas respostas revisadas e enviadas.":"Aprendizado supervisionado desativado para novas respostas.");
+ }catch(e){mailDeskNotice("Não foi possível atualizar o aprendizado: "+e.message,"error");button.disabled=false}
+}
+async function mailDeskTrainingReview(){
+ const root=$("mailDeskTrainingExamples");MAILDESK_TRAINING.open=!MAILDESK_TRAINING.open;
+ root.classList.toggle("hidden",!MAILDESK_TRAINING.open);
+ $("mailDeskTrainingReview").textContent=MAILDESK_TRAINING.open?"Ocultar exemplos":"Revisar exemplos";
+ if(!MAILDESK_TRAINING.open)return;
+ root.replaceChildren(elem("p","Consultando exemplos aprovados…","hint"));
+ try{
+  const data=await mailDeskCall("training_examples");root.replaceChildren();
+  if(!data.examples.length)root.append(elem("p","Nenhuma resposta editada e enviada foi registrada após a ativação. As próximas serão armazenadas automaticamente.","hint"));
+  for(const x of data.examples){
+   const row=elem("div",undefined,"maildesk-training-example"),detail=elem("div");
+   detail.append(elem("strong",x.subject||"Resposta editorial"),elem("small",(x.journal_code||"Sem revista")+" · "+stamp(x.captured_at)+" · "+(x.was_edited?"Revisada":"Aprovada")+" · "+x.quality_status));
+   row.append(detail);
+   if(x.quality_status!=="EXCLUDED"){
+    const remove=elem("button","Não usar como exemplo","btn small");
+    remove.type="button";
+    remove.onclick=async()=>{
+     if(!confirm("Excluir esta resposta das próximas consultas da IA? O e-mail real permanecerá preservado."))return;
+     remove.disabled=true;
+     try{
+      await mailDeskCall("training_exclude",{example_id:x.id});
+      MAILDESK_TRAINING.open=false;
+      await mailDeskTrainingReview();
+      await mailDeskTrainingLoad();
+     }catch(e){remove.disabled=false;mailDeskNotice("Erro ao excluir exemplo: "+e.message,"error")}
+    };
+    row.append(remove);
+   }
+   root.append(row);
+  }
+ }catch(e){root.replaceChildren(elem("p","Erro ao consultar exemplos: "+e.message,"hint"))}
+}
+
 function mailDeskVisibleThreads(){return MAILDESK.threads.filter(t=>(!MAILDESK.unreadOnly||t.unread)&&(!MAILDESK.search||[t.correspondent,t.subject,...(t.article_links||[]).map(x=>x.journal_code+" "+x.submission_id)].join(" ").toLowerCase().includes(MAILDESK.search)))}
 function mailDeskSelectedRefresh(){
  const ids=[...MAILDESK.selectedIds], all=mailDeskVisibleThreads().map(t=>t.id);
@@ -2429,6 +2509,7 @@ function mailDeskListRender(){
  mailDeskSelectedRefresh();
 }
 async function mailDeskLoad(){
+ if(!MAILDESK_TRAINING.loaded)mailDeskTrainingLoad();
  if(MAILDESK.loading)return;MAILDESK.loading=true;
  $("mailDeskStatus").textContent="Consultando mensagens institucionais…";
  try{
@@ -2992,6 +3073,8 @@ async function mailDeskLightRefresh(){
 setInterval(mailDeskLightRefresh,15000);
 
 $("mailDeskReload").onclick=mailDeskLoad;$("mailDeskToggleRead").onclick=()=>mailDeskSetRead($("mailDeskReadBadge").classList.contains("unread"));$("mailDeskReanalyze").onclick=()=>mailDeskAnalyze(MAILDESK.selected);$("mailDeskEscalate").onclick=()=>mailDeskWorkflow("MANUAL_REVIEW");$("mailDeskResolve").onclick=()=>mailDeskWorkflow("ARCHIVED");$("mailDeskLink").onclick=()=>mailDeskWorkflow("LINK");
+$("mailDeskTrainingToggle").onclick=mailDeskTrainingToggle;
+$("mailDeskTrainingReview").onclick=mailDeskTrainingReview;
 $("mailDeskTabMailbox").onclick=()=>mailDeskSetTab("mailbox");
 $("mailDeskTabDashboard").onclick=()=>mailDeskSetTab("dashboard");
 $("mailDeskDashboardReload").onclick=mailDeskDashboardLoad;
