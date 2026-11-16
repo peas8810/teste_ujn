@@ -2019,7 +2019,7 @@ setInterval(()=>{if(token&&!document.hidden&&(role?.superuser||(role?.allowed||[
 /* Central de E-mails — usa a sessão Academy já autenticada; API verifica
    SUPERADMIN do Academy e o operador UJN correspondente no servidor. */
 const MAILDESK_API="https://leytqsyfrmzhectatcqm.supabase.co/functions/v1/ujn-email-desk-v1";
-const MAILDESK={threads:[],selected:null,activeDraft:null,mailbox:null,request:null,loading:false,search:"",unreadOnly:false,draftDirty:false,lastDraft:null,replyTarget:null};
+const MAILDESK={threads:[],selected:null,activeDraft:null,mailbox:null,request:null,loading:false,search:"",unreadOnly:false,draftDirty:false,lastDraft:null,replyTarget:null,selectedIds:new Set(),contacts:[],currentThreadData:null,activeTab:"mailbox"};
 async function mailDeskCall(action,data={}){
  if(!token)throw Error("Faça login novamente.");
  const r=await fetch(MAILDESK_API,{method:"POST",cache:"no-store",
@@ -2034,11 +2034,135 @@ function mailDeskNotice(message,kind="info"){
  const node=$("mailDeskSendStatus");node.textContent=message;
  node.className="notice"+(kind==="error"?" error":kind==="warn"?" warn":"");
 }
+
+function mailDeskSelectedRefresh(){
+ const ids=[...MAILDESK.selectedIds], all=MAILDESK.threads.map(t=>t.id);
+ $("mailDeskSelectedCount").textContent=ids.length+" selecionadas";
+ $("mailDeskSelectAll").checked=all.length>0&&all.every(id=>MAILDESK.selectedIds.has(id));
+ $("mailDeskSelectAll").indeterminate=ids.length>0&&!$("mailDeskSelectAll").checked;
+ for(const id of ["mailDeskBulkRead","mailDeskBulkUnread","mailDeskBulkArchive","mailDeskBulkTrash","mailDeskBulkRestore"])$(id).disabled=!ids.length;
+ $("mailDeskBulkRestore").style.display=$("mailDeskFilter").value==="trash"?"":"none";
+}
+async function mailDeskBulkRead(read){
+ const ids=[...MAILDESK.selectedIds];if(!ids.length)return;
+ try{
+  const out=await mailDeskCall("bulk_read",{thread_ids:ids,read});
+  for(const t of MAILDESK.threads)if(ids.includes(t.id))t.unread=!read;
+  mailDeskSelectedRefresh();mailDeskListRender();
+  mailDeskNotice(out.updated+" conversas marcadas como "+(read?"lidas":"não lidas")+" no Brain. O Webmail não é alterado.");
+ }catch(e){mailDeskNotice("Falha ao marcar leitura: "+e.message,"error")}
+}
+async function mailDeskMove(destination,one=null){
+ const ids=one?[one]:[...MAILDESK.selectedIds];
+ if(!ids.length)return;
+ const msg=destination==="trash"?"Enviar "+ids.length+" conversa(s) para a lixeira do Brain (reversível, sem apagar no Webmail)?":
+   destination==="restore"?"Restaurar "+ids.length+" conversa(s)?":"Arquivar "+ids.length+" conversa(s) no Brain?";
+ if(!confirm(msg))return;
+ try{
+  const out=await mailDeskCall("folder_move",{thread_ids:ids,destination});
+  MAILDESK.selectedIds.clear();MAILDESK.selected=null;MAILDESK.currentThreadData=null;
+  await mailDeskLoad();
+  mailDeskNotice(out.updated+" conversa(s) atualizadas. Nenhum e-mail foi excluído do IMAP.");
+ }catch(e){mailDeskNotice("Falha ao mover: "+e.message,"error")}
+}
+async function mailDeskContactsLoad(){
+ try{
+  const data=await mailDeskCall("contacts_list");MAILDESK.contacts=data.contacts||[];
+  const root=$("mailDeskContactList");root.replaceChildren();
+  if(!MAILDESK.contacts.length)root.append(elem("p","Agenda vazia. Cadastre contatos para facilitar os encaminhamentos.","hint"));
+  for(const c of MAILDESK.contacts.slice(0,100)){
+   const line=elem("p");line.append(elem("strong",(c.display_name||"Contato")+" — "),elem("span",c.email),elem("small",c.journal_code?" · "+c.journal_code:""));
+   root.append(line);
+  }
+  const select=$("mailDeskForwardRecipient"),prev=select.value;select.replaceChildren();
+  const empty=document.createElement("option");empty.value="";empty.textContent="Selecione um contato salvo";select.append(empty);
+  for(const c of MAILDESK.contacts){const option=document.createElement("option");option.value=c.email;option.textContent=(c.display_name?c.display_name+" — ":"")+c.email;select.append(option)}
+  if(MAILDESK.contacts.some(c=>c.email===prev))select.value=prev;
+ }catch(e){mailDeskNotice("Agenda indisponível: "+e.message,"error")}
+}
+async function mailDeskSaveContact(){
+ const email=$("mailDeskContactEmail").value.trim().toLowerCase();
+ if(!email)return mailDeskNotice("Informe o e-mail do contato.","error");
+ try{
+  await mailDeskCall("contact_save",{email,name:$("mailDeskContactName").value,notes:$("mailDeskContactNotes").value,journal_code:$("mailDeskContactJournal").value});
+  $("mailDeskContactEmail").value="";$("mailDeskContactName").value="";$("mailDeskContactNotes").value="";
+  await mailDeskContactsLoad();mailDeskNotice("Contato registrado na agenda interna da Central.");
+ }catch(e){mailDeskNotice("Não foi possível salvar o contato: "+e.message,"error")}
+}
+async function mailDeskStartForward(){
+ if(!MAILDESK.selected)return;
+ const d=MAILDESK.currentThreadData;
+ if(!d)return mailDeskNotice("Abra a conversa primeiro.","warn");
+ await mailDeskContactsLoad();
+ const last=[...(d.messages||[])].reverse().find(x=>x.direction==="INBOUND")||d.messages?.[d.messages.length-1];
+ const original=(last?.body_text||"").slice(0,3500);
+ $("mailDeskForwardSubject").value=/^fwd?:/i.test(d.thread?.subject||"")?d.thread.subject:"Enc: "+(d.thread?.subject||"Mensagem editorial");
+ $("mailDeskForwardBody").value="Encaminho para conhecimento e providências.\n\n--- Mensagem original (trecho) ---\n"+
+  "Remetente: "+(last?.sender||"Não identificado")+"\nAssunto: "+(last?.subject||d.thread?.subject||"")+"\n\n"+original;
+ $("mailDeskForwardPanel").classList.remove("hidden");
+ $("mailDeskForwardPanel").scrollIntoView({behavior:"smooth",block:"center"});
+}
+async function mailDeskSendForward(){
+ const recipient=$("mailDeskForwardRecipient").value,subject=$("mailDeskForwardSubject").value.trim(),body=$("mailDeskForwardBody").value.trim();
+ if(!MAILDESK.contacts.some(c=>c.email===recipient)||!recipient||body.length<10||!subject)return mailDeskNotice("Selecione um contato salvo e revise assunto e texto.","error");
+ if(!confirm("AUTORIZAR encaminhamento REAL para "+recipient+"?\nO conteúdo do texto será compartilhado. Nenhum anexo será encaminhado."))return;
+ $("mailDeskForwardApprove").disabled=true;
+ try{
+  const out=await mailDeskCall("approve_forward",{thread_id:MAILDESK.selected,recipient,subject,body_text:body});
+  MAILDESK.request=out.request_id;$("mailDeskForwardPanel").classList.add("hidden");
+  mailDeskNotice("Encaminhamento aprovado ("+out.status+"). Verificando o envio SMTP; anexos não incluídos.");
+  if(out.status==="QUEUED")mailDeskPollStatus();
+ }catch(e){mailDeskNotice("Encaminhamento não autorizado: "+e.message,"error")}
+ finally{$("mailDeskForwardApprove").disabled=false}
+}
+function mailDeskBarPanel(title,items,key="name"){
+ const panel=elem("div",undefined,"panel");panel.append(elem("h3",title));
+ const rows=items||[],maximum=Math.max(1,...rows.map(x=>Number(x.count)||0));
+ if(!rows.length){panel.append(elem("p","Sem dados no período sincronizado.","hint"));return panel}
+ for(const item of rows){
+  const row=elem("div",undefined,"barrow"),label=elem("span",String(item[key]||"Outros")),bar=elem("div",undefined,"bartrack"),fill=elem("div",undefined,"barfill"),n=elem("strong",String(item.count));
+  label.title=String(item[key]||"");fill.style.width=Math.max(1,Math.round(100*(Number(item.count)||0)/maximum))+"%";
+  bar.append(fill);row.append(label,bar,n);panel.append(row);
+ }
+ return panel;
+}
+async function mailDeskDashboardLoad(){
+ const root=$("mailDeskDashboardContent");root.replaceChildren(elem("p","Calculando indicadores de todo o histórico importado…","hint"));
+ try{
+  const {report}=await mailDeskCall("dashboard");if(!report?.totals)throw Error("Sem indicadores");
+  root.replaceChildren();
+  const t=report.totals,cardRoot=elem("div",undefined,"cards");
+  for(const [name,value] of [["Mensagens",t.all_messages],["Recebidas",t.inbound],["Enviadas",t.outbound],["Conversas",t.threads_total],["Pendências",t.waiting],["Arquivadas",t.archived],["Rascunhos",t.drafts],["Lixeira",t.trash]]){
+   const metric=elem("div",undefined,"metric");metric.append(elem("small",name),elem("strong",String(value??0)));cardRoot.append(metric)
+  }
+  root.append(cardRoot);
+  const panels=elem("div",undefined,"panels");
+  panels.append(mailDeskBarPanel("Assuntos mais recorrentes",report.themes,"label"),mailDeskBarPanel("Remetentes mais frequentes",report.frequent_senders,"address"),
+   mailDeskBarPanel("Palavras nos assuntos dos e-mails",report.subject_terms,"term"),mailDeskBarPanel("Assuntos individuais mais frequentes",report.subjects,"subject"));
+  root.append(panels);
+  const monthly=elem("div",undefined,"panel");monthly.append(elem("h3","Volume por mês — recebidas e enviadas"));
+  for(const m of report.timeline||[])monthly.append(elem("p",m.month+" · "+m.inbound+" recebidas · "+m.outbound+" enviadas"));
+  root.append(monthly,elem("p","Classificação temática por regras e frequência de termos; resultados exploratórios, não inferem a área científica do artigo sem consultar títulos/metadados OJS. Cobertura: todas as mensagens já importadas para o Supabase.","hint"));
+ }catch(e){root.replaceChildren(elem("p","Dashboard indisponível: "+e.message,"hint"))}
+}
+function mailDeskSetTab(which){
+ MAILDESK.activeTab=which;
+ $("mailDeskMailboxPanel").classList.toggle("hidden",which!=="mailbox");
+ $("mailDeskDashboardPanel").classList.toggle("hidden",which!=="dashboard");
+ $("mailDeskTabMailbox").classList.toggle("primary",which==="mailbox");
+ $("mailDeskTabDashboard").classList.toggle("primary",which==="dashboard");
+ if(which==="dashboard")mailDeskDashboardLoad();
+}
+
 function mailDeskListRender(){
  const box=$("mailDeskList");box.replaceChildren();
  const items=MAILDESK.threads.filter(t=>(!MAILDESK.unreadOnly||t.unread)&&(!MAILDESK.search||[t.correspondent,t.subject,...(t.article_links||[]).map(x=>x.journal_code+" "+x.submission_id)].join(" ").toLowerCase().includes(MAILDESK.search)));
  if(!items.length){box.append(elem("p","Nenhum e-mail neste filtro.","hint"));return;}
  for(const t of items){
+  const wrapper=elem("div",undefined,"maildesk-list-entry");
+  const cb=document.createElement("input");cb.type="checkbox";cb.checked=MAILDESK.selectedIds.has(t.id);cb.setAttribute("aria-label","Selecionar conversa de "+(t.correspondent||"contato"));
+  cb.onchange=()=>{if(cb.checked)MAILDESK.selectedIds.add(t.id);else MAILDESK.selectedIds.delete(t.id);mailDeskSelectedRefresh()};
+  wrapper.append(cb);
   const b=elem("button",undefined,"maildesk-item"+(MAILDESK.selected===t.id?" active":"")+(t.unread?" unread":""));
   b.type="button";
   b.append(elem("b",t.correspondent||"Contato desconhecido"),
@@ -2047,8 +2171,9 @@ function mailDeskListRender(){
    elem("small",(t.unread?"● NÃO LIDA":"✓ Lida")+" · "+(t.state==="AWAITING_REPLY"?"Aguardando equipe":"Histórico")));
   b.title="Clique para ler a mensagem";
   b.onclick=()=>mailDeskOpen(t.id);
-  box.append(b);
+  wrapper.append(b);box.append(wrapper);
  }
+ mailDeskSelectedRefresh();
 }
 async function mailDeskLoad(){
  if(MAILDESK.loading)return;MAILDESK.loading=true;
@@ -2057,6 +2182,8 @@ async function mailDeskLoad(){
   const data=await mailDeskCall("list",{view:$("mailDeskFilter").value});
   MAILDESK.threads=data.threads||[];
   MAILDESK.mailbox=data.mailbox||null;
+  const visible=new Set(MAILDESK.threads.map(t=>t.id));for(const id of MAILDESK.selectedIds)if(!visible.has(id))MAILDESK.selectedIds.delete(id);
+  for(const el of document.querySelectorAll("[data-mailfolder]"))el.classList.toggle("active",el.dataset.mailfolder===$("mailDeskFilter").value);
   $("mailDeskTotal").textContent=MAILDESK.threads.length;
   $("mailDeskWaiting").textContent=$("mailDeskFilter").value==="queue"?MAILDESK.threads.filter(t=>t.state==="AWAITING_REPLY").length:"—";
   $("mailDeskAnswered").textContent=$("mailDeskFilter").value==="answered"?MAILDESK.threads.filter(t=>t.state==="ANSWERED").length:"—";
@@ -2362,8 +2489,10 @@ async function mailDeskOpen(id,options={}){
   if(id!==MAILDESK.selected)return;
   const t=data.thread;const r=MAILDESK.threads.find(x=>x.id===id);
   MAILDESK.replyTarget=data.reply_target||null;
+  MAILDESK.currentThreadData=data;
   MAILDESK.lastDraft=(data.drafts||[]).find(x=>x.state==="DRAFT")||null;
   $("mailDeskOpenSavedDraft").disabled=!MAILDESK.lastDraft;
+  $("mailDeskForward").disabled=false;$("mailDeskArchiveOne").disabled=false;$("mailDeskTrashOne").disabled=false;
   $("mailDeskReply").disabled=false;
   $("mailDeskMessageCount").textContent="· "+(data.messages?.length||0)+" mensagens";
   $("mailDeskTitle").textContent=t.subject||"Conversa";
