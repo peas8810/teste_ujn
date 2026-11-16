@@ -730,7 +730,7 @@ const journals={REMUNOM:"https://remunom.ojsbr.com/multidisciplinar",JIRRS:"http
 const say=(s,error=false)=>{const n=$("notice");n.textContent=s;n.className=error?"notice error":"notice";if(!s)n.classList.add("hidden")};
 const elem=(tag,content,cls)=>{const x=document.createElement(tag);if(content!==undefined)x.textContent=String(content);if(cls)x.className=cls;return x};
 const stamp=v=>v?new Date(v).toLocaleString("pt-BR"):"—";
-async function call(body){if(!token)throw Error("Faça login novamente.");const r=await fetch(API,{method:"POST",cache:"no-store",headers:{"apikey":PUB,"authorization":"Bearer "+token,"content-type":"application/json"},body:JSON.stringify(body)});const d=await r.json().catch(()=>({}));if(!r.ok||d.error)throw Error(d.error||"Erro HTTP "+r.status);return d}
+async function call(body){await brainEnsureAccess();const r=await fetch(API,{method:"POST",cache:"no-store",headers:{"apikey":PUB,"authorization":"Bearer "+token,"content-type":"application/json"},body:JSON.stringify(body)});const d=await r.json().catch(()=>({}));if(!r.ok||d.error)throw Error(d.error||"Erro HTTP "+r.status);return d}
 /* Session recovery (interim until a server-side HttpOnly session backend exists).
  * Only the rotating refresh token is stored in this tab's sessionStorage.
  * Access tokens are kept in memory. Closing the tab ends remembered access.
@@ -766,15 +766,24 @@ async function brainRefreshSession(){
  if(brainRefreshInFlight)return brainRefreshInFlight;
  brainRefreshInFlight=(async()=>{
   const record=brainStoredSession();
-  if(!record||!record.refresh_token)throw Error("Sessão expirada. Faça login novamente.");
-  const response=await fetch(BASE+"/auth/v1/token?grant_type=refresh_token",{
-   method:"POST",cache:"no-store",credentials:"omit",
-   headers:{"apikey":PUB,"content-type":"application/json"},
-   body:JSON.stringify({refresh_token:record.refresh_token})
-  });
+  if(!record||!record.refresh_token)throw Error("SESSION_EXPIRED");
+  let response;
+  try{
+   response=await fetch(BASE+"/auth/v1/token?grant_type=refresh_token",{
+    method:"POST",cache:"no-store",credentials:"omit",
+    headers:{"apikey":PUB,"content-type":"application/json"},
+    body:JSON.stringify({refresh_token:record.refresh_token}),
+    signal:AbortSignal.timeout(12000)
+   });
+  }catch(err){
+   // A temporary network error is not proof that Supabase revoked the session.
+   throw Error("SESSION_NETWORK_UNAVAILABLE");
+  }
   const data=await response.json().catch(()=>({}));
-  if(!response.ok||!data.access_token||!data.refresh_token)
-   throw Error("Sessão expirada. Faça login novamente.");
+  if(!response.ok||!data.access_token||!data.refresh_token){
+   if([400,401,403].includes(response.status))throw Error("SESSION_EXPIRED");
+   throw Error("SESSION_NETWORK_UNAVAILABLE");
+  }
   token=data.access_token;
   editorialUserId=data.user?.id||editorialUserId;
   brainPersistSession(data,record.started_at);
@@ -782,6 +791,18 @@ async function brainRefreshSession(){
  })();
  try{return await brainRefreshInFlight}
  finally{brainRefreshInFlight=null}
+}
+async function brainEnsureAccess(){
+ if(!token)throw Error("Faça login novamente.");
+ if(brainAccessExpiresAt&&Date.now()+60000>=brainAccessExpiresAt){
+  try{await brainRefreshSession()}
+  catch(err){
+   if(err.message==="SESSION_EXPIRED")throw Error("Sessão expirada. Faça login novamente.");
+   // Let the currently valid JWT be used until its actual expiry.
+   if(Date.now()>=brainAccessExpiresAt)throw Error("Conexão instável. Sua sessão foi preservada; tente novamente.");
+  }
+ }
+ return token;
 }
 async function brainEnterWorkspace(){
  const boot=await call({action:"bootstrap"});
@@ -832,9 +853,14 @@ async function brainRestoreSession(){
  try{
   await brainRefreshSession();
   await brainEnterWorkspace();
- }catch{
-  token=null;role=null;brainClearStoredSession();
-  say("Sessão encerrada ou expirada. Faça login novamente.");
+ }catch(err){
+  if(err.message==="SESSION_EXPIRED"){
+   token=null;role=null;brainClearStoredSession();
+   say("Sessão encerrada ou expirada. Faça login novamente.");
+  }else{
+   token=null;role=null;
+   say("Não foi possível confirmar a sessão por instabilidade de conexão. Atualize esta aba quando a internet voltar; a sessão permanece preservada.",true);
+  }
  }
 }
 async function logout(){
@@ -860,7 +886,14 @@ async function brainKeepSessionAlive(){
  }
  if(Date.now()+3*60*1000<brainAccessExpiresAt)return;
  try{await brainRefreshSession()}
- catch{await logout();say("Sua sessão expirou. Faça login novamente.");}
+ catch(err){
+  if(err.message==="SESSION_EXPIRED"){
+   await logout();say("Sua sessão expirou. Faça login novamente.");
+  }else{
+   // Do not discard an authenticated operator's work on network timeouts.
+   say("Conexão temporariamente indisponível. Sua sessão será renovada novamente quando a conexão voltar.",true);
+  }
+ }
 }
 setInterval(brainKeepSessionAlive,60000);
 document.addEventListener("visibilitychange",()=>{if(!document.hidden)brainKeepSessionAlive()});
@@ -2421,7 +2454,7 @@ setInterval(()=>{if(token&&!document.hidden&&(role?.superuser||(role?.allowed||[
 const MAILDESK_API="https://leytqsyfrmzhectatcqm.supabase.co/functions/v1/ujn-email-desk-v1";
 const MAILDESK={threads:[],selected:null,activeDraft:null,mailbox:null,request:null,loading:false,search:"",unreadOnly:false,draftDirty:false,lastDraft:null,replyTarget:null,selectedIds:new Set(),contacts:[],currentThreadData:null,activeTab:"mailbox"};
 async function mailDeskCall(action,data={}){
- if(!token)throw Error("Faça login novamente.");
+ await brainEnsureAccess();
  const r=await fetch(MAILDESK_API,{method:"POST",cache:"no-store",
   headers:{"content-type":"application/json","authorization":"Bearer "+token},
   body:JSON.stringify({action,...data})});
