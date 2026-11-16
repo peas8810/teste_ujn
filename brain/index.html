@@ -2138,11 +2138,16 @@ async function mailDeskDashboardLoad(){
   root.append(cardRoot);
   const panels=elem("div",undefined,"panels");
   panels.append(mailDeskBarPanel("Assuntos mais recorrentes",report.themes,"label"),mailDeskBarPanel("Remetentes mais frequentes",report.frequent_senders,"address"),
-   mailDeskBarPanel("Palavras nos assuntos dos e-mails",report.subject_terms,"term"),mailDeskBarPanel("Assuntos individuais mais frequentes",report.subjects,"subject"));
+   mailDeskBarPanel("Palavras nos assuntos dos e-mails",report.subject_terms,"term"),mailDeskBarPanel("Assuntos individuais mais frequentes",report.subjects,"subject"),
+   mailDeskBarPanel("Palavras nos textos recebidos",report.body_terms,"term"),
+   mailDeskBarPanel("Áreas de pesquisa sugeridas pelos títulos",report.scientific_themes,"label"),
+   mailDeskBarPanel("Títulos científicos mencionados nos assuntos",report.article_title_candidates,"title"));
   root.append(panels);
   const monthly=elem("div",undefined,"panel");monthly.append(elem("h3","Volume por mês — recebidas e enviadas"));
   for(const m of report.timeline||[])monthly.append(elem("p",m.month+" · "+m.inbound+" recebidas · "+m.outbound+" enviadas"));
-  root.append(monthly,elem("p","Classificação temática por regras e frequência de termos; resultados exploratórios, não inferem a área científica do artigo sem consultar títulos/metadados OJS. Cobertura: todas as mensagens já importadas para o Supabase.","hint"));
+  const time=report.response_time||{};
+  if(time.comparable_threads)monthly.append(elem("p","Tempo médio entre última entrada e última saída: "+time.mean_hours+" horas ("+time.comparable_threads+" conversas comparáveis). É uma aproximação, não tempo oficial de atendimento.","hint"));
+  root.append(monthly,elem("p","Os títulos de artigos foram inferidos de assuntos com dois-pontos; palavras podem incluir citações e respostas anteriores. Categorias são heurísticas e não substituem metadados OJS. Cobertura: todas as mensagens já importadas no Supabase.","hint"));
  }catch(e){root.replaceChildren(elem("p","Dashboard indisponível: "+e.message,"hint"))}
 }
 function mailDeskSetTab(which){
