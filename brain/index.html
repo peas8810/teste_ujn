@@ -2950,6 +2950,10 @@ $("mailDeskRichEditor").addEventListener("paste",e=>{
 });
 function mailDeskDrawDraft(d,notes){
  MAILDESK.activeDraft=d;
+ // A newly opened editable draft is never locked by a previous SMTP approval.
+ $("mailDeskRichEditor").setAttribute("contenteditable","true");
+ $("mailDeskSubject").disabled=false;
+ $("mailDeskSaveDraft").disabled=false;
  const t=MAILDESK.threads.find(x=>x.id===MAILDESK.selected);
  const target=MAILDESK.replyTarget;
  $("mailDeskRecipient").value=target?.safe?target.email:"";
@@ -3039,6 +3043,15 @@ async function mailDeskApprove(){
  try{
   const out=await mailDeskCall("approve_send",{draft_id:d.id,recipient,subject,body_text:body,body_html});
   MAILDESK.request=out.request_id;
+  // The exact contents submitted to approve_send are now persisted server-side.
+  // Never warn that they are unsaved after successful authorization.
+  MAILDESK.draftDirty=false;
+  MAILDESK.lastDraft=null;
+  $("mailDeskDraftState").textContent="✓ Resposta aprovada e salva para envio";
+  $("mailDeskRichEditor").setAttribute("contenteditable","false");
+  $("mailDeskSubject").disabled=true;
+  $("mailDeskSaveDraft").disabled=true;
+  $("mailDeskOpenSavedDraft").disabled=true;
   mailDeskNotice("Resposta aprovada e registrada com versão HTML e texto simples. A preservação da formatação no destinatário depende da confirmação do executor SMTP do cPanel.");
   $("mailDeskApprove").textContent="Autorização registrada";
   if(out.status==="QUEUED")mailDeskPollStatus();
@@ -3050,7 +3063,18 @@ async function mailDeskPollStatus(){
   const out=await mailDeskCall("send_status",{request_id:rid});
   if(rid!==MAILDESK.request)return;
   const state=out.request?.status||"UNKNOWN";
-  if(state==="SENT"){mailDeskNotice("E-mail aceito pelo SMTP e registrado no histórico como enviado.");MAILDESK.request=null;await mailDeskLoad();}
+  if(state==="SENT"){
+   // Final success means the composer is no longer an unsaved, editable draft.
+   MAILDESK.draftDirty=false;
+   MAILDESK.activeDraft=null;
+   MAILDESK.lastDraft=null;
+   $("mailDeskDraftState").textContent="✓ E-mail enviado e salvo no histórico";
+   $("mailDeskDraftPanel").classList.add("hidden");
+   $("mailDeskOpenSavedDraft").disabled=true;
+   MAILDESK.request=null;
+   mailDeskNotice("E-mail aceito pelo SMTP e registrado no histórico como enviado.");
+   await mailDeskLoad();
+  }
   else if(["FAILED","UNKNOWN","CANCELLED"].includes(state)){mailDeskNotice("Envio com status "+state+". Verifique o log e não repita antes de conciliar.","error");MAILDESK.request=null;}
   else mailDeskNotice(state==="QUEUED"?"Resposta aprovada. Aguardando a próxima verificação SMTP (aproximadamente 10 segundos).":state==="CLAIMED"?"Enviando pelo servidor institucional…":"Solicitação "+state+". Aguardando execução supervisionada do SMTP.");
  }catch(err){mailDeskNotice("Não foi possível consultar o envio: "+err.message,"error")}
