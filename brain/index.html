@@ -366,6 +366,33 @@
 .maildesk-dashboard .barrow{display:grid;grid-template-columns:minmax(110px,1fr) 2fr auto;align-items:center;gap:10px;font-size:12px;margin:9px 0}
 .maildesk-dashboard .bartrack{height:9px;border-radius:8px;background:#e1ebef;overflow:hidden}
 .maildesk-dashboard .barfill{height:100%;background:#147c80;border-radius:8px}
+</style><style id="mkt-journey-builder-style">
+.mkt-journey-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:14px}
+.mkt-journey-stat{border:1px solid #dde9e9;background:#f8fbfb;padding:12px;border-radius:10px}
+.mkt-journey-stat small{display:block;color:#6a8290}
+.mkt-journey-stat strong{display:block;color:#173b4a;font-size:21px}
+.mkt-journey-list{display:grid;gap:8px;margin-top:12px}
+.mkt-journey-item{border:1px solid #dbe6e8;border-left:4px solid #cbd9df;background:#fff;text-align:left;padding:11px 13px;border-radius:9px;display:flex;flex-direction:column;gap:3px;cursor:pointer;width:100%}
+.mkt-journey-item.selected{border-left-color:#078c80;background:#eaf7f4}
+.mkt-journey-item strong{color:#153b4e}
+.mkt-journey-status{display:flex;gap:10px;align-items:center;margin:12px 0}
+.mkt-flow{display:grid;gap:17px;margin:15px 0}
+.mkt-flow-step{display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:11px;align-items:center;padding:14px;background:white;border:1px solid #d8e7e7;border-radius:10px;position:relative}
+.mkt-flow-step:not(:last-child):after{content:"↓";position:absolute;top:100%;left:20px;color:#078c80;font-weight:800}
+.mkt-flow-index{background:#e7f3f0;color:#11736b;padding:7px 2px;text-align:center;border-radius:8px;font-weight:750}
+.mkt-flow-step-body{display:flex;gap:5px;flex-wrap:wrap;align-items:center}
+.mkt-flow-step-body strong{width:100%;color:#173b4b}
+.mkt-flow-step-body small{width:100%;color:#64808a}
+.mkt-flow-step-body input{width:75px;padding:6px;border:1px solid #cbdada;border-radius:6px}
+.mkt-flow-step-body select{max-width:100%;padding:6px;border:1px solid #cbdada;border-radius:6px}
+.mkt-flow-step-actions{display:flex;gap:4px}
+.mkt-flow-mini{border:1px solid #d6e5e7;border-radius:6px;background:white;color:#335463;padding:5px 9px}
+.mkt-flow-mini.danger{color:#b34052}
+.mkt-flow-controls{display:flex;flex-wrap:wrap;gap:9px;margin:14px 0}
+.mkt-flow-controls select{max-width:230px;padding:8px;border:1px solid #cbdde1;border-radius:8px}
+.mkt-gate-report{border:1px solid #dbe6e8;border-radius:9px;padding:13px;margin-top:10px;background:#f8fbfb}
+.mkt-gate-issue{padding:6px 0;color:#94601d;font-size:12px}
+@media(max-width:850px){.mkt-journey-stats{grid-template-columns:repeat(2,1fr)}.mkt-flow-step{grid-template-columns:30px minmax(0,1fr)}.mkt-flow-step-actions{grid-column:2}}
 </style></head><body><a class="skip" href="#maincontent">Pular para conteúdo</a><div id="overlay"></div><div class="shell">
 <aside class="sidebar" id="sidebar"><div class="brand"><svg width="38" height="38" viewBox="0 0 40 40" fill="none" aria-hidden="true"><path d="M10 30L20 10L32 28L10 30" stroke="#53bbbc" stroke-width="2.5"/><circle cx="10" cy="30" r="4" fill="#fff"/><circle cx="20" cy="10" r="4" fill="#fff"/><circle cx="32" cy="28" r="4" fill="#fff"/></svg>brain <small>UJN</small></div><div class="tagline">RELACIONAMENTO QUE CONECTA</div>
 <div class="navtitle">OPERAÇÃO</div><nav class="nav"><button data-screen="overview">▦　Visão geral</button><button data-screen="inbox">▤　Caixa de entrada</button><button data-screen="emails">✉　E-mails · IA e envios</button><button data-screen="contacts">♙　Contatos e vínculos</button></nav>
@@ -1661,16 +1688,165 @@ function mktSegments(root,d){
  const sim=mktPanel("Prévia do público","O alcance é contado sem revelar destinatários fora da base autorizada.");sim.id="mktAudiencePreview";sim.append(mktEl("div","Selecione Simular alcance.","mkt-empty"));right.append(sim);
  layout.append(left,right);root.append(layout);
 }
+
+let mktSelectedJourney=null,mktWorkflowDraft=null,mktJourneyCampaign=null,mktJourneyBusy=false;
+const MKT_STEP_OPTIONS=[
+ ["verify_consent","Validar consentimento","Só prossegue com opt-in comercial específico"],
+ ["wait","Aguardar período","Intervalo de 1 a 720 horas"],
+ ["check_reply","Avaliar resposta","Solicita confirmação humana do comportamento do contato"],
+ ["human_review","Revisão humana","Operador precisa aprovar a próxima etapa"],
+ ["campaign_dispatch","Campanha Marketing","Usa a campanha aprovada pela Meta e a fila existente"],
+ ["end","Encerrar jornada","Finalização auditável"]
+];
+function mktJourneyWorkflowValid(steps){
+ return Array.isArray(steps)&&steps.length>=2&&steps[0]?.type==="verify_consent"&&steps[steps.length-1]?.type==="end"&&steps.filter(x=>x.type==="campaign_dispatch").length<=1;
+}
+function mktJourneySetSelected(id){
+ const d=marketingData;
+ const journey=d?.journeys?.find(x=>x.id===id);
+ if(!journey)return;
+ mktSelectedJourney=id;
+ mktWorkflowDraft=(journey.workflow||[]).map(x=>({...x}));
+ mktJourneyCampaign=journey.campaign_id||"";
+ mktRender();
+}
+function mktJourneyStepRow(step,i,editable,rerender){
+ const wrapper=mktEl("div",undefined,"mkt-flow-step");
+ const left=mktEl("span",String(i+1).padStart(2,"0"),"mkt-flow-index");
+ const body=mktEl("div",undefined,"mkt-flow-step-body"),tools=mktEl("div",undefined,"mkt-flow-step-actions");
+ const def=MKT_STEP_OPTIONS.find(x=>x[0]===step.type);
+ body.append(mktEl("strong",def?.[1]||step.type),mktEl("small",def?.[2]||""));
+ if(editable&&step.type==="wait"){
+  const input=document.createElement("input");input.type="number";input.min="1";input.max="720";input.step="1";input.value=String(step.hours||24);input.title="Horas de espera";input.setAttribute("aria-label","Horas de espera");input.onchange=()=>{step.hours=Math.round(Number(input.value)||24)};body.append(input,mktEl("span"," horas","hint"));
+ }
+ if(editable&&step.type==="check_reply"){
+  const sel=mktEl("select");
+  for(const [value,label] of [["HUMAN_REVIEW","Encaminhar resposta ao operador"],["STOP","Encerrar após resposta"]]){
+   const opt=mktEl("option",label);opt.value=value;sel.append(opt)
+  }
+  sel.value=step.on_reply||"HUMAN_REVIEW";sel.onchange=()=>step.on_reply=sel.value;body.append(sel);
+ }
+ if(editable&&i!==0&&i!==mktWorkflowDraft.length-1){
+  for(const [label,offset] of [["↑",-1],["↓",1]]){
+   const btn=mktEl("button",label,"mkt-flow-mini");btn.type="button";btn.title=offset<0?"Mover acima":"Mover abaixo";
+   btn.disabled=i+offset<=0||i+offset>=mktWorkflowDraft.length-1;
+   btn.onclick=()=>{const [x]=mktWorkflowDraft.splice(i,1);mktWorkflowDraft.splice(i+offset,0,x);rerender()};tools.append(btn);
+  }
+  const remove=mktEl("button","×","mkt-flow-mini danger");remove.type="button";remove.title="Remover etapa";
+  remove.onclick=()=>{mktWorkflowDraft.splice(i,1);rerender()};tools.append(remove);
+ }
+ wrapper.append(left,body,tools);
+ return wrapper;
+}
+async function mktJourneyRequest(action,payload,ok){
+ if(mktJourneyBusy)return;
+ mktJourneyBusy=true;
+ try{const out=await mktCall(action,payload);say(ok||"Operação concluída.");await marketing();return out}
+ catch(e){say("Jornada: "+e.message,true);return null}
+ finally{mktJourneyBusy=false}
+}
 function mktJourneys(root,d){
+ const top=mktPanel("Construtor de jornadas","Crie o fluxo visual, simule o alcance, revise e habilite somente após consentimento, modelo Meta e aprovação.");
+ const stats=mktEl("div",undefined,"mkt-journey-stats");
+ for(const [label,num] of [["Jornadas",d.journeys.length],["Em andamento",d.counts.journey_running||0],["Em revisão",d.counts.journey_review||0],["Concluídas",d.counts.journey_completed||0]]){
+  const k=mktEl("div",undefined,"mkt-journey-stat");k.append(mktEl("small",label),mktEl("strong",num));stats.append(k)
+ }
+ top.append(stats);root.append(top);
  const layout=mktEl("div",undefined,"mkt-layout"),left=mktEl("div"),right=mktEl("div");
- const panel=mktPanel("Jornadas de relacionamento","Fluxos criados como rascunho, sem execução em segundo plano.");
- panel.append(mktTable(["Jornada","Gatilho","Etapa"],d.journeys.map(x=>[x.name,x.entry_trigger,mktBadge(x.status,"warn")])));
- left.append(panel);
- right.append(mktCreateForm("Criar jornada","Gatilho → consentimento → revisão humana → rascunho de modelo.",[
+ const panel=mktPanel("Jornadas de relacionamento","Clique em uma jornada para desenhar as etapas e avaliar sua ativação.");
+ const items=mktEl("div",undefined,"mkt-journey-list");
+ for(const journey of d.journeys){
+  const n=mktEl("button",undefined,"mkt-journey-item"+(mktSelectedJourney===journey.id?" selected":""));n.type="button";
+  n.append(mktEl("strong",journey.name));
+  n.append(mktEl("span",journey.entry_trigger+" · "+journey.status,"hint"));
+  n.append(mktEl("small",(journey.workflow||[]).length+" etapas configuradas"));
+  n.onclick=()=>mktJourneySetSelected(journey.id);items.append(n);
+ }
+ if(!d.journeys.length)items.append(mktEl("p","Crie uma jornada para começar.","mkt-empty"));
+ panel.append(items);left.append(panel);
+ left.append(mktCreateForm("Criar jornada","O fluxo começa em rascunho, sem nenhum envio.",[
  {name:"name",label:"Nome da jornada",required:true},
  {name:"entry_trigger",label:"Gatilho",type:"select",options:[["MANUAL","Manual"],["CONTACT_OPT_IN","Nova autorização"],["INBOUND_INTEREST","Interesse recebido"]]},
  {name:"segment_id",label:"Público",type:"select",options:[["","Todos os autorizados"],...d.segments.map(x=>[x.id,x.name])]}
  ],"create_journey","Criar jornada"));
+ const j=d.journeys.find(x=>x.id===mktSelectedJourney);
+ if(j){
+  if(!mktWorkflowDraft)mktWorkflowDraft=(j.workflow||[]).map(x=>({...x}));
+  const editor=mktPanel("Editor visual · "+j.name,"Configure a sequência abaixo. Salvar não ativa a jornada.");
+  const status=mktEl("div",undefined,"mkt-journey-status");
+  status.append(mktBadge(j.status,j.status==="ACTIVE"?"good":j.status==="PAUSED"?"warn":""));
+  status.append(mktEl("span","Gatilho: "+j.entry_trigger+" · Versão "+(j.version||1),"hint"));editor.append(status);
+  const flow=mktEl("div",undefined,"mkt-flow");
+  const redraw=()=>mktRender();
+  mktWorkflowDraft.forEach((step,i)=>flow.append(mktJourneyStepRow(step,i,j.status!=="ACTIVE"&&j.status!=="ARCHIVED",redraw)));
+  editor.append(flow);
+  if(j.status!=="ACTIVE"&&j.status!=="ARCHIVED"){
+   const add=mktEl("div",undefined,"mkt-flow-controls"),type=mktEl("select");
+   for(const [value,label] of MKT_STEP_OPTIONS.filter(x=>!["verify_consent","end"].includes(x[0]))){
+    const option=mktEl("option",label);option.value=value;type.append(option)
+   }
+   const btn=mktEl("button","+ Adicionar etapa","btn");btn.type="button";
+   btn.onclick=()=>{
+    const step={type:type.value};
+    if(step.type==="wait")step.hours=24;
+    if(step.type==="check_reply")step.on_reply="HUMAN_REVIEW";
+    mktWorkflowDraft.splice(mktWorkflowDraft.length-1,0,step);
+    mktRender();
+   };
+   add.append(type,btn);editor.append(add);
+  }
+  const campaignLabel=mktEl("label","Campanha vinculada (obrigatória para ativação)");
+  const campaign=mktEl("select");
+  for(const [id,name] of [["","Selecione uma campanha aprovada"],...d.campaigns.map(x=>[x.id,x.name+" · "+x.status])]){
+    const opt=mktEl("option",name);opt.value=id;campaign.append(opt);
+  }
+  campaign.value=mktJourneyCampaign||"";campaign.disabled=j.status==="ACTIVE"||j.status==="ARCHIVED";
+  campaign.onchange=()=>mktJourneyCampaign=campaign.value;campaignLabel.append(campaign);editor.append(campaignLabel);
+  const actions=mktEl("div",undefined,"mkt-flow-controls");
+  const save=mktEl("button","Salvar fluxo","btn primary");save.type="button";save.disabled=j.status==="ACTIVE"||j.status==="ARCHIVED";
+  save.onclick=()=>{
+   if(!mktJourneyWorkflowValid(mktWorkflowDraft))return say("O fluxo precisa iniciar com consentimento, encerrar com fim e ter apenas uma etapa de campanha.",true);
+   mktJourneyRequest("journey_save",{id:j.id,workflow:mktWorkflowDraft,campaign_id:mktJourneyCampaign},"Etapas salvas em rascunho.");
+  };
+  const simulate=mktEl("button","Simular e verificar requisitos","btn");simulate.type="button";
+  simulate.onclick=async()=>{
+   try{
+    const response=await mktCall("journey_preview",{id:j.id});
+    const target=$("mktJourneyGate");target?.replaceChildren();
+    if(target){
+     target.append(mktEl("strong",response.gate.ready?"Pronta para revisão e ativação":"Ativação ainda bloqueada"));
+     target.append(mktEl("p",response.gate.eligible_count+" contatos elegíveis · Nenhuma mensagem enviada."));
+     for(const issue of response.gate.blockers)target.append(mktEl("div","• "+issue,"mkt-gate-issue"));
+     if(response.gate.ready)target.append(mktEl("p","Campanha: "+response.gate.campaign_name+" · Modelo: "+response.gate.template_name));
+    }
+   }catch(e){say(e.message,true)}
+  };
+  actions.append(save,simulate);
+  const review=mktEl("button","Enviar para revisão","btn");review.type="button";review.disabled=j.status==="ACTIVE"||j.status==="ARCHIVED";
+  review.onclick=()=>{if(confirm("Registrar jornada para revisão?"))mktJourneyRequest("journey_status",{id:j.id,status:"REVIEW",confirmed:true})};
+  actions.append(review);
+  const active=mktEl("button","Ativar jornada","btn primary");active.type="button";active.disabled=j.status==="ACTIVE"||j.status==="ARCHIVED";
+  active.onclick=()=>{if(confirm("Ativar após verificar consentimentos, campanha e orçamento? A execução passa por revisão humana."))mktJourneyRequest("journey_status",{id:j.id,status:"ACTIVE",confirmed:true})};
+  actions.append(active);
+  if(j.status==="ACTIVE"){
+   const pause=mktEl("button","Pausar jornada","btn");pause.type="button";
+   pause.onclick=()=>{if(confirm("Pausar esta jornada?"))mktJourneyRequest("journey_status",{id:j.id,status:"PAUSED",confirmed:true})};actions.append(pause);
+  }
+  editor.append(actions);
+  const gate=mktEl("div","Use Simular e verificar requisitos para conferir a liberação.","mkt-gate-report");gate.id="mktJourneyGate";editor.append(gate);
+  right.append(editor);
+  const runs=(d.journey_runs||[]).filter(x=>x.journey_id===j.id);
+  const history=mktPanel("Execução e histórico","Cada contato permanece rastreável; a fila de mensagens usa a campanha Marketing separada.");
+  const rows=runs.slice(0,30).map(x=>[
+   (d.contacts.find(c=>c.id===x.contact_id)?.display_name||d.contacts.find(c=>c.id===x.contact_id)?.phone||"Contato"),
+   String(x.step_index)+" / "+(j.workflow||[]).length,x.status,x.next_at?mktDate(x.next_at):"—"
+  ]);
+  history.append(mktTable(["Contato","Etapa","Situação","Próxima ação"],rows));
+  if(runs.some(x=>x.status==="WAITING_REVIEW"))history.append(mktEl("p","Existem etapas aguardando autorização humana. Acompanhe as confirmações da campanha antes de avançar.","mkt-notice warn"));
+  right.append(history);
+ }else{
+  right.append(mktPanel("Selecione uma jornada","Abra uma jornada da lista para editar, simular, revisar ou acompanhar sua execução."));
+ }
  layout.append(left,right);root.append(layout);
 }
 let mktCalendarOffset=0;
