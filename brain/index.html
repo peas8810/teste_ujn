@@ -2211,8 +2211,9 @@ function mailDeskNotice(message,kind="info"){
  node.className="notice"+(kind==="error"?" error":kind==="warn"?" warn":"");
 }
 
+function mailDeskVisibleThreads(){return MAILDESK.threads.filter(t=>(!MAILDESK.unreadOnly||t.unread)&&(!MAILDESK.search||[t.correspondent,t.subject,...(t.article_links||[]).map(x=>x.journal_code+" "+x.submission_id)].join(" ").toLowerCase().includes(MAILDESK.search)))}
 function mailDeskSelectedRefresh(){
- const ids=[...MAILDESK.selectedIds], all=MAILDESK.threads.map(t=>t.id);
+ const ids=[...MAILDESK.selectedIds], all=mailDeskVisibleThreads().map(t=>t.id);
  $("mailDeskSelectedCount").textContent=ids.length+" selecionadas";
  $("mailDeskSelectAll").checked=all.length>0&&all.every(id=>MAILDESK.selectedIds.has(id));
  $("mailDeskSelectAll").indeterminate=ids.length>0&&!$("mailDeskSelectAll").checked;
@@ -2337,8 +2338,8 @@ function mailDeskSetTab(which){
 
 function mailDeskListRender(){
  const box=$("mailDeskList");box.replaceChildren();
- const items=MAILDESK.threads.filter(t=>(!MAILDESK.unreadOnly||t.unread)&&(!MAILDESK.search||[t.correspondent,t.subject,...(t.article_links||[]).map(x=>x.journal_code+" "+x.submission_id)].join(" ").toLowerCase().includes(MAILDESK.search)));
- if(!items.length){box.append(elem("p","Nenhum e-mail neste filtro.","hint"));return;}
+ const items=mailDeskVisibleThreads();
+ if(!items.length){box.append(elem("p","Nenhum e-mail neste filtro.","hint"));mailDeskSelectedRefresh();return;}
  for(const t of items){
   const wrapper=elem("div",undefined,"maildesk-list-entry");
   const cb=document.createElement("input");cb.type="checkbox";cb.checked=MAILDESK.selectedIds.has(t.id);cb.setAttribute("aria-label","Selecionar conversa de "+(t.correspondent||"contato"));
@@ -2911,7 +2912,7 @@ $("mailDeskTabMailbox").onclick=()=>mailDeskSetTab("mailbox");
 $("mailDeskTabDashboard").onclick=()=>mailDeskSetTab("dashboard");
 $("mailDeskDashboardReload").onclick=mailDeskDashboardLoad;
 for(const b of document.querySelectorAll("[data-mailfolder]"))b.onclick=()=>{$("mailDeskFilter").value=b.dataset.mailfolder;MAILDESK.selected=null;MAILDESK.selectedIds.clear();mailDeskLoad()};
-$("mailDeskSelectAll").onchange=e=>{MAILDESK.selectedIds.clear();if(e.target.checked)for(const t of MAILDESK.threads)MAILDESK.selectedIds.add(t.id);mailDeskListRender()};
+$("mailDeskSelectAll").onchange=e=>{MAILDESK.selectedIds.clear();if(e.target.checked)for(const t of mailDeskVisibleThreads())MAILDESK.selectedIds.add(t.id);mailDeskListRender()};
 $("mailDeskBulkRead").onclick=()=>mailDeskBulkRead(true);
 $("mailDeskBulkUnread").onclick=()=>mailDeskBulkRead(false);
 $("mailDeskBulkArchive").onclick=()=>mailDeskMove("archive");
