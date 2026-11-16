@@ -1471,10 +1471,50 @@ function mktCampaigns(root,d){
  ])));
  layout.append(left,right);root.append(layout);
 }
+
+function mktParseBulk(text){
+ const rows=[],lines=String(text||"").split(/\r?\n/);
+ const parseCsv=(line)=>{const output=[];let cell="",quote=false;
+  for(let i=0;i<line.length;i++){const c=line[i];if(c==='"'){if(quote&&line[i+1]==='"'){cell+='"';i++}else quote=!quote}
+   else if((c===","||c===";")&&!quote){output.push(cell.trim());cell=""}else cell+=c}
+  output.push(cell.trim());return output;
+ };
+ const isEmail=v=>/^[^\s@<>]+@[^\s@<>]+\.[a-z]{2,}$/i.test(v);
+ for(let line of lines){
+  line=line.trim();if(!line||/^e-?mail[,;\t]/i.test(line)||/^(nome|name)[,;\t]/i.test(line))continue;
+  const tokens=line.includes("\t")?line.split("\t").map(x=>x.trim()):parseCsv(line);
+  if(tokens.length===1&&line.includes(" ")&&line.split(/\s+/).every(x=>isEmail(x))){for(const email of line.split(/\s+/))rows.push({email});continue}
+  // Default CSV layout: email,telefone,nome,revista. Also accepts lines with only an email.
+  if(tokens.length===1)rows.push({email:tokens[0]});
+  else if(isEmail(tokens[0]))rows.push({email:tokens[0],phone:tokens[1]||"",display_name:tokens[2]||"",journal:tokens[3]||""});
+  else if(isEmail(tokens[1]))rows.push({display_name:tokens[0],email:tokens[1],phone:tokens[2]||"",journal:tokens[3]||""});
+  else rows.push({email:tokens[0],phone:tokens[1]||"",display_name:tokens[2]||""});
+ }
+ return rows;
+}
+async function mktRunBulkContacts(){
+ const input=$("mktBulkText"),status=$("mktBulkStatus"),button=$("mktBulkGo");
+ if(!input||!status||!button)return;
+ const rows=mktParseBulk(input.value);
+ if(!rows.length){status.textContent="Informe pelo menos um e-mail ou carregue um CSV.";return}
+ if(!confirm("Importar "+rows.length+" contatos SEM autorização comercial? Duplicados serão ignorados e nenhum WhatsApp será enviado."))return;
+ button.disabled=true;let created=0,duplicates=0,invalid=0;
+ try{
+  for(let i=0;i<rows.length;i+=200){
+   const data=await mktCall("import_bulk_contacts",{contacts:rows.slice(i,i+200)});
+   created+=data.created||0;duplicates+=data.duplicates||0;invalid+=data.invalid||0;
+   status.textContent="Processados "+Math.min(i+200,rows.length)+" de "+rows.length+"…";
+  }
+  status.textContent="Importação concluída: "+created+" novos, "+duplicates+" duplicados, "+invalid+" inválidos. Sem opt-in comercial.";
+  input.value="";await marketing();
+  const fresh=$("mktBulkStatus");if(fresh)fresh.textContent=status.textContent;
+ }catch(e){status.textContent="Importação interrompida: "+e.message+" (cadastrados até agora: "+created+")"}
+ finally{button.disabled=false}
+}
 function mktAudience(root,d){
  const layout=mktEl("div",undefined,"mkt-layout"),left=mktEl("div"),right=mktEl("div");
  const panel=mktPanel("Base de contatos e consentimento","A inclusão de um contato não autoriza campanhas. Apenas evidências específicas de marketing permitem o opt-in.");
- const controls=mktEl("div",undefined,"row");controls.style.marginBottom="12px";controls.append(mktBtn("Sincronizar contatos da Central e do OJS (sem opt-in)","sync_contacts"));
+ const controls=mktEl("div",undefined,"row");controls.style.marginBottom="12px";controls.append(mktBtn("Importar contatos existentes da Central, OJS e cadastros manuais","sync_contacts"));
  const consentLink=mktEl("a","Autorizar marketing pelo WhatsApp ↗","mkt-action");
  consentLink.href="https://wa.me/553189474110?text=UJN%20MARKETING%20SIM";
  consentLink.target="_blank";consentLink.rel="noopener noreferrer";
@@ -1484,13 +1524,23 @@ function mktAudience(root,d){
  panel.append(mktTable(["Contato","WhatsApp","Origem","Marketing","Ações"],d.contacts.map(x=>{
   const action=mktEl("div");action.style.display="flex";action.style.gap="5px";
   action.append(mktBtn("Detalhes/consentimento","consent_contact",x.id));action.append(mktBtn("Editar perfil","edit_contact",x.id));
-  return [x.display_name||x.email||"Contato",x.phone,x.origin,x.marketing_opt_in?mktBadge("AUTORIZADO","ok"):mktBadge("SEM AUTORIZAÇÃO","warn"),action];
+  return [x.display_name||x.email||"Contato",x.phone||"Somente e-mail",x.origin,x.marketing_opt_in?mktBadge("AUTORIZADO","ok"):mktBadge("SEM AUTORIZAÇÃO","warn"),action];
  })));
  left.append(panel);
  right.append(mktCreateForm("Adicionar contato","O contato começa sem autorização de Marketing.",[
- {name:"display_name",label:"Nome"},{name:"phone",label:"WhatsApp com DDI",required:true,placeholder:"+5531999999999"},
- {name:"email",label:"E-mail"},{name:"journal",label:"Revista de interesse",type:"select",options:mktJournalOptions}
+ {name:"display_name",label:"Nome"},{name:"phone",label:"WhatsApp com DDI (opcional)",placeholder:"+5531999999999"},
+ {name:"email",label:"E-mail (ou WhatsApp)",placeholder:"autor@instituicao.br"},{name:"journal",label:"Revista de interesse",type:"select",options:mktJournalOptions}
  ],"create_contact","Cadastrar contato"));
+ const bulk=mktPanel("Importar e-mails em lote","Cole uma lista ou envie CSV. Formatos: e-mail por linha; e-mail,telefone,nome,revista; ou nome,e-mail,telefone,revista.");
+ const hint=mktEl("p","E-mails sem WhatsApp são cadastrados normalmente, mas não podem receber campanhas de WhatsApp. Nenhuma autorização comercial será criada.","mkt-notice");bulk.append(hint);
+ const field=document.createElement("textarea");field.id="mktBulkText";field.rows=7;field.placeholder="autor1@instituicao.br\nautor2@instituicao.br\nautor3@instituicao.br,+5533999999999,Nome,REMUNOM";field.setAttribute("aria-label","Lista de e-mails para importar");field.style.cssText="width:100%;padding:12px;border:1px solid #cfdee4;border-radius:9px;resize:vertical;font-size:13px";bulk.append(field);
+ const file=document.createElement("input");file.type="file";file.accept=".csv,.txt,text/csv,text/plain";file.id="mktBulkFile";file.style.cssText="margin:12px 0;max-width:100%";
+ file.addEventListener("change",async()=>{const f=file.files?.[0];if(!f)return;
+  if(f.size>1200000){$("mktBulkStatus").textContent="Arquivo muito grande (limite 1,2 MB).";return}
+  const raw=await f.text();field.value=raw;$("mktBulkStatus").textContent=mktParseBulk(raw).length+" contatos identificados no arquivo. Confira antes da importação.";
+ });bulk.append(file);
+ const go=mktEl("button","Importar contatos (sem opt-in)","btn primary");go.type="button";go.id="mktBulkGo";go.onclick=mktRunBulkContacts;bulk.append(go);
+ const stat=mktEl("p","Nenhuma campanha será enviada.","hint");stat.id="mktBulkStatus";bulk.append(stat);right.append(bulk);
  const detail=mktPanel("Gestão de consentimento","Selecione um contato na tabela para registrar a origem e a prova de autorização comercial.");
  detail.id="mktConsentDetail";detail.append(mktEl("div","Nenhum contato selecionado.","mkt-empty"));right.append(detail);
  layout.append(left,right);root.append(layout);
@@ -1667,7 +1717,7 @@ async function mktRun(action,payload){
   const area=$("mktAudiencePreview");if(area){area.replaceChildren(mktEl("h3","Público alcançável: "+result.total));for(const v of result.masked_examples||[])area.append(mktEl("p",v.phone+" · "+(v.journals||[]).join(",")))}
   return;
  }
- say(action==="sync_central_contacts"?"Importados "+result.imported+" contatos. Nenhum opt-in comercial foi concedido.":"Configuração ou registro atualizado.");
+ say(action==="sync_central_contacts"?"Importados "+result.imported+" contatos. Duplicados: "+(result.duplicates||0)+". Nenhum opt-in comercial foi concedido.":"Configuração ou registro atualizado.");
  await marketing();
  }catch(e){say(e.message,true)}finally{btn.disabled=false}
 }
@@ -1742,7 +1792,7 @@ $("mktViewBody").addEventListener("click",e=>{
    mktRun("record_revenue",{opportunity_id:id,amount_brl:value,proof_ref:proof,source_system:"comprovante_conferido",confirmed:true});
   return;
  }
- if(action==="sync_contacts"){if(confirm("Importar números da Central UJN e dos cadastros OJS para a base de contatos, SEM conceder autorização comercial?"))mktRun("sync_central_contacts",{});return}
+ if(action==="sync_contacts"){if(confirm("Importar os contatos já cadastrados na Central UJN, nos registros OJS e nos cadastros editoriais manuais, SEM autorização comercial?"))mktRun("sync_central_contacts",{});return}
  if(action==="verify_meta_template"){
   const waba=prompt("Digite o ID da conta WhatsApp Business (WABA) da Editora UJN. Não informe token ou senha.","");
   if(!waba)return;
