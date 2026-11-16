@@ -90,7 +90,7 @@ def reply_routing(message, sender):
             "reply_to_source": "mime_reply_to_header"}
 
 
-def submit_uid(conn, folder, uid):
+def submit_uid(conn, folder, uid, uidvalidity=None):
     status, items = conn.uid("FETCH", str(uid), "(BODY.PEEK[])")
     if status != "OK" or not items:
         raise RuntimeError("IMAP FETCH failed")
@@ -120,6 +120,8 @@ def submit_uid(conn, folder, uid):
     }
     if direction == "INBOUND":
         item.update(reply_routing(msg, sender))
+        if folder=="INBOX" and uidvalidity and str(uidvalidity).isdigit():
+            item.update({"imap_folder":"INBOX","imap_uid":int(uid),"imap_uidvalidity":int(uidvalidity)})
     if MIME_ENABLED:
         extracted = mime_adapter.extract(msg)
         if extracted["body_html"]:
@@ -182,7 +184,7 @@ def synchronize(conn, state, deadline):
             if time.monotonic() >= deadline - 8:
                 break
             try:
-                outcome = submit_uid(conn, folder, uid)
+                outcome = submit_uid(conn, folder, uid, valid)
                 cursor["last_uid"] = uid
                 save_state(state)
                 stats["new"] += outcome == "NEW"
