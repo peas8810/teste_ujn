@@ -179,11 +179,23 @@ def run(diagnose=False):
              "already_present": 0, "not_found": 0, "original_empty": 0,
              "skipped": 0, "errors": 0, "deferred": 0,
              "sent_email": False, "imap_changes": False}
-    with LOCK.open("a+") as locked:
-        try:
-            fcntl.flock(locked, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except (IOError, OSError):
+    # A read-only folder diagnostic does not need the collector's data-sync lock.
+    # Repair jobs share the production collector lock and wait briefly rather
+    # than immediately aborting at a minute boundary.
+    lock_path = (ROOT / "mime_multipasta_diagnose.lock") if diagnose else LOCK
+    with lock_path.open("a+") as locked:
+        acquired = False
+        lock_start = time.monotonic()
+        while time.monotonic() - lock_start < (2 if diagnose else 14):
+            try:
+                fcntl.flock(locked, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                acquired = True
+                break
+            except (IOError, OSError):
+                time.sleep(1)
+        if not acquired:
             print(json.dumps({"mime_multipasta": "ALREADY_RUNNING",
+                              "reason": "LOCK_BUSY_RETRY_NEXT_MINUTE",
                               "sent_email": False, "imap_changes": False}), flush=True)
             return
         state = state_load()
