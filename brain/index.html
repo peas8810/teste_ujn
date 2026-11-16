@@ -2848,10 +2848,12 @@ async function mailDeskOpen(id,options={}){
   const unread=!!r?.unread;
   $("mailDeskReadBadge").textContent=unread?"● Não lido":"✓ Lido no Brain";
   $("mailDeskReadBadge").classList.toggle("unread",unread);
-  $("mailDeskReadMeta").textContent=data.read_receipt?.last_read_at?"Última leitura: "+stamp(data.read_receipt.last_read_at):"Status registrado por operador, não é confirmação de leitura no Webmail";
+  $("mailDeskReadMeta").textContent=r?.webmail_synced_at
+   ? "Webmail sincronizado em "+stamp(r.webmail_synced_at)+" · "+(r.webmail_answered?"Respondida no Webmail":r.webmail_seen?"Lida no Webmail":"Não lida no Webmail")
+   : data.read_receipt?.last_read_at?"Última leitura no Brain: "+stamp(data.read_receipt.last_read_at):"Aguardando primeira leitura das marcações do Webmail";
   $("mailDeskToggleRead").disabled=false;$("mailDeskToggleRead").textContent=unread?"Marcar como lido":"Marcar como não lido";
   $("mailDeskEscalate").disabled=false;$("mailDeskResolve").disabled=false;$("mailDeskLink").disabled=false;
-  $("mailDeskCaseStatus").textContent="Situação: "+(t.state==="ARCHIVED"?"Concluída":t.state==="MANUAL_REVIEW"?"Revisão humana":t.state==="AWAITING_REPLY"?"Aguardando equipe":t.state==="ANSWERED"?"Respondida":t.state||"Não classificada");
+  $("mailDeskCaseStatus").textContent="Situação: "+(t.state==="ARCHIVED"?"Concluída":t.state==="MANUAL_REVIEW"?"Revisão humana":r?.webmail_answered?"Respondida no Webmail":t.state==="AWAITING_REPLY"?"Aguardando equipe":t.state==="ANSWERED"?"Respondida":t.state||"Não classificada");
   const view=$("mailDeskHistory");view.replaceChildren();
   for(const m of [...(data.messages||[])].reverse()){
    const card=elem("div",undefined,"maildesk-msg"+(m.direction==="OUTBOUND"?" out":"")+(m.id===data.messages[data.messages.length-1]?.id?" maildesk-current-message":""));
