@@ -1,0 +1,41 @@
+name: Brain UJN - Security Analysis
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '21 7 * * 1'
+permissions:
+  contents: read
+  security-events: write
+jobs:
+  codeql:
+    name: CodeQL (Python / JavaScript)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: github/codeql-action/init@v4
+        with:
+          languages: javascript-typescript,python
+          queries: security-extended
+      - uses: github/codeql-action/analyze@v4
+  scan-secrets:
+    name: Repository secret pattern checks
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Check for tracked private credential files
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git ls-files | grep -Ei '(^|/)(\.env($|\.)|imap_config\.json|ingest_config\.json|\.pem$|id_rsa$|service.role\.json$|private.key$)' ; then
+            echo 'ERROR: Potential secret/credential file is tracked in Git.'
+            exit 1
+          fi
