@@ -2297,7 +2297,7 @@ async function mailDeskBulkRead(read){
   const out=await mailDeskCall("bulk_read",{thread_ids:ids,read});
   for(const t of MAILDESK.threads)if(ids.includes(t.id))t.unread=!read;
   mailDeskSelectedRefresh();mailDeskListRender();
-  mailDeskNotice(out.updated+" conversas marcadas como "+(read?"lidas":"não lidas")+" no Brain. O Webmail não é alterado.");
+  mailDeskNotice(out.updated+" conversas marcadas no Brain; o estado do Roundcube será sincronizado pelo executor IMAP.");
  }catch(e){mailDeskNotice("Falha ao marcar leitura: "+e.message,"error")}
 }
 async function mailDeskMove(destination,one=null){
@@ -2724,6 +2724,7 @@ async function mailDeskSetRead(read){
   $("mailDeskReadBadge").classList.toggle("unread",!read);
   $("mailDeskToggleRead").textContent=read?"Marcar como não lido":"Marcar como lido";
   mailDeskListRender();
+  mailDeskNotice("Leitura registrada no Brain; sincronização com o Roundcube será concluída pelo executor IMAP do cPanel.");
  }catch(e){mailDeskNotice("Falha ao registrar leitura: "+e.message,"error")}
 }
 async function mailDeskOpen(id,options={}){
@@ -2741,6 +2742,18 @@ async function mailDeskOpen(id,options={}){
   const data=await mailDeskCall("thread",{thread_id:id});
   if(id!==MAILDESK.selected)return;
   const t=data.thread;const r=MAILDESK.threads.find(x=>x.id===id);
+  // A human operator viewing the message counts as reading it in the Brain.
+  // Refresh polling must never trigger another read transition.
+  if(r?.unread&&!options.refresh){
+   mailDeskCall("mark_read",{thread_id:id,read:true}).then(()=>{
+    if(id!==MAILDESK.selected)return;
+    r.unread=false;
+    $("mailDeskReadBadge").textContent="✓ Lido no Brain";
+    $("mailDeskReadBadge").classList.remove("unread");
+    $("mailDeskToggleRead").textContent="Marcar como não lido";
+    mailDeskListRender();
+   }).catch(e=>mailDeskNotice("Falha ao sincronizar leitura: "+e.message,"warn"));
+  }
   MAILDESK.replyTarget=data.reply_target||null;
   MAILDESK.currentThreadData=data;
   MAILDESK.lastDraft=(data.drafts||[]).find(x=>x.state==="DRAFT")||null;
