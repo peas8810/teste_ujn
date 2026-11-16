@@ -2908,8 +2908,8 @@ function mailDeskDrawAttachments(data){
   const a=document.createElement("a");a.href=link.url;a.target="_blank";a.rel="noopener noreferrer";a.textContent="Abrir link";
   row.append(left,a);root.append(row);
  }
- if(!attachments.length&&!links.length)root.append(elem("p",data.analytics?.attachment_mentioned?
-  "O texto menciona anexo, mas o arquivo ainda não foi sincronizado. Consulte a mensagem original no Webmail.":"Não foram identificados anexos ou links disponibilizados nesta conversa.","hint"));
+ if(!attachments.length&&!links.length)root.append(elem("p",
+  "Nenhum arquivo foi identificado nos metadados desta conversa. A menção a um anexo no texto ou no histórico citado não comprova que há um arquivo disponível.","hint"));
 }
 function mailDeskDrawArticleLinks(links){
  const root=$("mailDeskArticleLinks");root.replaceChildren();
@@ -3041,10 +3041,9 @@ async function mailDeskOpen(id,options={}){
    card.append(mailDeskFormatMessage(m));
    const files=(data.attachments||[]).filter(x=>x.message_id===m.id);
    if(files.length)card.append(mailDeskInlineAttachments(m.id,data.attachments||[]));
-   else if(/\b(?:em anexo|anexei|anexad[oa]|segue anexo|comprovante em anexo)\b/i.test(m.body_text||"")){
-    card.append(elem("div","📎 Anexo mencionado nesta mensagem, mas o arquivo ainda não foi capturado pelo coletor IMAP.","maildesk-file-missing"));
-   }
-   view.append(card);
+   // Only MIME-identified files count as attachments. Mentioned attachments in
+   // quoted email text must never be reported as failed IMAP captures.
+      view.append(card);
   }
   if(!(data.messages||[]).length)view.append(elem("p","Nenhuma mensagem registrada.","hint"));
   mailDeskDrawAttachments(data);mailDeskDrawAnalytics(data);
