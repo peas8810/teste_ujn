@@ -393,6 +393,13 @@
 .mkt-gate-report{border:1px solid #dbe6e8;border-radius:9px;padding:13px;margin-top:10px;background:#f8fbfb}
 .mkt-gate-issue{padding:6px 0;color:#94601d;font-size:12px}
 @media(max-width:850px){.mkt-journey-stats{grid-template-columns:repeat(2,1fr)}.mkt-flow-step{grid-template-columns:30px minmax(0,1fr)}.mkt-flow-step-actions{grid-column:2}}
+</style><style id="mkt-journey-operation-style">
+.mkt-enroll-box,.mkt-review-list{border:1px solid #dce9e8;border-radius:10px;padding:14px;margin-top:15px;background:#f7fbfa;display:grid;gap:10px}
+.mkt-enroll-box>p{font-size:12px;color:#67818c;margin:0}
+.mkt-enroll-box select{min-height:110px;width:100%;border:1px solid #cadbe0;border-radius:8px;padding:8px}
+.mkt-review-item{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:10px 0;border-top:1px solid #dce8e8;flex-wrap:wrap}
+.mkt-review-buttons{display:flex;gap:7px;flex-wrap:wrap}
+@media(max-width:700px){.mkt-review-item{display:block}.mkt-review-buttons{margin-top:8px}}
 </style></head><body><a class="skip" href="#maincontent">Pular para conteúdo</a><div id="overlay"></div><div class="shell">
 <aside class="sidebar" id="sidebar"><div class="brand"><svg width="38" height="38" viewBox="0 0 40 40" fill="none" aria-hidden="true"><path d="M10 30L20 10L32 28L10 30" stroke="#53bbbc" stroke-width="2.5"/><circle cx="10" cy="30" r="4" fill="#fff"/><circle cx="20" cy="10" r="4" fill="#fff"/><circle cx="32" cy="28" r="4" fill="#fff"/></svg>brain <small>UJN</small></div><div class="tagline">RELACIONAMENTO QUE CONECTA</div>
 <div class="navtitle">OPERAÇÃO</div><nav class="nav"><button data-screen="overview">▦　Visão geral</button><button data-screen="inbox">▤　Caixa de entrada</button><button data-screen="emails">✉　E-mails · IA e envios</button><button data-screen="contacts">♙　Contatos e vínculos</button></nav>
@@ -1842,7 +1849,63 @@ function mktJourneys(root,d){
    String(x.step_index)+" / "+(j.workflow||[]).length,x.status,x.next_at?mktDate(x.next_at):"—"
   ]);
   history.append(mktTable(["Contato","Etapa","Situação","Próxima ação"],rows));
-  if(runs.some(x=>x.status==="WAITING_REVIEW"))history.append(mktEl("p","Existem etapas aguardando autorização humana. Acompanhe as confirmações da campanha antes de avançar.","mkt-notice warn"));
+  if(j.status==="ACTIVE"){
+   const enrollment=mktEl("div",undefined,"mkt-enroll-box");
+   enrollment.append(mktEl("strong","Iniciar jornada para contatos autorizados"));
+   enrollment.append(mktEl("p","Somente opt-ins comerciais específicos serão aceitos. O contato receberá mensagens apenas pela campanha aprovada, após revisão."));
+   const select=mktEl("select");select.multiple=true;select.size=4;select.setAttribute("aria-label","Selecionar contatos autorizados");
+   const allowed=d.contacts.filter(c=>c.marketing_opt_in&&c.consent_origin&&c.phone);
+   for(const c of allowed.slice(0,500)){
+    const option=mktEl("option",(c.display_name||c.email||c.phone)+" · "+c.phone);option.value=c.id;select.append(option)
+   }
+   enrollment.append(select);
+   const enroll=mktEl("button","Adicionar selecionados","btn");enroll.type="button";enroll.disabled=!allowed.length;
+   enroll.onclick=async()=>{
+    const ids=[...select.selectedOptions].map(x=>x.value);
+    if(!ids.length)return say("Selecione pelo menos um contato.",true);
+    if(!confirm("Iniciar esta jornada para "+ids.length+" contatos com opt-in comercial comprovado?"))return;
+    await mktJourneyRequest("journey_enroll",{id:j.id,contact_ids:ids,confirmed:true},"Contatos adicionados à jornada.");
+   };
+   enrollment.append(enroll);history.append(enrollment);
+  }
+  const waiting=runs.filter(x=>x.status==="WAITING_REVIEW");
+  if(waiting.length){
+   const decisions=mktEl("div",undefined,"mkt-review-list");
+   decisions.append(mktEl("strong","Aguardando decisão do operador"));
+   for(const run of waiting.slice(0,30)){
+    const step=(j.workflow||[])[run.step_index-1];
+    const contact=d.contacts.find(c=>c.id===run.contact_id);
+    const line=mktEl("div",undefined,"mkt-review-item");
+    const label=contact?.display_name||contact?.email||contact?.phone||"Contato";
+    line.append(mktEl("span",label+" · "+(step?.type||"Revisão")));
+    const buttons=mktEl("div",undefined,"mkt-review-buttons");
+    const approve=mktEl("button",step?.type==="campaign_dispatch"?"Confirmar entrega":"Aprovar avanço","btn small");approve.type="button";
+    approve.onclick=()=>{
+     const text=step?.type==="campaign_dispatch"?
+      "A campanha precisa ter confirmação de envio registrada para este contato. Conferir agora?":
+      "Confirmar avaliação e avançar esta jornada?";
+     if(!confirm(text))return;
+     const outcome=step?.type==="check_reply"?"CONTINUE":"CONTINUE";
+     mktJourneyRequest("journey_review_run",{run_id:run.id,confirmed:true,outcome},"Etapa revisada.");
+    };
+    buttons.append(approve);
+    if(step?.type==="check_reply"){
+     const stopReply=mktEl("button","Autor respondeu — encerrar","btn small");stopReply.type="button";
+     stopReply.onclick=()=>{if(confirm("Encerrar esta sequência por resposta do contato?"))mktJourneyRequest("journey_review_run",{run_id:run.id,confirmed:true,outcome:"STOP"})};
+     buttons.append(stopReply);
+    }
+    const stop=mktEl("button","Interromper","btn small");stop.type="button";
+    stop.onclick=()=>{if(confirm("Interromper esta jornada para o contato selecionado?"))mktJourneyRequest("journey_stop_run",{run_id:run.id,confirmed:true})};
+    buttons.append(stop);line.append(buttons);decisions.append(line);
+   }
+   history.append(decisions);
+  }
+  const events=(d.journey_events||[]).filter(x=>x.journey_id===j.id).slice(0,12);
+  if(events.length){
+   const log=mktEl("details");const summary=mktEl("summary","Ver últimos eventos registrados");log.append(summary);
+   log.append(mktTable(["Evento","Etapa","Data"],events.map(x=>[x.event_type,x.step_index,mktDate(x.occurred_at)])));
+   history.append(log);
+  }
   right.append(history);
  }else{
   right.append(mktPanel("Selecione uma jornada","Abra uma jornada da lista para editar, simular, revisar ou acompanhar sua execução."));
