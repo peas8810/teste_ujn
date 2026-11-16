@@ -113,9 +113,18 @@ def run():
                     break
         print(json.dumps(stats,ensure_ascii=False),flush=True)
 
+def diagnose():
+    """Read-only, do not change emails or database content."""
+    rows=base.post({"action":"repair_missing_bodies","limit":10,"skip_keys":[]}).get("candidates") or []
+    print(json.dumps({"mime_repair":"DIAGNOSTIC","candidates_sample":len(rows),
+                      "no_changes":True,"sent_email":False}),flush=True)
+
 if __name__=="__main__":
     try:
-        run()
+        if "--diagnose" in sys.argv[1:]:
+            diagnose()
+        else:
+            run()
     except Exception as error:
         print(json.dumps({"mime_repair":"ERROR","error_type":type(error).__name__,"sent_email":False}),flush=True)
         sys.exit(2)
