@@ -838,12 +838,12 @@ async function brainRestoreSession(){
  }
 }
 async function logout(){
- const current=token;
+ const priorAccessToken=token;
  brainClearStoredSession();
  token=null;role=null;
  // Revocation is best effort, but local state is always cleared immediately.
- if(current)fetch(BASE+"/auth/v1/logout",{method:"POST",cache:"no-store",
-   credentials:"omit",headers:{"apikey":PUB,"authorization":"Bearer "+current}
+ if(priorAccessToken)fetch(BASE+"/auth/v1/logout",{method:"POST",cache:"no-store",
+   credentials:"omit",headers:{"apikey":PUB,"authorization":"Bearer "+priorAccessToken}
  }).catch(()=>{});
  $("notifyShell").hidden=true;$("notifyPanel").classList.add("hidden");
  alertsCache=[];alertsSeen.clear();alertsInitialized=false;
