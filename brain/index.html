@@ -1783,6 +1783,10 @@ function mktJourneys(root,d){
   const status=mktEl("div",undefined,"mkt-journey-status");
   status.append(mktBadge(j.status,j.status==="ACTIVE"?"good":j.status==="PAUSED"?"warn":""));
   status.append(mktEl("span","Gatilho: "+j.entry_trigger+" · Versão "+(j.version||1),"hint"));editor.append(status);
+  const triggerNote=j.entry_trigger==="INBOUND_INTEREST"?
+   "Interesse recebido: oportunidades cadastradas no funil após a ativação, somente com opt-in de Marketing.":
+   j.entry_trigger==="CONTACT_OPT_IN"?"Nova autorização: aceita consentimento comercial explícito registrado após a ativação.":"Manual: o operador seleciona contatos comerciais autorizados.";
+  editor.append(mktEl("p",triggerNote,"mkt-notice"));
   const flow=mktEl("div",undefined,"mkt-flow");
   const redraw=()=>mktRender();
   mktWorkflowDraft.forEach((step,i)=>flow.append(mktJourneyStepRow(step,i,j.status!=="ACTIVE"&&j.status!=="ARCHIVED",redraw)));
@@ -1839,6 +1843,9 @@ function mktJourneys(root,d){
    const pause=mktEl("button","Pausar jornada","btn");pause.type="button";
    pause.onclick=()=>{if(confirm("Pausar esta jornada?"))mktJourneyRequest("journey_status",{id:j.id,status:"PAUSED",confirmed:true})};actions.append(pause);
   }
+  const campaignNav=mktEl("button","Abrir campanhas e modelos Meta","btn");campaignNav.type="button";
+  campaignNav.onclick=()=>{marketingView="campaigns";mktRender()};
+  actions.append(campaignNav);
   editor.append(actions);
   const gate=mktEl("div","Use Simular e verificar requisitos para conferir a liberação.","mkt-gate-report");gate.id="mktJourneyGate";editor.append(gate);
   right.append(editor);
@@ -1849,6 +1856,7 @@ function mktJourneys(root,d){
    String(x.step_index)+" / "+(j.workflow||[]).length,x.status,x.next_at?mktDate(x.next_at):"—"
   ]);
   history.append(mktTable(["Contato","Etapa","Situação","Próxima ação"],rows));
+  history.append(mktEl("p","O mecanismo automático verifica consentimento, espera e condições. Mensagens são enviadas exclusivamente pelo fluxo separado de campanhas Marketing aprovadas; a jornada não dispara texto livre.","mkt-notice"));
   if(j.status==="ACTIVE"){
    const enrollment=mktEl("div",undefined,"mkt-enroll-box");
    enrollment.append(mktEl("strong","Iniciar jornada para contatos autorizados"));
