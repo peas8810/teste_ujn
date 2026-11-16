@@ -343,6 +343,29 @@
 .inbox-ai-message-audit{margin-top:9px;border-top:1px solid #bad8d1;padding-top:8px;font-size:12px}
 .inbox-ai-message-audit summary{color:#0a756d;cursor:pointer;font-weight:700}
 .inbox-ai-message-audit p{margin:6px 0;color:#527278}
+</style><style>
+.maildesk-tabs,.maildesk-folders,.maildesk-bulk{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:12px 0}
+.maildesk-folders button{border:1px solid #bdd2db;background:#fff;color:#1a4052;border-radius:18px;padding:7px 12px;font-weight:650;cursor:pointer}
+.maildesk-folders button.active{background:#153e55;color:white}
+.maildesk-bulk{padding:10px;border:1px solid #d7e5e9;border-radius:12px}
+.maildesk-bulk label{display:flex;gap:6px;align-items:center;font-size:13px}
+.maildesk-list-entry{display:flex;gap:8px;align-items:flex-start;width:100%;margin:4px 0}
+.maildesk-list-entry input[type=checkbox]{flex:none;width:17px;height:17px;margin:16px 0 0 1px}
+.maildesk-list-entry>.maildesk-item{flex:1;min-width:0}
+.maildesk-contacts{border:1px solid #d5e3e8;border-radius:12px;padding:10px;margin:12px 0}
+.maildesk-contacts summary{cursor:pointer;font-weight:700}
+.maildesk-contact-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;padding:12px 0}
+.maildesk-contact-form label,.maildesk-reading-pane label{font-size:13px}
+.maildesk-contact-form input,.maildesk-contact-form select{display:block;width:100%;margin-top:4px;padding:9px;border:1px solid #cbdce3;border-radius:8px}
+.maildesk-dashboard{display:grid;gap:14px}
+.maildesk-dashboard .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.maildesk-dashboard .metric{border:1px solid #d6e2e8;border-radius:12px;padding:16px;background:white}
+.maildesk-dashboard .metric strong{display:block;font-size:24px;color:#106c70}
+.maildesk-dashboard .panels{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:12px}
+.maildesk-dashboard .panel{background:white;border:1px solid #d6e2e8;border-radius:12px;padding:15px;min-width:0}
+.maildesk-dashboard .barrow{display:grid;grid-template-columns:minmax(110px,1fr) 2fr auto;align-items:center;gap:10px;font-size:12px;margin:9px 0}
+.maildesk-dashboard .bartrack{height:9px;border-radius:8px;background:#e1ebef;overflow:hidden}
+.maildesk-dashboard .barfill{height:100%;background:#147c80;border-radius:8px}
 </style></head><body><a class="skip" href="#maincontent">Pular para conteúdo</a><div id="overlay"></div><div class="shell">
 <aside class="sidebar" id="sidebar"><div class="brand"><svg width="38" height="38" viewBox="0 0 40 40" fill="none" aria-hidden="true"><path d="M10 30L20 10L32 28L10 30" stroke="#53bbbc" stroke-width="2.5"/><circle cx="10" cy="30" r="4" fill="#fff"/><circle cx="20" cy="10" r="4" fill="#fff"/><circle cx="32" cy="28" r="4" fill="#fff"/></svg>brain <small>UJN</small></div><div class="tagline">RELACIONAMENTO QUE CONECTA</div>
 <div class="navtitle">OPERAÇÃO</div><nav class="nav"><button data-screen="overview">▦　Visão geral</button><button data-screen="inbox">▤　Caixa de entrada</button><button data-screen="emails">✉　E-mails · IA e envios</button><button data-screen="contacts">♙　Contatos e vínculos</button></nav>
@@ -373,20 +396,59 @@
 <section data-page="emails" class="screen hidden" id="brainEmailDesk">
  <div class="eyebrow">OPERAÇÃO · ATENDIMENTO POR E-MAIL</div>
  <div class="head"><div><h1>E-mails · IA e envios</h1><p class="lead">Gestão integrada dos e-mails institucionais: leitura, análise por IA, revisão e envio autorizado.</p></div><div class="actions"><button type="button" class="btn" id="mailDeskReload">Atualizar e-mails</button></div></div>
+ <div class="maildesk-tabs" role="group" aria-label="Áreas da Central de E-mails">
+   <button class="btn primary" type="button" id="mailDeskTabMailbox">Caixa postal</button>
+   <button class="btn" type="button" id="mailDeskTabDashboard">Dashboard estatístico</button>
+ </div>
+ <div id="mailDeskMailboxPanel">
  <div class="notice" id="mailDeskStatus">Consultando conta institucional…</div>
  <div class="grid maildesk-stats"><div class="card"><small>Conversas</small><strong id="mailDeskTotal">—</strong></div><div class="card"><small>Possíveis pendências</small><strong id="mailDeskWaiting">—</strong></div><div class="card"><small>Respondidas registradas</small><strong id="mailDeskAnswered">—</strong></div></div>
  <div class="maildesk-layout">
   <div class="card maildesk-folder"><h3>Caixa de entrada</h3><div class="maildesk-search"><input type="search" id="mailDeskSearch" placeholder="Pesquisar remetente, assunto ou artigo..." aria-label="Pesquisar mensagens"></div><div class="maildesk-quickfilters"><button type="button" id="mailDeskShowAll" class="active">Todas</button><button type="button" id="mailDeskOnlyUnread">Não lidas</button></div><label for="mailDeskFilter">Filtrar situação</label>
-   <select id="mailDeskFilter"><option value="queue">Fila de atendimento — até 300</option><option value="answered">Respondidas / arquivadas — histórico</option></select>
+   <select id="mailDeskFilter"><option value="queue">Entrada · fila de atendimento</option><option value="sent">Enviados</option><option value="drafts">Rascunhos</option><option value="archived">Arquivados</option><option value="trash">Lixeira</option><option value="answered">Respondidas</option></select>
+   <div class="maildesk-folders" id="mailDeskFolders">
+    <button type="button" data-mailfolder="queue" class="active">Entrada</button>
+    <button type="button" data-mailfolder="sent">Enviados</button>
+    <button type="button" data-mailfolder="drafts">Rascunhos</button>
+    <button type="button" data-mailfolder="archived">Arquivados</button>
+    <button type="button" data-mailfolder="trash">Lixeira</button>
+   </div>
+   <div class="maildesk-bulk">
+     <label><input type="checkbox" id="mailDeskSelectAll"/> Selecionar todas desta página</label>
+     <span id="mailDeskSelectedCount" class="hint">0 selecionadas</span>
+     <button type="button" class="btn small" id="mailDeskBulkRead">Marcar lidas</button>
+     <button type="button" class="btn small" id="mailDeskBulkUnread">Marcar não lidas</button>
+     <button type="button" class="btn small" id="mailDeskBulkArchive">Arquivar</button>
+     <button type="button" class="btn small" id="mailDeskBulkTrash">Excluir</button>
+     <button type="button" class="btn small" id="mailDeskBulkRestore">Restaurar</button>
+   </div>
+   <details class="maildesk-contacts"><summary>Agenda de contatos de e-mail</summary>
+    <div class="maildesk-contact-form">
+     <label>Nome<input id="mailDeskContactName" maxlength="120" placeholder="Nome do contato"/></label>
+     <label>E-mail<input id="mailDeskContactEmail" type="email" placeholder="contato@exemplo.com"/></label>
+     <label>Revista<select id="mailDeskContactJournal"><option value="">Sem revista</option><option>REMUNOM</option><option>RJNM</option><option>RSV</option><option>JIRRS</option><option>NEXUS</option></select></label>
+     <label>Observações<input id="mailDeskContactNotes" maxlength="500" placeholder="Informação para a equipe"/></label>
+     <button type="button" class="btn small" id="mailDeskSaveContact">Salvar contato</button>
+     <button type="button" class="btn small" id="mailDeskContactsReload">Atualizar agenda</button>
+    </div><div id="mailDeskContactList" class="hint">Nenhum contato consultado.</div>
+   </details>
    <div id="mailDeskList" class="maildesk-list" aria-live="polite"><p class="hint">Carregando…</p></div>
   </div>
-  <div class="card maildesk-reading-pane"><div class="maildesk-reading-top"><span>PAINEL DE LEITURA</span><div class="actions"><button class="btn small primary" type="button" id="mailDeskReply" disabled>Responder</button><button class="btn small" type="button" id="mailDeskOpenSavedDraft" disabled>Abrir rascunho</button></div></div><h2 id="mailDeskTitle">Selecione uma conversa</h2><p id="mailDeskMeta" class="hint">Escolha um e-mail para analisar e responder.</p>
+  <div class="card maildesk-reading-pane"><div class="maildesk-reading-top"><span>PAINEL DE LEITURA</span><div class="actions"><button class="btn small primary" type="button" id="mailDeskReply" disabled>Responder</button><button class="btn small" type="button" id="mailDeskForward" disabled>Encaminhar</button><button class="btn small" type="button" id="mailDeskArchiveOne" disabled>Arquivar</button><button class="btn small" type="button" id="mailDeskTrashOne" disabled>Excluir</button><button class="btn small" type="button" id="mailDeskOpenSavedDraft" disabled>Abrir rascunho</button></div></div><h2 id="mailDeskTitle">Selecione uma conversa</h2><p id="mailDeskMeta" class="hint">Escolha um e-mail para analisar e responder.</p>
    <div class="maildesk-toolbar"><span id="mailDeskReadBadge" class="maildesk-readbadge">Sem conversa selecionada</span><button type="button" class="btn small" id="mailDeskToggleRead" disabled>Marcar como não lido</button><span class="hint" id="mailDeskReadMeta"></span></div>
    <div class="maildesk-toolbar" id="mailDeskWorkflows">
     <button type="button" class="btn small" id="mailDeskEscalate" disabled>Encaminhar para revisão</button>
     <button type="button" class="btn small" id="mailDeskResolve" disabled>Marcar como concluída</button>
     <button type="button" class="btn small" id="mailDeskLink" disabled>Adicionar artigo</button>
     <span id="mailDeskCaseStatus" class="hint"></span>
+   </div>
+   <div id="mailDeskForwardPanel" class="card hidden">
+     <h3>Encaminhar por e-mail</h3>
+     <p class="hint">Selecione um contato salvo na agenda, revise a mensagem e confirme o envio. Os anexos não são encaminhados nesta versão.</p>
+     <label>Destinatário salvo<select id="mailDeskForwardRecipient"><option value="">Selecione um contato</option></select></label>
+     <label>Assunto<input id="mailDeskForwardSubject" maxlength="500"/></label>
+     <label>Mensagem para encaminhamento<textarea id="mailDeskForwardBody" rows="7" maxlength="8000"></textarea></label>
+     <div class="actions"><button type="button" class="btn primary" id="mailDeskForwardApprove">Autorizar encaminhamento</button><button type="button" class="btn" id="mailDeskForwardCancel">Cancelar</button></div>
    </div>
    <h3 class="maildesk-reading-label">Mensagens <span id="mailDeskMessageCount" class="hint"></span></h3><div id="mailDeskHistory" class="maildesk-history"><p class="hint">Nenhuma conversa selecionada.</p></div>
    <section class="maildesk-links-panel" style="margin:16px 0" id="mailDeskArticleEvidencePanel">
@@ -445,6 +507,11 @@
    </div><div id="mailDeskSendStatus" class="notice hidden" aria-live="polite"></div>
   </div>
  </div>
+ </div>
+ <section id="mailDeskDashboardPanel" class="hidden">
+  <div class="head"><div><h2>Inteligência estatística dos e-mails</h2><p class="hint">Todos os registros sincronizados, inclusive histórico — sem expor conteúdo individual aos gráficos.</p></div><button type="button" class="btn" id="mailDeskDashboardReload">Atualizar indicadores</button></div>
+  <div id="mailDeskDashboardContent" class="maildesk-dashboard"><p class="hint">Abra a aba para consultar estatísticas.</p></div>
+ </section>
 </section>
 <section data-page="contacts" class="screen hidden"><div class="eyebrow">PESSOAS E VÍNCULOS</div><div class="head"><div><h1>Contatos</h1><p class="lead">Perfis reais com vínculos explicitamente verificados; telefone isolado não prova autoria.</p></div><button class="btn" id="refreshContacts">Atualizar contatos</button></div><div class="notice">Números telefônicos são mascarados. A associação ao usuário Academy é exibida somente quando o vínculo está registrado no sistema.</div><div class="contactbox"><div class="card"><label>Filtrar contato, ID ou serviço</label><input id="contactQuery" placeholder="Buscar referência ou serviço"/><div id="contactList"></div></div><div class="card" id="contactDetails"><h3>Selecione um contato</h3></div></div></section>
 <section data-page="academy" class="screen hidden"><div class="eyebrow">ECOSSISTEMA</div><div class="head"><div><h1>Atendimento Academy</h1><p class="lead">Certificados, solicitações, documentos, pagamentos e homologação.</p></div><button class="btn" id="academyRefresh">Consultar indicadores</button></div><div id="academyMetrics" class="grid"></div><div class="notice warn">Este painel não aprova documentos, cria cobranças ou emite certificados. A operação comercial só pode ser habilitada após o ciclo de homologação.</div><div class="linklist card"><a target="_blank" rel="noopener" href="https://www.protocolo.me/academy/">Abrir portal Academy</a></div></section>
