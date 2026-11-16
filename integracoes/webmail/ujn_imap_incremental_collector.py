@@ -142,12 +142,62 @@ def submit_uid(conn, folder, uid, uidvalidity=None):
     return "DUPLICATE" if result.get("duplicate") else "NEW"
 
 
+def collect_remote_flags(conn, uids, deadline):
+    """Mirror Roundcube \Seen / \Answered to Brain without modifying IMAP flags.
+
+    Scan one fifth of the 300-message rolling window each minute. Read the
+    Message-ID header (never assume a UID belongs to a prior database row).
+    """
+    available = uids[-300:]
+    slot = (int(time.time()) // 60) % 5
+    selected = available[slot * 60:(slot + 1) * 60]
+    report = {"observed": 0, "updated": 0, "errors": 0}
+    for start in range(0, len(selected), 20):
+        if time.monotonic() >= deadline - 8:
+            break
+        group = selected[start:start + 20]
+        status, rows = conn.uid("FETCH", ",".join(str(uid) for uid in group),
+                                "(UID FLAGS BODY.PEEK[HEADER.FIELDS (MESSAGE-ID)])")
+        if status != "OK":
+            report["errors"] += 1
+            continue
+        records = []
+        for row in rows or []:
+            if not isinstance(row, tuple) or len(row) < 2 or not isinstance(row[1], bytes):
+                continue
+            description = row[0]
+            if not isinstance(description, bytes):
+                continue
+            match = re.search(rb"\bFLAGS\s+\(([^)]*)\)", description, re.I)
+            if not match:
+                continue
+            parsed = email.message_from_bytes(row[1])
+            mid = str(parsed.get("Message-ID") or "").strip()
+            if not (mid.startswith("<") and mid.endswith(">") and len(mid) <= 240):
+                continue
+            flags = set(word.lower() for word in match.group(1).split())
+            records.append({"message_key": mid, "seen": b"\\seen" in flags,
+                            "answered": b"\\answered" in flags})
+        if records:
+            report["observed"] += len(records)
+            try:
+                outcome = base.post({"action": "imap_flags_observe", "flags": records})
+                if not outcome.get("ok"):
+                    raise RuntimeError("IMAP_OBSERVATION_NOT_RECORDED")
+                report["updated"] += int(outcome.get("updated") or 0)
+            except Exception as error:
+                report["errors"] += 1
+                print("IMAP_FLAG_OBSERVATION_FAILED", type(error).__name__, file=sys.stderr)
+    return report
+
+
 def synchronize(conn, state, deadline):
     stats = {"new": 0, "historical": 0, "duplicates": 0, "skipped": 0, "errors": 0}
     healthy = set()
     sent_folder = base.detect_sent_folder(conn)
     folders = ["INBOX"] + ([sent_folder] if sent_folder and sent_folder != "INBOX" else [])
     history_remaining = False  # Archived mail beyond the window is not imported
+    remote_flags = {"observed": 0, "updated": 0, "errors": 0}
     for folder in folders:
         if time.monotonic() > deadline - 8:
             stats["errors"] += 1
@@ -194,6 +244,14 @@ def synchronize(conn, state, deadline):
                 stats["errors"] += 1
                 print("forward error", folder, uid, type(error).__name__, file=sys.stderr)
                 break  # retry same UID on next run
+        # Read Roundcube flags only from the INBOX, using the same IMAP
+        # connection and existing Cron; never add a second polling process.
+        if folder == "INBOX" and time.monotonic() < deadline - 10:
+            try:
+                remote_flags = collect_remote_flags(conn, uids, deadline)
+            except Exception as exc:
+                remote_flags["errors"] += 1
+                print("IMAP_FLAGS_READ_FAILED", type(exc).__name__, file=sys.stderr)
         history_remaining = False  # Rolling window, no older backfill
         # A successful initial selection is not enough; ensure all new UIDs
         # up to the snapshot are consumed before declaring healthy.
@@ -220,7 +278,8 @@ def synchronize(conn, state, deadline):
                       "duplicates": stats["duplicates"],
                       "skipped": stats["skipped"], "errors": stats["errors"],
                       "sync_enabled": enabled, "backfill_remaining": False, "window": INITIAL_RECENT,
-                      "sent_folder_detected": bool(sent_folder), "sent_email": False}))
+                      "sent_folder_detected": bool(sent_folder), "sent_email": False,
+                      "webmail_flags": remote_flags}))
 
 
 def main():
