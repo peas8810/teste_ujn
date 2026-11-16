@@ -2726,7 +2726,24 @@ async function mailDeskLightRefresh(){
 setInterval(mailDeskLightRefresh,15000);
 
 $("mailDeskReload").onclick=mailDeskLoad;$("mailDeskToggleRead").onclick=()=>mailDeskSetRead($("mailDeskReadBadge").classList.contains("unread"));$("mailDeskReanalyze").onclick=()=>mailDeskAnalyze(MAILDESK.selected);$("mailDeskEscalate").onclick=()=>mailDeskWorkflow("MANUAL_REVIEW");$("mailDeskResolve").onclick=()=>mailDeskWorkflow("ARCHIVED");$("mailDeskLink").onclick=()=>mailDeskWorkflow("LINK");
-$("mailDeskFilter").onchange=()=>{if(MAILDESK.draftDirty&&!confirm("Descartar alterações não salvas?"))return;MAILDESK.selected=null;MAILDESK.draftDirty=false;mailDeskLoad()};
+$("mailDeskTabMailbox").onclick=()=>mailDeskSetTab("mailbox");
+$("mailDeskTabDashboard").onclick=()=>mailDeskSetTab("dashboard");
+$("mailDeskDashboardReload").onclick=mailDeskDashboardLoad;
+for(const b of document.querySelectorAll("[data-mailfolder]"))b.onclick=()=>{$("mailDeskFilter").value=b.dataset.mailfolder;MAILDESK.selected=null;MAILDESK.selectedIds.clear();mailDeskLoad()};
+$("mailDeskSelectAll").onchange=e=>{MAILDESK.selectedIds.clear();if(e.target.checked)for(const t of MAILDESK.threads)MAILDESK.selectedIds.add(t.id);mailDeskListRender()};
+$("mailDeskBulkRead").onclick=()=>mailDeskBulkRead(true);
+$("mailDeskBulkUnread").onclick=()=>mailDeskBulkRead(false);
+$("mailDeskBulkArchive").onclick=()=>mailDeskMove("archive");
+$("mailDeskBulkTrash").onclick=()=>mailDeskMove("trash");
+$("mailDeskBulkRestore").onclick=()=>mailDeskMove("restore");
+$("mailDeskSaveContact").onclick=mailDeskSaveContact;
+$("mailDeskContactsReload").onclick=mailDeskContactsLoad;
+$("mailDeskForward").onclick=mailDeskStartForward;
+$("mailDeskArchiveOne").onclick=()=>mailDeskMove("archive",MAILDESK.selected);
+$("mailDeskTrashOne").onclick=()=>mailDeskMove("trash",MAILDESK.selected);
+$("mailDeskForwardApprove").onclick=mailDeskSendForward;
+$("mailDeskForwardCancel").onclick=()=>$("mailDeskForwardPanel").classList.add("hidden");
+$("mailDeskFilter").onchange=()=>{if(MAILDESK.draftDirty&&!confirm("Descartar alterações não salvas?"))return;MAILDESK.selected=null;MAILDESK.selectedIds.clear();MAILDESK.draftDirty=false;mailDeskLoad()};
 $("mailDeskSearch").addEventListener("input",e=>{MAILDESK.search=e.target.value.trim().toLowerCase();mailDeskListRender()});
 $("mailDeskShowAll").onclick=()=>{MAILDESK.unreadOnly=false;$("mailDeskShowAll").classList.add("active");$("mailDeskOnlyUnread").classList.remove("active");mailDeskListRender()};
 $("mailDeskOnlyUnread").onclick=()=>{MAILDESK.unreadOnly=true;$("mailDeskOnlyUnread").classList.add("active");$("mailDeskShowAll").classList.remove("active");mailDeskListRender()};
