@@ -83,11 +83,11 @@ def text_body(message):
         except (LookupError, UnicodeError, TypeError):
             value = raw[:300000].decode("utf-8", errors="replace")
         if part.get_content_type() == "text/html":
-            value = re.sub(r"(?is)<(script|style|head|noscript|svg|template)\\b[^>]*>.*?</\\1>", " ", value)
-            value = re.sub(r"(?i)<(?:br|/p|/div|/li|/tr|/h[1-6])\\b[^>]*>", "\\n", value)
+            value = re.sub(r"(?is)<(script|style|head|noscript|svg|template)\b[^>]*>.*?</\1>", " ", value)
+            value = re.sub(r"(?i)<(?:br|/p|/div|/li|/tr|/h[1-6])\b[^>]*>", "\n", value)
             value = htmllib.unescape(re.sub(r"(?s)<[^>]*>", " ", value))
-            value = re.sub(r"[ \\t]+", " ", value)
-        value = value.replace("\\x00", "").strip()
+            value = re.sub(r"[ \t]+", " ", value)
+        value = value.replace("\x00", "").strip()
         if value:
             candidates.append((0 if part.get_content_type()=="text/plain" else 1, value[:19000]))
     candidates.sort(key=lambda entry:entry[0])
