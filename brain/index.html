@@ -249,6 +249,12 @@
 .maildesk-msg .maildesk-quoted{display:block;margin-top:9px;padding:11px;border-radius:8px;background:#f4f7f8;color:#5b7280;white-space:pre-wrap;font-size:12px;max-height:160px;overflow:auto}
 .maildesk-msg .maildesk-message-main{white-space:pre-wrap}
 @media(max-width:850px){.maildesk-insight-grid{grid-template-columns:1fr}.maildesk-time-row{grid-template-columns:70px 1fr 80px}}
+#brainEmailDesk .maildesk-jump-nav{position:sticky;top:8px;z-index:15;display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:9px 11px;background:rgba(247,251,252,.97);border:1px solid #d7e6e9;border-radius:10px;box-shadow:0 3px 12px #17374b13;margin:7px 0 10px;backdrop-filter:blur(5px)}
+#brainEmailDesk .maildesk-jump-nav .maildesk-jump-label{font-size:12px;font-weight:700;color:#4f6b79}
+#brainEmailDesk .maildesk-jump-nav .btn{min-height:34px;white-space:nowrap}
+#brainEmailDesk .maildesk-msg{scroll-margin-top:94px}
+#brainEmailDesk #mailDeskDraftPanel{scroll-margin-top:95px}
+@media(max-width:600px){#brainEmailDesk .maildesk-jump-nav{top:4px;gap:5px;padding:7px}#brainEmailDesk .maildesk-jump-nav .btn{padding:7px 9px;font-size:12px}}
 </style><style id="mail-rich-editor-style">
 .mail-rich-shell{border:1px solid #c9dce1;border-radius:12px;overflow:hidden;background:white}
 .mail-rich-toolbar{display:flex;gap:4px;flex-wrap:wrap;align-items:center;padding:10px;background:#f4f8f9;border-bottom:1px solid #dbe6e9}
@@ -505,7 +511,7 @@
      <label>Mensagem para encaminhamento<textarea id="mailDeskForwardBody" rows="7" maxlength="8000"></textarea></label>
      <div class="actions"><button type="button" class="btn primary" id="mailDeskForwardApprove">Autorizar encaminhamento</button><button type="button" class="btn" id="mailDeskForwardCancel">Cancelar</button></div>
    </div>
-   <h3 class="maildesk-reading-label">Mensagens <span id="mailDeskMessageCount" class="hint"></span></h3><div id="mailDeskHistory" class="maildesk-history"><p class="hint">Nenhuma conversa selecionada.</p></div>
+   <h3 class="maildesk-reading-label">Mensagens <span id="mailDeskMessageCount" class="hint"></span></h3><nav class="maildesk-jump-nav" aria-label="Navegação rápida no histórico de e-mails"><span class="maildesk-jump-label">Navegar:</span><button class="btn small" type="button" id="mailDeskJumpTop" title="Ir para o início do histórico">↑ Início</button><button class="btn small" type="button" id="mailDeskJumpBottom" title="Ir para o final do histórico">↓ Final</button><button class="btn small" type="button" id="mailDeskJumpEditor" title="Ir diretamente para o editor da resposta">✎ Resposta</button></nav><div id="mailDeskHistory" class="maildesk-history"><p class="hint">Nenhuma conversa selecionada.</p></div>
    <section class="maildesk-links-panel" style="margin:16px 0" id="mailDeskArticleEvidencePanel">
     <div class="maildesk-links-head"><strong>IA — identificação do artigo pelo anexo</strong><span class="hint">Conferência OJS quando possível</span></div>
     <div id="mailDeskArticleEvidence" class="maildesk-docs"><p class="hint">Abra uma conversa para identificar o título, ID, DOI ou link do artigo.</p></div>
@@ -3329,6 +3335,24 @@ $("mailDeskFilter").onchange=()=>{if(MAILDESK.draftDirty&&!confirm("Descartar al
 $("mailDeskSearch").addEventListener("input",e=>{MAILDESK.search=e.target.value.trim().toLowerCase();mailDeskListRender()});
 $("mailDeskShowAll").onclick=()=>{MAILDESK.unreadOnly=false;$("mailDeskShowAll").classList.add("active");$("mailDeskOnlyUnread").classList.remove("active");mailDeskListRender()};
 $("mailDeskOnlyUnread").onclick=()=>{MAILDESK.unreadOnly=true;$("mailDeskOnlyUnread").classList.add("active");$("mailDeskShowAll").classList.remove("active");mailDeskListRender()};
+function mailDeskJump(direction){
+ const view=$("mailDeskHistory");
+ if(!MAILDESK.selected)return mailDeskNotice("Selecione uma conversa para navegar.","warn");
+ if(direction==="editor"){
+  const editor=$("mailDeskDraftPanel");
+  if(editor.classList.contains("hidden"))return mailDeskNotice("Abra ou gere uma resposta para acessar o editor.","warn");
+  editor.scrollIntoView({behavior:"smooth",block:"start"});
+  return;
+ }
+ const cards=view.querySelectorAll(".maildesk-msg");
+ if(!cards.length)return;
+ // Messages render newest first; the last card is the oldest.
+ const target=direction==="top"?cards[0]:cards[cards.length-1];
+ target.scrollIntoView({behavior:"smooth",block:"start"});
+}
+$("mailDeskJumpTop").onclick=()=>mailDeskJump("top");
+$("mailDeskJumpBottom").onclick=()=>mailDeskJump("bottom");
+$("mailDeskJumpEditor").onclick=()=>mailDeskJump("editor");
 $("mailDeskReply").onclick=mailDeskNewReply;
 $("mailDeskOpenSavedDraft").onclick=()=>{if(MAILDESK.lastDraft){mailDeskDrawDraft(MAILDESK.lastDraft,null);$("mailDeskDraftPanel").scrollIntoView({behavior:"smooth",block:"start"})}};
 $("mailDeskSaveDraft").onclick=mailDeskSaveDraft;
