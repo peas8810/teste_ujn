@@ -2546,6 +2546,135 @@ function strategicRenderStateTrend(){
  shape("text",{x:570,y:216,fill:"#5a7682","font-size":11,"text-anchor":"end"},data[data.length-1][0]);
  root.append(svg);
 }
+
+function strategicNumber(v){const n=Number(v);return Number.isFinite(n)&&n>=0?n:null}
+function strategicDecisionNode(title,description,action,kpi,type){
+ const div=elem("div",undefined,"strategic-node"+(type==="warn"?" warn":""));
+ div.append(elem("strong",title),elem("p",description));
+ if(action)div.append(elem("p","Ação: "+action));
+ if(kpi)div.append(elem("p","Medir: "+kpi,"strategic-tag"));
+ return div;
+}
+function strategicDecisionTree(){
+ const root=$("strategicDecisionTree");root.replaceChildren();
+ const r=STRATEGIC.report;
+ if(!r){root.append(elem("p","Carregue os dados para receber decisões direcionadas.","hint"));return}
+ const x=r.external||{},d=r.demographics||{},summary=r.summary||{},links=r.linkages||{};
+ const haveOfficial=Number(x.inep_rows||0)>0&&Number(d.loaded_rows||0)>0;
+ const haveJournal=Number(x.verified_affiliations||0)>0;
+ const haveCampaign=Number(x.campaign_rows||0)>0;
+ const haveSubmissions=(x.campaign_states||[]).some(v=>v.submissions!==null&&v.submissions!==undefined);
+ const weeks=new Set((r.email_daily||[]).filter(v=>Number(v.messages)>0).map(v=>String(v.day).slice(0,7)));
+ const tree=elem("div",undefined,"strategic-tree");
+ tree.append(strategicDecisionNode("Objetivo: mais submissões qualificadas, publicações e margem de contribuição","Crescimento de volume não pode prejudicar avaliação por pares, critérios editoriais ou decisões de aceite.","Identificar o gargalo mensurável antes de ampliar gastos.","Submissões válidas → publicações → receita líquida e custos",""));
+ tree.append(elem("div","↓","strategic-arrow"));
+ const branches=elem("div",undefined,"strategic-branches");
+ branches.append(strategicDecisionNode(
+   haveOfficial?"Mercado acadêmico: dados oficiais disponíveis":"1. Conhecemos o mercado potencial por curso/UF?",
+   haveOfficial?"INEP e IBGE importados; validar ano, população-alvo e curso antes de comparar.":"INEP/IBGE ainda sem dados importados: não existe denominador para calcular penetração em cada UF.",
+   haveOfficial?"Comparar densidade de instituições, matrículas e áreas atendidas por revista.":"Importar matrículas oficiais do INEP e dados demográficos agregados do IBGE.",
+   "Matrículas por curso e IES; percentual de presença editorial","warn"));
+ branches.append(strategicDecisionNode(
+   haveJournal?"Afiliações institucionais verificadas":"2. Sabemos de quais instituições vêm as publicações?",
+   haveJournal?"Existem vínculos verificados: comparar representação real por revista e curso.":"O snapshot de publicações não contém afiliações suficientes para rankear instituições.",
+   haveJournal?"Identificar instituições de alta afinidade temática e baixa representação.":"Vincular DOI, IES e município/UF com evidência nas cinco revistas.",
+   "Artigos únicos com afiliação validada por IES e periódico","warn"));
+ branches.append(strategicDecisionNode(
+   haveCampaign&&haveSubmissions?"Campanhas com indicadores de conversão":"3. Sabemos o custo por submissão válida?",
+   haveCampaign&&haveSubmissions?"Existem métricas de atribuição: verificar integridade e amostra antes de escalar.":"Não há dados suficientes do funil ArticleRun/OJS e anúncios para calcular retorno real.",
+   haveCampaign&&haveSubmissions?"Comparar campanhas por submissões verificadas e margem, não por cliques.":"Instrumentar UTMs e eventos: clique → visita → submissão → decisão → publicação.",
+   "Custo por submissão válida, taxa de publicação, receita, margem","warn"));
+ tree.append(branches,elem("div","↓","strategic-arrow"));
+ const go=haveOfficial&&haveJournal&&haveCampaign&&haveSubmissions;
+ tree.append(strategicDecisionNode(go?"Decisão: selecionar pilotos controlados":"Decisão atual: completar dados e executar pilotos mensuráveis",
+  go?"Priorizar pares UF × área com mercado comprovado, baixa participação editorial e boa conversão mensurada.":"Não elevar investimento em tráfego pago com base apenas no DDD ou volume de e-mails. Reunir dados e definir hipóteses por revista/área.",
+  go?"Testar duas regiões/temas com controle de orçamento e comparação de CPA/ROAS observados.":"Estabelecer instrumentação de conversões e testes orgânicos de chamadas para artigos; só depois testar mídia paga com teto de gasto.",
+  "Submissões concluídas, publicações elegíveis, CAC, receita adicional e margem",""));
+ if(Number(links.verified_editorial_links||0)>0)tree.append(elem("p",links.verified_editorial_links+" vínculos editoriais de registros foram verificados; não representam quantidade de pessoas ou publicações.","strategic-table-key"));
+ root.append(tree);
+}
+function strategicHeatmap(){
+ const root=$("strategicHeatmap");root.replaceChildren();
+ const r=STRATEGIC.report;
+ if(!r){root.append(elem("p","Carregue os indicadores primeiro.","hint"));return}
+ const ext=r.external||{},dem=r.demographics||{};
+ const cols=[
+  {name:"Contatos*",arr:r.states||[],key:"contacts",label:"DDD"},
+  {name:"WhatsApp*",arr:r.states||[],key:"verified_wa",label:"WA"},
+  {name:"Matrículas",arr:ext.inep_states||[],key:"enrollments",label:"INEP"},
+  {name:"Artigos IES",arr:ext.affiliation_states||[],key:"articles",label:"IES"},
+  {name:"Submissões atrib.",arr:ext.campaign_states||[],key:"submissions",label:"Conv."},
+  {name:"População",arr:dem.uf_population||[],key:"total_population",label:"IBGE"}
+ ];
+ const states=[...new Set(cols.flatMap(c=>(c.arr||[]).map(x=>x.uf).filter(v=>/^[A-Z]{2}$/.test(v))))].sort();
+ const visible=states.filter(uf=>Number((r.states||[]).find(x=>x.uf===uf)?.contacts||0)>=3||!!(ext.inep_states||[]).find(x=>x.uf===uf)||!!(ext.affiliation_states||[]).find(x=>x.uf===uf)||!!(dem.uf_population||[]).find(x=>x.uf===uf));
+ if(!visible.length){root.append(elem("p","Nenhuma UF tem base suficiente para ser exibida.","hint"));return}
+ const matrix=elem("table",undefined,"strategic-matrix");
+ const header=document.createElement("tr");header.append(elem("th","UF"));
+ for(const c of cols){const th=elem("th",c.label);th.title=c.name;header.append(th)}
+ header.append(elem("th","Próxima ação"));matrix.append(header);
+ const maxima=cols.map(c=>Math.max(1,...c.arr.map(x=>Number(x[c.key])||0)));
+ for(const uf of visible){
+  const row=document.createElement("tr");row.append(elem("th",uf));
+  for(let i=0;i<cols.length;i++){
+   const c=cols[i],v=c.arr.find(x=>x.uf===uf),td=document.createElement("td");
+   const total=Number((r.states||[]).find(x=>x.uf===uf)?.contacts||0);
+   const privateSmall=(i<=1&&total<3);
+   const value=v?Number(v[c.key]):null;
+   if(!v||!Number.isFinite(value)||privateSmall){td.textContent="—";td.style.background="#f0f4f5";td.style.color="#8a9da6"}
+   else{td.textContent=Number.isInteger(value)?value.toLocaleString("pt-BR"):value.toFixed(1);let intensity=Math.min(1,Math.log1p(Math.max(0,value))/Math.log1p(maxima[i]));td.style.background="rgba(10,129,133,"+(0.09+intensity*0.78).toFixed(3)+")";td.style.color=intensity>.61?"white":"#204b55"}
+   td.title=uf+" · "+c.name+": "+(td.textContent==="—"?"não disponível / suprimido por amostra baixa":td.textContent);row.append(td);
+  }
+  const ac=document.createElement("td");ac.style.textAlign="left";ac.style.fontWeight="500";ac.style.fontSize="11px";
+  const market=(ext.inep_states||[]).find(x=>x.uf===uf);
+  const conversions=(ext.campaign_states||[]).find(x=>x.uf===uf);
+  ac.textContent=market&&conversions?"Comparar CAC e margem por curso":market?"Validar conversão no ArticleRun":"Medir mercado antes de investir";row.append(ac);
+  matrix.append(row);
+ }
+ const wrap=elem("div",undefined,"strategic-matrix-scroll");wrap.append(matrix);
+ root.append(wrap,elem("p","* DDD não comprova residência; UFs com poucos contatos têm valores suprimidos. Cada coluna tem escala própria: cores não são comparáveis entre colunas. “—” é dado ausente ou ocultado, nunca zero. Não há índice de prioridade calculado sem conversões verificadas.","strategic-table-key"));
+}
+function strategicCorrelation(){
+ const root=$("strategicCorrelation");root.replaceChildren();
+ const daily=(STRATEGIC.report?.email_daily||[]).filter(x=>x.day);
+ const n=daily.length,observed=daily.filter(x=>Number(x.messages)>0).length;
+ const note=elem("p","Séries diárias no mesmo intervalo. Período: "+n+" dias; "+observed+" com mensagens. "+(n<21?"Amostra curta: interpretações exploratórias, sem recomendações de investimento baseadas no coeficiente.":"Coeficientes descritivos; significância, causalidade e sazonalidade não estão demonstradas."),"strategic-table-key");
+ root.append(note);
+ const fields=[["Recebidas","inbound"],["Enviadas","outbound"],["Conversas","conversations"],["Submissões*","submission_mentions"],["Pagamentos*","payment_mentions"],["Pareceres*","review_mentions"]];
+ if(n<7||observed<5){root.append(elem("p","Não há observações temporais suficientes para calcular a matriz.","hint"));return}
+ const tab=elem("table",undefined,"strategic-matrix");const head=document.createElement("tr");head.append(elem("th",""));
+ for(const [label] of fields){const th=elem("th",label.slice(0,7));th.title=label;head.append(th)}tab.append(head);
+ for(const [label,key] of fields){
+  const row=document.createElement("tr");row.append(elem("th",label));
+  for(const [other,field] of fields){
+   const a=daily.map(x=>x[key]),b=daily.map(x=>x[field]);let corr=mailDeskCorr(a,b);
+   if(!Number.isFinite(corr))corr=null;
+   const td=document.createElement("td");td.textContent=corr===null?"—":corr.toFixed(2).replace(".",",");
+   if(corr===null){td.style.background="#f1f5f6";td.style.color="#829aa5"}
+   else{const abs=Math.min(1,Math.abs(corr));td.style.background=corr<0?"rgba(199,111,63,"+(0.08+abs*.8).toFixed(2)+")":"rgba(10,125,129,"+(0.08+abs*.8).toFixed(2)+")";td.style.color=abs>.65?"white":"#214658"}
+   td.title=label+" × "+other+": "+(corr===null?"sem variação suficiente":corr.toFixed(3));row.append(td);
+  }
+  tab.append(row);
+ }
+ const wrap=elem("div",undefined,"strategic-matrix-scroll");wrap.append(tab);root.append(wrap);
+ root.append(elem("p","Pearson (−1 a +1). * Menções em assuntos não são submissões reais. Campos são derivados do tráfego de e-mails e compartilham fontes; correlação não comprova efeito sobre publicações ou faturamento. Séries com variância nula mostram “—”.","strategic-table-key"));
+}
+function strategicFinanceEstimate(){
+ const box=$("strategicFinanceResult");box.replaceChildren();
+ const ids=["strategicAdditionalSubmissions","strategicPublicationRate","strategicRevenuePerPublication","strategicVariableCost","strategicMonthlyInvestment"];
+ const raw=ids.map(id=>$(id).value);
+ if(raw.some(v=>v.trim()==="")){box.append(elem("p","Informe todas as cinco premissas antes de simular. Não utilizamos valores presumidos.","hint"));return}
+ const values=raw.map(strategicNumber);
+ if(values.some(v=>v===null)||values[1]>100||values[0]>1000000){box.append(elem("p","Premissas inválidas. Quantidades e custos devem ser não negativos e a taxa entre 0 e 100%.","hint"));return}
+ const [submissions,rate,revenuePer,costPer,adSpend]=values;
+ const publications=submissions*rate/100,gross=publications*revenuePer,contribution=publications*(revenuePer-costPer)-adSpend;
+ const fmtMoney=v=>v.toLocaleString("pt-BR",{style:"currency",currency:"BRL",maximumFractionDigits:2});
+ const summary=elem("div",undefined,"cards");
+ for(const [name,value] of [["Publicações adicionais estimadas",publications.toLocaleString("pt-BR",{maximumFractionDigits:2})],["Faturamento bruto adicional/mês",fmtMoney(gross)],["Contribuição adicional após custos informados",fmtMoney(contribution)]]){
+  const c=elem("div",undefined,"mini-card");c.append(elem("small",name),elem("strong",value));summary.append(c)
+ }
+ box.append(summary,elem("p","Cenário matemático hipotético, não previsão. Taxa de publicação é uma premissa e não deve ser manipulada por metas de receita. Não inclui impostos, custo fixo ou despesas não informadas. Rejeições e decisões editoriais devem permanecer independentes.","strategic-table-key"));
+}
 async function strategicBrainLoad(){
  const from=$("strategicFrom"),to=$("strategicTo");
  if(!from.value||!to.value){const now=new Date(),start=new Date(now);start.setDate(start.getDate()-89);from.value=strategicDate(start);to.value=strategicDate(now)}
@@ -2577,6 +2706,7 @@ async function strategicBrainLoad(){
   for(const x of (d.states||[]).filter(x=>x.contacts>=3)){const opt=document.createElement("option");opt.value=x.uf;opt.textContent=x.uf;stateFilter.append(opt)}
   if([...stateFilter.options].some(x=>x.value===previousState))stateFilter.value=previousState;
   strategicRenderStateTrend();
+  strategicDecisionTree();strategicHeatmap();strategicCorrelation();
   strategicBars($("strategicDDDs"),(d.ddds||[]).filter(x=>x.contacts>=3).map(x=>({...x,ddd:"("+x.ddd+") "+x.uf})),"ddd","contacts",x=>"DDD original "+x.ddd);
   const dem=d.demographics||{},demographicRoot=$("strategicDemographics");
   $("strategicIbgeYear").textContent=dem.year?"Censo demográfico IBGE "+dem.year+" · população por sexo agregado":"Dados do IBGE não importados. Sem estimativas inventadas.";
@@ -3740,7 +3870,9 @@ $("mailDeskCopy").onclick=async()=>{try{const plain=mailRichPlain(),html=$("mail
 $("aiToMailDesk").onclick=()=>show("emails");
 let mailDeskStatusBusy=false;setInterval(async()=>{if(!token||!MAILDESK.request||document.hidden||mailDeskStatusBusy)return;mailDeskStatusBusy=true;try{await mailDeskPollStatus()}finally{mailDeskStatusBusy=false}},3000);
 
-$("strategicUfFilter").onchange=strategicRenderStateTrend;$("strategicRefresh").onclick=strategicBrainLoad;$("strategicApply").onclick=strategicBrainLoad;$("strategicAnalyze").onclick=strategicBrainAnalyze;
+$("strategicUfFilter").onchange=strategicRenderStateTrend;
+$("strategicRefreshDecisions").onclick=strategicDecisionTree;
+$("strategicEstimate").onclick=strategicFinanceEstimate;$("strategicRefresh").onclick=strategicBrainLoad;$("strategicApply").onclick=strategicBrainLoad;$("strategicAnalyze").onclick=strategicBrainAnalyze;
 $("loginForm").onsubmit=login;$("signout").onclick=logout;for(const b of document.querySelectorAll("[data-screen]"))b.onclick=()=>show(b.dataset.screen);for(const b of document.querySelectorAll("[data-mobile-screen]"))b.onclick=()=>{show(b.dataset.mobileScreen);window.scrollTo({top:0,behavior:"smooth"})};$("mobileMore").onclick=()=>{$("sidebar").classList.add("open");$("overlay").classList.add("show")};$("toggleNav").onclick=()=>{$("sidebar").classList.add("open");$("overlay").classList.add("show")};$("overlay").onclick=()=>{$("sidebar").classList.remove("open");$("overlay").classList.remove("show")};$("refreshOverview").onclick=overview;$("reloadInbox").onclick=inbox;$("inboxAISuggest").onclick=inboxSuggest;$("inboxAIAudit").onclick=inboxAIAudit;
 setInterval(async()=>{
  if(!token||document.hidden||!document.querySelector('[data-page="inbox"]:not(.hidden)'))return;
