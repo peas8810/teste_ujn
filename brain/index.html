@@ -859,6 +859,7 @@ body > .maildesk-jump-nav .btn:hover{background:#dff4f1;border-color:#66b9b0}
   <div class="card"><div class="head"><h2>Matriz de correlação operacional</h2><span class="hint">Séries diárias comparáveis</span></div><div id="strategicCorrelation"></div></div>
   <div class="card"><div class="head"><h2>Mapa de calor de oportunidades por UF</h2><span class="hint">Colunas normalizadas entre UFs</span></div><div id="strategicHeatmap"></div></div>
  </div>
+ <div class="card"><h2>Matriz territorial — relações entre mercado e resultados</h2><p class="hint">Correlações entre UFs usando apenas pares de indicadores presentes em ambas as fontes. O sistema não completa dados ausentes com zero.</p><div id="strategicTerritorialCorrelation"></div></div>
  <div class="card"><div class="head"><div><h2>Simulador de receita incremental</h2><p class="hint">Cenário hipotético, com valores inseridos por você. Não é previsão de faturamento.</p></div></div>
  <div class="strategic-finance-inputs">
   <label>Submissões adicionais/mês <input type="number" min="0" max="1000000" step="1" id="strategicAdditionalSubmissions" placeholder="Ex.: 20"></label>
@@ -2662,6 +2663,47 @@ function strategicCorrelation(){
  const wrap=elem("div",undefined,"strategic-matrix-scroll");wrap.append(tab);root.append(wrap);
  root.append(elem("p","Pearson (−1 a +1). * Menções em assuntos não são submissões reais. Campos são derivados do tráfego de e-mails e compartilham fontes; correlação não comprova efeito sobre publicações ou faturamento. Séries com variância nula mostram “—”.","strategic-table-key"));
 }
+
+function strategicTerritorialCorrelation(){
+ const root=$("strategicTerritorialCorrelation");root.replaceChildren();
+ const r=STRATEGIC.report;
+ if(!r){root.append(elem("p","Carregue os indicadores.","hint"));return}
+ const x=r.external||{},d=r.demographics||{};
+ const cols=[
+  ["WhatsApp por DDD",r.states||[],"verified_wa"],
+  ["Matrículas INEP",x.inep_states||[],"enrollments"],
+  ["Instituições INEP",x.inep_states||[],"institutions"],
+  ["Artigos por IES",x.affiliation_states||[],"articles"],
+  ["Cliques pagos",x.campaign_states||[],"clicks"],
+  ["Submissões atribuídas",x.campaign_states||[],"submissions"],
+  ["População IBGE",d.uf_population||[],"total_population"]
+ ];
+ const hasOfficial=cols.filter(c=>c[1].length>0).length>=3;
+ if(!hasOfficial){root.append(elem("p","Ainda faltam dados oficiais por UF para calcular correlações de mercado. Integrar INEP, afiliações dos artigos, campanhas e IBGE antes de interpretar oportunidades geográficas.","hint"));return}
+ const rows=cols.filter(c=>c[1].length>0);
+ const matrix=elem("table",undefined,"strategic-matrix"),header=document.createElement("tr");header.append(elem("th",""));
+ for(const [name] of rows){const th=elem("th",name.length>12?name.slice(0,12)+"…":name);th.title=name;header.append(th)}
+ matrix.append(header);
+ let maxPairs=0;
+ for(const [name,source,key] of rows){
+  const tr=document.createElement("tr");tr.append(elem("th",name));
+  for(const [other,comparison,key2] of rows){
+   const common=source.filter(v=>comparison.some(w=>w.uf===v.uf)&&Number.isFinite(Number(v[key]))&&Number.isFinite(Number(comparison.find(w=>w.uf===v.uf)?.[key2]))&& (name!=="WhatsApp por DDD"||Number(v[key])>=3) && (other!=="WhatsApp por DDD"||Number(comparison.find(w=>w.uf===v.uf)?.[key2])>=3));
+   const td=document.createElement("td"),n=common.length;maxPairs=Math.max(maxPairs,n);
+   const a=common.map(v=>Number(v[key])),b=common.map(v=>Number(comparison.find(w=>w.uf===v.uf)?.[key2]));
+   const corr=n>=8?mailDeskCorr(a,b):null;
+   const valid=Number.isFinite(corr);
+   td.textContent=valid?corr.toFixed(2).replace(".",","):"—";
+   td.title=name+" / "+other+" · "+n+" UF(s) comparáveis"+(valid?" · r="+corr.toFixed(3):" · sem base suficiente");
+   if(valid){const intensity=Math.min(1,Math.abs(corr));td.style.background=corr<0?"rgba(199,111,63,"+(0.08+intensity*.8).toFixed(2)+")":"rgba(10,125,129,"+(0.08+intensity*.8).toFixed(2)+")";td.style.color=intensity>.65?"white":"#244452"}
+   else{td.style.background="#eef3f4";td.style.color="#79939e"}
+   tr.append(td);
+  }
+  matrix.append(tr);
+ }
+ const wrap=elem("div",undefined,"strategic-matrix-scroll");wrap.append(matrix);
+ root.append(wrap,elem("p","Mínimo de oito UFs com dados correspondentes para exibir r; amostras menores mostram “—”. Mesmo com dados completos, relação linear não demonstra causa e tamanho de população gera correlações mecânicas com totais. Não decidir orçamento apenas por esta matriz.","strategic-table-key"));
+}
 function strategicFinanceEstimate(){
  const box=$("strategicFinanceResult");box.replaceChildren();
  const ids=["strategicAdditionalSubmissions","strategicPublicationRate","strategicRevenuePerPublication","strategicVariableCost","strategicMonthlyInvestment"];
@@ -2709,7 +2751,7 @@ async function strategicBrainLoad(){
   for(const x of (d.states||[]).filter(x=>x.contacts>=3)){const opt=document.createElement("option");opt.value=x.uf;opt.textContent=x.uf;stateFilter.append(opt)}
   if([...stateFilter.options].some(x=>x.value===previousState))stateFilter.value=previousState;
   strategicRenderStateTrend();
-  strategicDecisionTree();strategicHeatmap();strategicCorrelation();
+  strategicDecisionTree();strategicHeatmap();strategicCorrelation();strategicTerritorialCorrelation();
   strategicBars($("strategicDDDs"),(d.ddds||[]).filter(x=>x.contacts>=3).map(x=>({...x,ddd:"("+x.ddd+") "+x.uf})),"ddd","contacts",x=>"DDD original "+x.ddd);
   const dem=d.demographics||{},demographicRoot=$("strategicDemographics");
   $("strategicIbgeYear").textContent=dem.year?"Censo demográfico IBGE "+dem.year+" · população por sexo agregado":"Dados do IBGE não importados. Sem estimativas inventadas.";
