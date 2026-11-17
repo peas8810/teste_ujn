@@ -2636,12 +2636,15 @@ function strategicHeatmap(){
 }
 function strategicCorrelation(){
  const root=$("strategicCorrelation");root.replaceChildren();
- const daily=(STRATEGIC.report?.email_daily||[]).filter(x=>x.day);
- const n=daily.length,observed=daily.filter(x=>Number(x.messages)>0).length;
- const note=elem("p","Séries diárias no mesmo intervalo. Período: "+n+" dias; "+observed+" com mensagens. "+(n<21?"Amostra curta: interpretações exploratórias, sem recomendações de investimento baseadas no coeficiente.":"Coeficientes descritivos; significância, causalidade e sazonalidade não estão demonstradas."),"strategic-table-key");
+ const available=(STRATEGIC.report?.email_daily||[]).filter(x=>x.day);
+ // Pre-import zero days can represent missing historical ingestion, not no interest.
+ // Correlate only days observed with synced messages and signal selection bias.
+ const daily=available.filter(x=>Number(x.messages)>0);
+ const n=available.length,observed=daily.length;
+ const note=elem("p","Período selecionado: "+n+" dias; "+observed+" com mensagens sincronizadas. Cálculo somente nos dias observados, evitando tratar dias sem importação como demanda zero. "+(observed<21?"Amostra curta: correlações exploratórias, proibidas como gatilho de investimento.":"Coeficientes descritivos; significância, causalidade e sazonalidade não estão demonstradas."),"strategic-table-key");
  root.append(note);
  const fields=[["Recebidas","inbound"],["Enviadas","outbound"],["Conversas","conversations"],["Submissões*","submission_mentions"],["Pagamentos*","payment_mentions"],["Pareceres*","review_mentions"]];
- if(n<7||observed<5){root.append(elem("p","Não há observações temporais suficientes para calcular a matriz.","hint"));return}
+ if(observed<7){root.append(elem("p","Não há pelo menos sete dias com registros para calcular correlação exploratória.","hint"));return}
  const tab=elem("table",undefined,"strategic-matrix");const head=document.createElement("tr");head.append(elem("th",""));
  for(const [label] of fields){const th=elem("th",label.slice(0,7));th.title=label;head.append(th)}tab.append(head);
  for(const [label,key] of fields){
