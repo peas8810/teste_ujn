@@ -807,7 +807,7 @@ body > .maildesk-jump-nav .btn:hover{background:#dff4f1;border-color:#66b9b0}
    <div class="card"><h2>DDD por região de origem</h2><div id="strategicDDDs"></div></div>
  </div>
  <div class="strategic-columns">
-   <div class="card"><h2>Linhas temporais observadas</h2><p class="hint">Registros novos de contatos e volume semanal de e-mails, sem inferir causalidade.</p><div id="strategicTimeline"></div></div>
+   <div class="card"><div class="head"><h2>Tendência por UF</h2><label class="hint">Estado <select id="strategicUfFilter" aria-label="Selecionar estado"></select></label></div><p class="hint">Novos contatos vinculados por semana, conforme DDD; série ainda curta. Não representa quantidade de submissões.</p><div id="strategicStateTrend"></div><h3>Movimentação semanal de e-mails</h3><div id="strategicTimeline"></div></div>
    <div class="card"><h2>Publicações capturadas</h2><p class="hint">Amostra de registros OJS sincronizados — não é o acervo completo.</p><div id="strategicPubs"></div></div>
  </div>
  <div class="strategic-columns">
@@ -2487,6 +2487,23 @@ function strategicBars(root,rows,labelKey,valueKey,desc){
   row.append(label,track,n);root.append(row);
  }
 }
+
+function strategicRenderStateTrend(){
+ const root=$("strategicStateTrend"),filter=$("strategicUfFilter");root.replaceChildren();
+ const rows=(STRATEGIC.report?.weekly_contact_registrations||[]).filter(x=>x.uf===filter.value);
+ const data=Object.entries(rows.reduce((acc,row)=>{acc[row.week]=(acc[row.week]||0)+Number(row.contacts||0);return acc},{})).sort((a,b)=>a[0].localeCompare(b[0]));
+ if(data.length<2){root.append(elem("p","Ainda não há semanas suficientes com registros deste DDD para traçar tendência. Não é possível afirmar alta ou baixa sustentada.","hint"));return}
+ const svg=document.createElementNS("http://www.w3.org/2000/svg","svg");
+ svg.setAttribute("viewBox","0 0 600 230");svg.setAttribute("width","100%");svg.setAttribute("role","img");svg.setAttribute("aria-label","Novos contatos semanais inferidos por DDD no estado "+filter.value);
+ const shape=(tag,attrs,text)=>{const el=document.createElementNS("http://www.w3.org/2000/svg",tag);for(const k in attrs)el.setAttribute(k,String(attrs[k]));if(text!==undefined)el.textContent=text;svg.append(el)};
+ const mx=Math.max(1,...data.map(x=>x[1])),points=data.map((x,i)=>[44+520*i/(data.length-1),177-148*x[1]/mx]);
+ for(let n=0;n<4;n++){let y=177-148*n/3;shape("line",{x1:42,x2:570,y1:y,y2:y,stroke:"#dce9eb"});shape("text",{x:4,y:y+4,fill:"#627f8a","font-size":11},String(Math.round(mx*n/3)))}
+ shape("polyline",{points:points.map(x=>x.join(",")).join(" "),stroke:"#087e8b","stroke-width":3,fill:"none","stroke-linejoin":"round","stroke-linecap":"round"});
+ points.forEach((p,i)=>{shape("circle",{cx:p[0],cy:p[1],r:4,fill:"#087e8b"});shape("text",{x:p[0],y:p[1]-10,fill:"#224c5b","font-size":11,"text-anchor":"middle"},String(data[i][1]))});
+ shape("text",{x:44,y:216,fill:"#5a7682","font-size":11},data[0][0]);
+ shape("text",{x:570,y:216,fill:"#5a7682","font-size":11,"text-anchor":"end"},data[data.length-1][0]);
+ root.append(svg);
+}
 async function strategicBrainLoad(){
  const from=$("strategicFrom"),to=$("strategicTo");
  if(!from.value||!to.value){const now=new Date(),start=new Date(now);start.setDate(start.getDate()-89);from.value=strategicDate(start);to.value=strategicDate(now)}
@@ -2514,6 +2531,10 @@ async function strategicBrainLoad(){
    ["Conversas de e-mail",summary.email_thread_count,"Histórico sincronizado"],
    ["Publicações no snapshot",summary.published_snapshot_count,"Amostra capturada; não catálogo completo"]])metrics.append(strategicCard(label,value,detail));
   strategicBars($("strategicStates"),(d.states||[]).filter(x=>x.contacts>=3),"uf","contacts",x=>"Área inferida por DDD: "+x.uf);
+  const stateFilter=$("strategicUfFilter"),previousState=stateFilter.value;stateFilter.replaceChildren();
+  for(const x of (d.states||[]).filter(x=>x.contacts>=3)){const opt=document.createElement("option");opt.value=x.uf;opt.textContent=x.uf;stateFilter.append(opt)}
+  if([...stateFilter.options].some(x=>x.value===previousState))stateFilter.value=previousState;
+  strategicRenderStateTrend();
   strategicBars($("strategicDDDs"),(d.ddds||[]).filter(x=>x.contacts>=3).map(x=>({...x,ddd:"("+x.ddd+") "+x.uf})),"ddd","contacts",x=>"DDD original "+x.ddd);
   const dem=d.demographics||{},demographicRoot=$("strategicDemographics");
   $("strategicIbgeYear").textContent=dem.year?"Censo demográfico IBGE "+dem.year+" · população por sexo agregado":"Dados do IBGE não importados. Sem estimativas inventadas.";
@@ -3677,7 +3698,7 @@ $("mailDeskCopy").onclick=async()=>{try{const plain=mailRichPlain(),html=$("mail
 $("aiToMailDesk").onclick=()=>show("emails");
 let mailDeskStatusBusy=false;setInterval(async()=>{if(!token||!MAILDESK.request||document.hidden||mailDeskStatusBusy)return;mailDeskStatusBusy=true;try{await mailDeskPollStatus()}finally{mailDeskStatusBusy=false}},3000);
 
-$("strategicRefresh").onclick=strategicBrainLoad;$("strategicApply").onclick=strategicBrainLoad;$("strategicAnalyze").onclick=strategicBrainAnalyze;
+$("strategicUfFilter").onchange=strategicRenderStateTrend;$("strategicRefresh").onclick=strategicBrainLoad;$("strategicApply").onclick=strategicBrainLoad;$("strategicAnalyze").onclick=strategicBrainAnalyze;
 $("loginForm").onsubmit=login;$("signout").onclick=logout;for(const b of document.querySelectorAll("[data-screen]"))b.onclick=()=>show(b.dataset.screen);for(const b of document.querySelectorAll("[data-mobile-screen]"))b.onclick=()=>{show(b.dataset.mobileScreen);window.scrollTo({top:0,behavior:"smooth"})};$("mobileMore").onclick=()=>{$("sidebar").classList.add("open");$("overlay").classList.add("show")};$("toggleNav").onclick=()=>{$("sidebar").classList.add("open");$("overlay").classList.add("show")};$("overlay").onclick=()=>{$("sidebar").classList.remove("open");$("overlay").classList.remove("show")};$("refreshOverview").onclick=overview;$("reloadInbox").onclick=inbox;$("inboxAISuggest").onclick=inboxSuggest;$("inboxAIAudit").onclick=inboxAIAudit;
 setInterval(async()=>{
  if(!token||document.hidden||!document.querySelector('[data-page="inbox"]:not(.hidden)'))return;
