@@ -538,7 +538,9 @@ body > .maildesk-jump-nav .btn:hover{background:#dff4f1;border-color:#66b9b0}
    <div class="actions"><button type="button" class="btn primary" id="mailDeskGenerate" disabled>Gerar resposta com IA</button></div>
    <div id="mailDeskNotes" class="notice hidden" aria-live="polite"></div>
    <div id="mailDeskDraftPanel" class="hidden"><div class="maildesk-draft-title"><h3>Escrever resposta</h3><span id="mailDeskDraftState" class="hint">Não salvo</span></div>
-    <label for="mailDeskRecipient">Destinatário</label><input type="email" id="mailDeskRecipient" autocomplete="off" readonly/>
+    <label for="mailDeskRecipient">Destinatário</label><input type="email" id="mailDeskRecipient" autocomplete="off" maxlength="254" readonly/>
+    <label id="mailDeskManualRecipientLabel" class="hint hidden" style="display:flex;align-items:center;gap:9px;margin:9px 0 5px"><input type="checkbox" id="mailDeskManualRecipient" style="width:18px;height:18px;min-height:18px"/> Informar destinatário manualmente (administrador)</label>
+    <p id="mailDeskManualRecipientHint" class="hint hidden">Confira o endereço do destinatário no histórico ou em outra fonte confiável. A confirmação do envio exigirá digitar novamente o e-mail.</p>
     <label for="mailDeskSubject">Assunto</label><input id="mailDeskSubject" maxlength="500"/>
     <label for="mailDeskRichEditor">Resposta — editor formatado</label>
     <div class="mail-rich-shell">
@@ -2467,7 +2469,7 @@ setInterval(()=>{if(token&&!document.hidden&&(role?.superuser||(role?.allowed||[
 /* Central de E-mails — usa a sessão Academy já autenticada; API verifica
    SUPERADMIN do Academy e o operador UJN correspondente no servidor. */
 const MAILDESK_API="https://leytqsyfrmzhectatcqm.supabase.co/functions/v1/ujn-email-desk-v1";
-const MAILDESK={threads:[],selected:null,activeDraft:null,mailbox:null,request:null,loading:false,search:"",unreadOnly:false,draftDirty:false,lastDraft:null,replyTarget:null,selectedIds:new Set(),contacts:[],currentThreadData:null,activeTab:"mailbox"};
+const MAILDESK={threads:[],selected:null,activeDraft:null,mailbox:null,request:null,loading:false,search:"",unreadOnly:false,draftDirty:false,lastDraft:null,replyTarget:null,canManualRecipient:false,selectedIds:new Set(),contacts:[],currentThreadData:null,activeTab:"mailbox"};
 async function mailDeskCall(action,data={}){
  await brainEnsureAccess();
  const r=await fetch(MAILDESK_API,{method:"POST",cache:"no-store",
@@ -3028,6 +3030,7 @@ async function mailDeskOpen(id,options={}){
    }).catch(e=>mailDeskNotice("Falha ao sincronizar leitura: "+e.message,"warn"));
   }
   MAILDESK.replyTarget=data.reply_target||null;
+  MAILDESK.canManualRecipient=data.allow_manual_recipient===true;
   MAILDESK.currentThreadData=data;
   MAILDESK.lastDraft=(data.drafts||[]).find(x=>x.state==="DRAFT")||null;
   $("mailDeskOpenSavedDraft").disabled=!MAILDESK.lastDraft;
@@ -3149,20 +3152,26 @@ function mailDeskDrawDraft(d,notes){
  $("mailDeskSaveDraft").disabled=false;
  const t=MAILDESK.threads.find(x=>x.id===MAILDESK.selected);
  const target=MAILDESK.replyTarget;
- $("mailDeskRecipient").value=target?.safe?target.email:"";
  const technicalRecipient=!target?.safe||!target?.header_verified;
- $("mailDeskRecipient").placeholder=technicalRecipient?"Destinatário indisponível — aguardando cabeçalho Reply-To":"";
-
- $("mailDeskRecipient").style.borderColor=technicalRecipient?"#d34542":"";
- $("mailDeskRecipient").title=technicalRecipient?"Nenhum destinatário confirmado para a última mensagem recebida.":("Destinatário automático: "+(target.source==="direct_sender"?"remetente direto":"cabeçalho Reply-To"));
+ const canManual=MAILDESK.canManualRecipient===true;
+ const manualLabel=$("mailDeskManualRecipientLabel"),manual=$("mailDeskManualRecipient");
+ manualLabel.classList.toggle("hidden",!canManual);
+ manualLabel.style.display=canManual?"flex":"none";
+ manual.checked=canManual&&technicalRecipient;
+ $("mailDeskManualRecipientHint").classList.toggle("hidden",!manual.checked);
+ $("mailDeskRecipient").readOnly=!manual.checked;
+ $("mailDeskRecipient").value=target?.safe?target.email:"";
+ $("mailDeskRecipient").placeholder=manual.checked?"Digite e confira o e-mail do destinatário":technicalRecipient?"Destinatário indisponível — aguardando cabeçalho Reply-To":"";
+ $("mailDeskRecipient").style.borderColor=technicalRecipient&&!manual.checked?"#d34542":"";
+ $("mailDeskRecipient").title=manual.checked?"Endereço informado manualmente pelo administrador":technicalRecipient?"Nenhum destinatário confirmado para a última mensagem recebida.":"Destinatário automático verificado";
  $("mailDeskSubject").value=d.subject_override||(/^re:/i.test(t?.subject||"")?(t.subject||""):"Re: "+(t?.subject||""));
  mailRichSetContent(d.body_text||"",d.body_html||null);
  MAILDESK.draftDirty=false;
  $("mailDeskDraftState").textContent=d.manual_saved_at?"Salvo em "+stamp(d.manual_saved_at):"Aguardando salvamento";
  $("mailDeskDraftPanel").classList.remove("hidden");
- $("mailDeskApprove").disabled=technicalRecipient||!d?.id||!(MAILDESK.mailbox?.smtp_enabled&&MAILDESK.mailbox?.sync_enabled);
+ $("mailDeskApprove").disabled=(technicalRecipient&&!manual.checked)||!d?.id||!(MAILDESK.mailbox?.smtp_enabled&&MAILDESK.mailbox?.sync_enabled);
  $("mailDeskApprove").textContent=MAILDESK.mailbox?.smtp_enabled&&MAILDESK.mailbox?.sync_enabled?"Autorizar e colocar na fila de envio":"Envio aguarda sincronização de Entrada e Enviados";
- if(technicalRecipient){
+ if(technicalRecipient&&!manual.checked){
    $("mailDeskDraftState").textContent="⚠️ Envio bloqueado: destinatário ainda não identificado.";
    $("mailDeskNotes").textContent="Aguardando captura segura do campo Reply-To da mensagem original. Não serão usadas suposições a partir do assunto ou de outras conversas.";
    $("mailDeskNotes").classList.remove("hidden");
@@ -3180,13 +3189,31 @@ function mailDeskNewReply(){
  }
  $("mailDeskDraftPanel").scrollIntoView({behavior:"smooth",block:"start"});
 }
+function mailDeskRecipientValidation(){
+ const recipient=$("mailDeskRecipient").value.trim().toLowerCase();
+ const manual=MAILDESK.canManualRecipient===true&&$("mailDeskManualRecipient").checked;
+ const valid=/^[^\\s@<>]+@[^\\s@<>]+\\.[a-zA-Z]{2,}$/.test(recipient)&&recipient.length<=254;
+ const notTechnical=recipient!=="contato@ujn.ojsbr.com"&&recipient!=="ujn@journals.ojsbr.com"&&!/^(no.?reply|do.?not.?reply|mailer-daemon)@/i.test(recipient);
+ const official=MAILDESK.replyTarget?.safe&&MAILDESK.replyTarget?.header_verified&&recipient===String(MAILDESK.replyTarget.email||"").toLowerCase();
+ return {recipient,manual,valid:valid&&notTechnical&&(manual||official)};
+}
+$("mailDeskManualRecipient").addEventListener("change",()=>{
+ const manual=$("mailDeskManualRecipient").checked&&MAILDESK.canManualRecipient===true;
+ $("mailDeskRecipient").readOnly=!manual;
+ $("mailDeskManualRecipientHint").classList.toggle("hidden",!manual);
+ $("mailDeskRecipient").value=MAILDESK.replyTarget?.safe?MAILDESK.replyTarget.email:"";
+ $("mailDeskRecipient").placeholder=manual?"Digite o e-mail do destinatário":"Endereço identificado no cabeçalho";
+ $("mailDeskRecipient").focus();
+ MAILDESK.draftDirty=true;
+ $("mailDeskDraftState").textContent="Destinatário alterado — confira antes de salvar";
+});
 async function mailDeskSaveDraft(){
  const id=MAILDESK.selected;if(!id)return;
  const t=MAILDESK.threads.find(x=>x.id===id);
  if(!t)return;
  const plain=mailRichPlain(),html=$("mailDeskRichEditor").innerHTML,subject=$("mailDeskSubject").value.trim();
  const recipient=$("mailDeskRecipient").value.trim().toLowerCase();
- if(!MAILDESK.replyTarget?.safe||recipient!==String(MAILDESK.replyTarget.email||"").toLowerCase())return mailDeskNotice("Destinatário não verificado. O Reply-To deve vir do cabeçalho do e-mail.","error");
+ if(!mailDeskRecipientValidation().valid)return mailDeskNotice("Informe um destinatário válido ou aguarde a verificação do Reply-To.","error");
  if(!subject||subject.length>500||plain.length>8000)return mailDeskNotice("Confira o assunto e limite de 8.000 caracteres.","error");
  const btn=$("mailDeskSaveDraft");btn.disabled=true;
  $("mailDeskDraftState").textContent="Salvando…";
@@ -3196,7 +3223,7 @@ async function mailDeskSaveDraft(){
   if(MAILDESK.selected!==id)return;
   MAILDESK.activeDraft=resp.draft;MAILDESK.lastDraft=resp.draft;
   MAILDESK.draftDirty=false;
-  $("mailDeskApprove").disabled=!MAILDESK.replyTarget?.safe||!(MAILDESK.mailbox?.smtp_enabled&&MAILDESK.mailbox?.sync_enabled);
+  $("mailDeskApprove").disabled=!mailDeskRecipientValidation().valid||!(MAILDESK.mailbox?.smtp_enabled&&MAILDESK.mailbox?.sync_enabled);
   $("mailDeskDraftState").textContent="✓ Rascunho salvo em "+stamp(resp.draft.manual_saved_at);
   $("mailDeskOpenSavedDraft").disabled=false;$("mailDeskOpenSavedDraft").textContent="Abrir rascunho salvo";
   mailDeskNotice("Rascunho salvo no Brain UJN. Nenhum e-mail foi enviado.");
@@ -3251,16 +3278,21 @@ async function mailDeskApprove(){
  const recipient=$("mailDeskRecipient").value.trim().toLowerCase();
  const subject=$("mailDeskSubject").value.trim();
  const body=mailRichPlain();const body_html=$("mailDeskRichEditor").innerHTML;
- if(!MAILDESK.replyTarget?.safe||recipient!==String(MAILDESK.replyTarget.email||"").toLowerCase()||!subject||body.length<10||body.length>8000){
+ const choice=mailDeskRecipientValidation();
+ if(!choice.valid||!subject||body.length<10||body.length>8000){
   mailDeskNotice("Confira o destinatário original, o assunto e o texto da resposta.","error");return;
  }
  const real=MAILDESK.mailbox?.smtp_enabled===true&&MAILDESK.mailbox?.sync_enabled===true;
  if(!real){mailDeskNotice("Primeiro conclua a sincronização segura de Entrada e Enviados no cPanel.","warn");return;}
  const warning=real?"ATENÇÃO: Você está autorizando o envio REAL para "+recipient+". A mensagem será transmitida pelo servidor SMTP quando o executor estiver ativo.":"Você está registrando aprovação sem envio; o SMTP está desativado.";
- if(!confirm(warning+"\n\nConfirma esta ação?"))return;
+ if(!confirm(warning+"\n\n"+(choice.manual?"ATENÇÃO: destinatário informado manualmente. Confirme a identidade antes do envio.\n\n":"")+"Confirma esta ação?"))return;
+ if(choice.manual){
+  const reconfirm=prompt("CONFIRMAÇÃO ADMINISTRATIVA: digite novamente o endereço completo de destino ("+recipient+").");
+  if(reconfirm===null||reconfirm.trim().toLowerCase()!==recipient)return mailDeskNotice("Confirmação do destinatário não corresponde. Nenhum envio foi autorizado.","warn");
+ }
  $("mailDeskApprove").disabled=true;
  try{
-  const out=await mailDeskCall("approve_send",{draft_id:d.id,recipient,subject,body_text:body,body_html});
+  const out=await mailDeskCall("approve_send",{draft_id:d.id,recipient,subject,body_text:body,body_html,manual_recipient:choice.manual,recipient_confirmation:choice.manual?recipient:null,confirm_manual_send:choice.manual});
   MAILDESK.request=out.request_id;
   // The exact contents submitted to approve_send are now persisted server-side.
   // Never warn that they are unsaved after successful authorization.
@@ -3363,6 +3395,7 @@ $("mailDeskSaveDraft").onclick=mailDeskSaveDraft;
 $("mailDeskCloseDraft").onclick=mailDeskCloseComposer;
 $("mailDeskRichEditor").addEventListener("input",()=>{if(!$("mailDeskDraftPanel").classList.contains("hidden")){MAILDESK.draftDirty=true;$("mailDeskDraftState").textContent="Alterações não salvas"}});
 $("mailDeskSubject").addEventListener("input",()=>{MAILDESK.draftDirty=true;$("mailDeskDraftState").textContent="Alterações não salvas"});
+$("mailDeskRecipient").addEventListener("input",()=>{if(!$("mailDeskRecipient").readOnly){MAILDESK.draftDirty=true;$("mailDeskDraftState").textContent="Destinatário editado — verifique antes de enviar"}});
 $("mailDeskGenerate").onclick=mailDeskGenerate;
 $("mailDeskRewrite").onclick=mailDeskRewrite;
 $("mailDeskApprove").onclick=mailDeskApprove;
