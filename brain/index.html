@@ -809,6 +809,10 @@ body > .maildesk-jump-nav .btn:hover{background:#dff4f1;border-color:#66b9b0}
    <div class="card"><h2>Linhas temporais observadas</h2><p class="hint">Registros novos de contatos e volume semanal de e-mails, sem inferir causalidade.</p><div id="strategicTimeline"></div></div>
    <div class="card"><h2>Publicações capturadas</h2><p class="hint">Amostra de registros OJS sincronizados — não é o acervo completo.</p><div id="strategicPubs"></div></div>
  </div>
+ <div class="strategic-columns">
+   <div class="card"><h2>Potencial acadêmico — MEC/INEP</h2><p class="hint" id="strategicInepYear">Aguardando importação de dados oficiais.</p><div id="strategicInepStates"></div><p class="hint">Matrículas de estudantes por UF e curso, com sexo somente em totais estatísticos, conforme disponibilidade oficial.</p></div>
+   <div class="card"><h2>Conversões e participação institucional</h2><p class="hint">Afiliações conferidas em artigos e campanhas com atribuição verificável.</p><div id="strategicAffiliations"></div><div id="strategicCampaigns"></div></div>
+ </div>
  <div class="card"><div class="head"><div><h2>Fontes de inteligência de mercado</h2><p class="hint">Integrações previstas e grau de comprovação dos dados.</p></div></div>
    <div class="strategic-sources">
      <div><strong>WhatsApp / DDD</strong><span>Disponível — origem aproximada do número</span></div>
@@ -2500,6 +2504,16 @@ async function strategicBrainLoad(){
    ["Publicações no snapshot",summary.published_snapshot_count,"Amostra capturada; não catálogo completo"]])metrics.append(strategicCard(label,value,detail));
   strategicBars($("strategicStates"),(d.states||[]).filter(x=>x.contacts>=3),"uf","contacts",x=>"Área inferida por DDD: "+x.uf);
   strategicBars($("strategicDDDs"),(d.ddds||[]).filter(x=>x.contacts>=3).map(x=>({...x,ddd:"("+x.ddd+") "+x.uf})),"ddd","contacts",x=>"DDD original "+x.ddd);
+  const ext=d.external||{},inep=$("strategicInepStates"),aff=$("strategicAffiliations"),cam=$("strategicCampaigns");
+  $("strategicInepYear").textContent=ext.inep_year?"Censo da Educação Superior "+ext.inep_year+" · matrícula total por UF":"Ainda sem dados importados do INEP. Fonte oficial preparada.";
+  if(ext.inep_states?.length)strategicBars(inep,ext.inep_states.slice(0,12),"uf","enrollments");
+  else inep.replaceChildren(elem("p","Aguardando Censo da Educação Superior oficial.","hint"));
+  if(ext.affiliation_states?.length)strategicBars(aff,ext.affiliation_states.slice(0,12),"uf","articles");
+  else aff.replaceChildren(elem("p","Sem afiliações institucionais verificadas dos artigos nesta base.","hint"));
+  if(ext.campaign_states?.length){
+   cam.replaceChildren(elem("h3","Campanhas atribuídas por UF"));
+   for(const x of ext.campaign_states.slice(0,12))cam.append(elem("p",(x.uf||"UF não informada")+" · investimento R$ "+Number(x.spend_brl||0).toFixed(2)+" · "+(x.submissions||0)+" submissões atribuídas"));
+  }else cam.replaceChildren(elem("p","Sem custos e conversões de campanhas importados.","hint"));
   const timeline=$("strategicTimeline");timeline.replaceChildren();
   const weeks=d.weekly_email_volume||[];
   if(!weeks.length)timeline.append(elem("p","Sem mensagens no intervalo.","hint"));
