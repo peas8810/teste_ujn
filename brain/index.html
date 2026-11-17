@@ -249,12 +249,16 @@
 .maildesk-msg .maildesk-quoted{display:block;margin-top:9px;padding:11px;border-radius:8px;background:#f4f7f8;color:#5b7280;white-space:pre-wrap;font-size:12px;max-height:160px;overflow:auto}
 .maildesk-msg .maildesk-message-main{white-space:pre-wrap}
 @media(max-width:850px){.maildesk-insight-grid{grid-template-columns:1fr}.maildesk-time-row{grid-template-columns:70px 1fr 80px}}
-#brainEmailDesk .maildesk-jump-nav{position:sticky;top:8px;z-index:15;display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:9px 11px;background:rgba(247,251,252,.97);border:1px solid #d7e6e9;border-radius:10px;box-shadow:0 3px 12px #17374b13;margin:7px 0 10px;backdrop-filter:blur(5px)}
-#brainEmailDesk .maildesk-jump-nav .maildesk-jump-label{font-size:12px;font-weight:700;color:#4f6b79}
-#brainEmailDesk .maildesk-jump-nav .btn{min-height:34px;white-space:nowrap}
+body > .maildesk-jump-nav{position:fixed;right:18px;top:50%;transform:translateY(-50%);z-index:1000;display:flex;flex-direction:column;align-items:stretch;gap:8px;padding:11px;background:rgba(247,251,252,.97);border:1px solid #d7e6e9;border-radius:12px;box-shadow:0 6px 24px #17374b30;max-width:160px;backdrop-filter:blur(5px)}
+body:has(#brainEmailDesk.hidden) > .maildesk-jump-nav{display:none}
+body > .maildesk-jump-nav .maildesk-jump-label{font-size:11px;font-weight:800;color:#4f6b79;text-align:center}
+body > .maildesk-jump-nav .btn{min-height:36px;white-space:nowrap;background:#fff;border:1px solid #d7e6e9;color:#17394a;border-radius:8px;padding:8px 11px;font-size:12px;font-weight:700;cursor:pointer}
+body > .maildesk-jump-nav .btn:hover{background:#dff4f1;border-color:#66b9b0}
+
+
 #brainEmailDesk .maildesk-msg{scroll-margin-top:94px}
 #brainEmailDesk #mailDeskDraftPanel{scroll-margin-top:95px}
-@media(max-width:600px){#brainEmailDesk .maildesk-jump-nav{top:4px;gap:5px;padding:7px}#brainEmailDesk .maildesk-jump-nav .btn{padding:7px 9px;font-size:12px}}
+@media(max-width:600px){body > .maildesk-jump-nav{right:7px;top:auto;bottom:14px;transform:none;gap:5px;padding:7px;max-width:132px}body > .maildesk-jump-nav .btn{padding:7px 9px;font-size:11px}}
 </style><style id="mail-rich-editor-style">
 .mail-rich-shell{border:1px solid #c9dce1;border-radius:12px;overflow:hidden;background:white}
 .mail-rich-toolbar{display:flex;gap:4px;flex-wrap:wrap;align-items:center;padding:10px;background:#f4f8f9;border-bottom:1px solid #dbe6e9}
@@ -3335,8 +3339,10 @@ $("mailDeskFilter").onchange=()=>{if(MAILDESK.draftDirty&&!confirm("Descartar al
 $("mailDeskSearch").addEventListener("input",e=>{MAILDESK.search=e.target.value.trim().toLowerCase();mailDeskListRender()});
 $("mailDeskShowAll").onclick=()=>{MAILDESK.unreadOnly=false;$("mailDeskShowAll").classList.add("active");$("mailDeskOnlyUnread").classList.remove("active");mailDeskListRender()};
 $("mailDeskOnlyUnread").onclick=()=>{MAILDESK.unreadOnly=true;$("mailDeskOnlyUnread").classList.add("active");$("mailDeskShowAll").classList.remove("active");mailDeskListRender()};
+// Put the navigation outside the reading pane so no parent layout or scroll
+// container can clip it. It remains fixed within the browser viewport.
+document.body.appendChild(document.querySelector("#brainEmailDesk .maildesk-jump-nav"));
 function mailDeskJump(direction){
- const view=$("mailDeskHistory");
  if(!MAILDESK.selected)return mailDeskNotice("Selecione uma conversa para navegar.","warn");
  if(direction==="editor"){
   const editor=$("mailDeskDraftPanel");
@@ -3344,11 +3350,9 @@ function mailDeskJump(direction){
   editor.scrollIntoView({behavior:"smooth",block:"start"});
   return;
  }
- const cards=view.querySelectorAll(".maildesk-msg");
- if(!cards.length)return;
- // Messages render newest first; the last card is the oldest.
- const target=direction==="top"?cards[0]:cards[cards.length-1];
- target.scrollIntoView({behavior:"smooth",block:"start"});
+ const root=document.scrollingElement||document.documentElement;
+ const end=Math.max(root.scrollHeight,document.body.scrollHeight)-window.innerHeight;
+ window.scrollTo({top:direction==="top"?0:Math.max(0,end),behavior:"smooth"});
 }
 $("mailDeskJumpTop").onclick=()=>mailDeskJump("top");
 $("mailDeskJumpBottom").onclick=()=>mailDeskJump("bottom");
