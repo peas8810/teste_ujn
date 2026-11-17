@@ -376,6 +376,20 @@ body > .maildesk-jump-nav .btn:hover{background:#dff4f1;border-color:#66b9b0}
 .maildesk-dashboard .barrow{display:grid;grid-template-columns:minmax(110px,1fr) 2fr auto;align-items:center;gap:10px;font-size:12px;margin:9px 0}
 .maildesk-dashboard .bartrack{height:9px;border-radius:8px;background:#e1ebef;overflow:hidden}
 .maildesk-dashboard .barfill{height:100%;background:#147c80;border-radius:8px}
+
+.maildesk-period-bar{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:12px 0;padding:12px;border:1px solid #dce8eb;background:#f7fbfb;border-radius:10px}
+.maildesk-period-bar label{display:flex;align-items:center;gap:5px;font-size:12px}
+.maildesk-period-bar input,.maildesk-period-bar select{background:white;border:1px solid #d1e0e5;border-radius:7px;padding:8px}
+.maildesk-dashboard .analytics-pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.maildesk-dashboard .corr-table{width:100%;border-spacing:3px;font-size:11px;text-align:center}
+.maildesk-dashboard .corr-table td{padding:8px 4px;border-radius:4px;font-weight:700}
+.maildesk-dashboard .corr-table th{font-size:10px;color:#607987}
+.maildesk-dashboard .corr-table th:first-child{text-align:left}
+.maildesk-dashboard .analysis-sections{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px}
+.maildesk-dashboard .analysis-sections section{border:1px solid #dbe8eb;background:#f7fbfb;border-radius:8px;padding:12px}
+.maildesk-dashboard .analysis-sections p{line-height:1.55;font-size:12px}
+.maildesk-dashboard .analysis-note{color:#67818c;font-size:12px;line-height:1.55;margin-top:10px}
+@media(max-width:1050px){.maildesk-dashboard .analytics-pair{grid-template-columns:1fr}}
 </style><style id="mkt-journey-builder-style">
 .mkt-journey-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:14px}
 .mkt-journey-stat{border:1px solid #dde9e9;background:#f8fbfb;padding:12px;border-radius:10px}
@@ -582,7 +596,8 @@ body > .maildesk-jump-nav .btn:hover{background:#dff4f1;border-color:#66b9b0}
  </div>
  <section id="mailDeskDashboardPanel" class="hidden">
   <div class="head"><div><h2>Inteligência estatística dos e-mails</h2><p class="hint">Todos os registros sincronizados, inclusive histórico — sem expor conteúdo individual aos gráficos.</p></div><button type="button" class="btn" id="mailDeskDashboardReload">Atualizar indicadores</button></div>
-  <div id="mailDeskDashboardContent" class="maildesk-dashboard"><p class="hint">Abra a aba para consultar estatísticas.</p></div>
+  <div class="maildesk-period-bar"><strong>Período</strong><select id="mailDeskPeriodPreset"><option value="1">Hoje</option><option value="7">7 dias</option><option value="30" selected>30 dias</option><option value="90">90 dias</option><option value="year">Ano atual</option><option value="custom">Personalizado</option></select><label>De <input type="date" id="mailDeskPeriodFrom"/></label><label>Até <input type="date" id="mailDeskPeriodTo"/></label><button class="btn" id="mailDeskPeriodApply" type="button">Aplicar</button><span id="mailDeskPeriodNote" class="hint"></span></div>
+ <div id="mailDeskDashboardContent" class="maildesk-dashboard"><p class="hint">Abra a aba para consultar estatísticas.</p></div>
  </section>
 </section>
 <section data-page="contacts" class="screen hidden"><div class="eyebrow">PESSOAS E VÍNCULOS</div><div class="head"><div><h1>Contatos</h1><p class="lead">Perfis reais com vínculos explicitamente verificados; telefone isolado não prova autoria.</p></div><button class="btn" id="refreshContacts">Atualizar contatos</button></div><div class="notice">Números telefônicos são mascarados. A associação ao usuário Academy é exibida somente quando o vínculo está registrado no sistema.</div><div class="contactbox"><div class="card"><label>Filtrar contato, ID ou serviço</label><input id="contactQuery" placeholder="Buscar referência ou serviço"/><div id="contactList"></div></div><div class="card" id="contactDetails"><h3>Selecione um contato</h3></div></div></section>
@@ -2636,30 +2651,102 @@ function mailDeskBarPanel(title,items,key="name"){
  }
  return panel;
 }
-async function mailDeskDashboardLoad(){
- const root=$("mailDeskDashboardContent");root.replaceChildren(elem("p","Calculando indicadores de todo o histórico importado…","hint"));
- try{
-  const {report}=await mailDeskCall("dashboard");if(!report?.totals)throw Error("Sem indicadores");
-  root.replaceChildren();
-  const t=report.totals,cardRoot=elem("div",undefined,"cards");
-  for(const [name,value] of [["Mensagens",t.all_messages],["Recebidas",t.inbound],["Enviadas",t.outbound],["Conversas",t.threads_total],["Pendências",t.waiting],["Arquivadas",t.archived],["Rascunhos",t.drafts],["Lixeira",t.trash]]){
-   const metric=elem("div",undefined,"metric");metric.append(elem("small",name),elem("strong",String(value??0)));cardRoot.append(metric)
-  }
-  root.append(cardRoot);
-  const panels=elem("div",undefined,"panels");
-  panels.append(mailDeskBarPanel("Assuntos mais recorrentes",report.themes,"label"),mailDeskBarPanel("Remetentes mais frequentes",report.frequent_senders,"address"),
-   mailDeskBarPanel("Palavras nos assuntos dos e-mails",report.subject_terms,"term"),mailDeskBarPanel("Assuntos individuais mais frequentes",report.subjects,"subject"),
-   mailDeskBarPanel("Palavras nos textos recebidos",report.body_terms,"term"),
-   mailDeskBarPanel("Áreas de pesquisa sugeridas pelos títulos",report.scientific_themes,"label"),
-   mailDeskBarPanel("Títulos científicos mencionados nos assuntos",report.article_title_candidates,"title"));
-  root.append(panels);
-  const monthly=elem("div",undefined,"panel");monthly.append(elem("h3","Volume por mês — recebidas e enviadas"));
-  for(const m of report.timeline||[])monthly.append(elem("p",m.month+" · "+m.inbound+" recebidas · "+m.outbound+" enviadas"));
-  const time=report.response_time||{};
-  if(time.comparable_threads)monthly.append(elem("p","Tempo médio entre última entrada e última saída: "+time.mean_hours+" horas ("+time.comparable_threads+" conversas comparáveis). É uma aproximação, não tempo oficial de atendimento.","hint"));
-  root.append(monthly,elem("p","Os títulos de artigos foram inferidos de assuntos com dois-pontos; palavras podem incluir citações e respostas anteriores. Categorias são heurísticas e não substituem metadados OJS. Cobertura: todas as mensagens já importadas no Supabase.","hint"));
- }catch(e){root.replaceChildren(elem("p","Dashboard indisponível: "+e.message,"hint"))}
+
+const MAILDESK_PERIOD={from:null,to:null,current:null,sequence:0};
+function mailDeskPeriodDefault(){
+ const v=$("mailDeskPeriodPreset").value,end=new Date(),start=new Date(end);
+ if(v==="year")start.setMonth(0,1);else if(v!=="custom")start.setDate(start.getDate()-Number(v)+1);
+ const fmt=d=>[d.getFullYear(),String(d.getMonth()+1).padStart(2,"0"),String(d.getDate()).padStart(2,"0")].join("-");
+ if(v!=="custom"){$("mailDeskPeriodFrom").value=fmt(start);$("mailDeskPeriodTo").value=fmt(end)}
+ $("mailDeskPeriodFrom").disabled=v!=="custom";$("mailDeskPeriodTo").disabled=v!=="custom";
 }
+function mailDeskCorr(x,y){
+ if(x.length<7)return null;
+ let a=0,b=0,c=0,d=0,e=0,n=x.length;
+ for(let i=0;i<n;i++){const u=Number(x[i])||0,v=Number(y[i])||0;a+=u;b+=v;c+=u*u;d+=v*v;e+=u*v}
+ const denom=Math.sqrt((n*c-a*a)*(n*d-b*b));
+ return denom>0?(n*e-a*b)/denom:null;
+}
+function mailDeskCorrelationTable(daily){
+ const fields=[["Mensagens","messages"],["Recebidas","inbound"],["Enviadas","outbound"],["Conversas","conversations"],["Submissões*","submission_mentions"],["Pagamentos*","payment_mentions"],["Pareceres*","review_mentions"]];
+ const table=document.createElement("table");table.className="corr-table";
+ const heading=document.createElement("tr");heading.append(document.createElement("th"));
+ for(const [name] of fields){const th=document.createElement("th");th.textContent=name.slice(0,7);th.title=name;heading.append(th)}table.append(heading);
+ for(const [name,key] of fields){
+  const tr=document.createElement("tr"),th=document.createElement("th");th.textContent=name;tr.append(th);
+  for(const [other,otherKey] of fields){
+   const v=mailDeskCorr(daily.map(x=>x[key]),daily.map(x=>x[otherKey])),td=document.createElement("td");
+   td.textContent=v==null?"—":v.toFixed(2).replace(".",",");
+   if(v!=null){td.style.background="rgba(10,125,129,"+(0.08+0.84*Math.abs(v)).toFixed(3)+")";td.style.color=Math.abs(v)>.64?"white":"#183949"}
+   td.title=name+" x "+other+": "+(v==null?"não calculável":v.toFixed(3));tr.append(td);
+  }table.append(tr)
+ }
+ return table;
+}
+function mailDeskPlot(daily){
+ const svg=document.createElementNS("http://www.w3.org/2000/svg","svg");svg.setAttribute("viewBox","0 0 600 215");svg.setAttribute("width","100%");svg.setAttribute("role","img");svg.setAttribute("aria-label","Volume diário de mensagens recebidas e enviadas");
+ const add=(tag,attrs,text)=>{const e=document.createElementNS("http://www.w3.org/2000/svg",tag);for(const k in attrs)e.setAttribute(k,attrs[k]);if(text!=null)e.textContent=text;svg.append(e)};
+ const max=Math.max(1,...daily.map(x=>Math.max(Number(x.inbound)||0,Number(x.outbound)||0)));
+ for(let j=0;j<5;j++){const y=18+j*39;add("line",{x1:"36",x2:"588",y1:String(y),y2:String(y),stroke:"#dce8eb"});add("text",{x:"4",y:String(y+5),fill:"#71838d","font-size":"12"},String(Math.round(max*(4-j)/4)))}
+ for(const [key,color] of [["inbound","#087b7f"],["outbound","#33bcc1"]]){
+  const pts=daily.map((x,i)=>(36+i*552/Math.max(1,daily.length-1))+","+(174-(Number(x[key])||0)*156/max)).join(" ");
+  add("polyline",{points:pts,fill:"none",stroke:color,"stroke-width":"3","stroke-linejoin":"round"});
+ }
+ if(daily.length){add("text",{x:"36",y:"203","font-size":"11",fill:"#546e7b"},String(daily[0].day));add("text",{x:"520",y:"203","font-size":"11",fill:"#546e7b"},String(daily[daily.length-1].day))}
+ return svg;
+}
+async function mailDeskDashboardAI(){
+ const root=$("mailDeskAIResults"),button=$("mailDeskAIButton");if(!MAILDESK_PERIOD.current)return;
+ root.replaceChildren(elem("p","Analisando altas, baixas e estratégias a partir dos indicadores…","hint"));button.disabled=true;
+ try{
+  const response=await mailDeskCall("dashboard_ai",{from:MAILDESK_PERIOD.from,to:MAILDESK_PERIOD.to});
+  if(response.from!==MAILDESK_PERIOD.from||response.to!==MAILDESK_PERIOD.to)return;
+  const a=response.analysis||{};root.replaceChildren(elem("p",a.summary||"Sem conclusão."));
+  const grid=elem("div",undefined,"analysis-sections");
+  for(const [title,items] of [["Altas de e-mails",a.high_periods],["Baixas de e-mails",a.low_periods],["Como aumentar submissões",a.submission_strategy]]){
+   const section=document.createElement("section");section.append(elem("h3",title));
+   for(const item of items||[]){section.append(elem("strong",item.period||item.action||"Análise"));for(const value of [item.observation,item.possible_factors,item.evidence_level,item.rationale,item.metric_to_monitor,item.priority])if(value)section.append(elem("p",value))}
+   if(!items?.length)section.append(elem("p","Amostra insuficiente.","hint"));
+   grid.append(section);
+  }root.append(grid,elem("p",a.limitations||"Não há causalidade demonstrada.","analysis-note"));
+ }catch(err){root.replaceChildren(elem("p","Erro ao analisar: "+err.message,"hint"))}finally{button.disabled=false}
+}
+async function mailDeskDashboardLoad(){
+ const root=$("mailDeskDashboardContent"),from=$("mailDeskPeriodFrom").value,to=$("mailDeskPeriodTo").value;
+ if(!from||!to||from>to||((Date.parse(to)-Date.parse(from))/86400000)>366){$("mailDeskPeriodNote").textContent="Informe um intervalo válido de até 366 dias.";return}
+ const request=++MAILDESK_PERIOD.sequence;
+ root.replaceChildren(elem("p","Calculando indicadores do período…","hint"));
+ try{
+  const [periodic,overall]=await Promise.all([mailDeskCall("dashboard_period",{from,to}),mailDeskCall("dashboard")]);
+  if(request!==MAILDESK_PERIOD.sequence)return;
+  const period=periodic.report,all=overall.report;
+  if(!period?.daily||!all?.totals)throw Error("Indicadores indisponíveis");
+  MAILDESK_PERIOD.from=from;MAILDESK_PERIOD.to=to;MAILDESK_PERIOD.current=period;
+  $("mailDeskPeriodNote").textContent=from+" até "+to+" · "+period.summary.days+" dias";
+  root.replaceChildren();
+  const cards=elem("div",undefined,"cards");
+  for(const [name,value] of [["Mensagens",period.summary.messages],["Recebidas",period.summary.inbound],["Enviadas",period.summary.outbound],["Menções a submissões*",period.summary.submission_mentions],["Menções a pareceres*",period.summary.review_mentions],["Menções a pagamentos*",period.summary.payment_mentions]]){
+   const card=elem("div",undefined,"metric");card.append(elem("small",name),elem("strong",String(value??0)));cards.append(card)
+  }root.append(cards);
+  const pair=elem("div",undefined,"analytics-pair"),left=elem("div",undefined,"panel"),right=elem("div",undefined,"panel");
+  left.append(elem("h3","Volume diário por período"),elem("p","Recebidas (verde escuro) e enviadas (verde claro)","analysis-note"),mailDeskPlot(period.daily));
+  right.append(elem("h3","Matriz de correlação"),mailDeskCorrelationTable(period.daily),elem("p","Coeficiente de Pearson entre séries diárias (−1 a +1). * Menções por palavras nos assuntos; não equivalem a submissões efetivas. “—” indica cálculo indisponível. Correlação não demonstra causa.","analysis-note"));
+  pair.append(left,right);root.append(pair);
+  const box=elem("div",undefined,"panel"),line=elem("div",undefined,"actions"),btn=elem("button","Analisar causas e oportunidades com IA","btn primary");
+  btn.type="button";btn.id="mailDeskAIButton";btn.onclick=mailDeskDashboardAI;
+  line.append(elem("h3","Inteligência estratégica de submissões"),btn);
+  const result=elem("div");result.id="mailDeskAIResults";result.append(elem("p","Gere um diagnóstico dos dias de alta e baixa e recomendações para ampliar submissões. A IA separará hipóteses de fatos.","hint"));
+  box.append(line,result);root.append(box);
+  const status=elem("div",undefined,"panel");status.append(elem("h3","Indicadores operacionais — acumulado geral"),elem("p","Estes estados são atuais e não representam reconstrução histórica do período.","analysis-note"));
+  const snapshot=elem("div",undefined,"cards");
+  for(const [name,value] of [["Conversas",all.totals.threads_total],["Pendências",all.totals.waiting],["Arquivadas",all.totals.archived],["Rascunhos",all.totals.drafts],["Lixeira",all.totals.trash]]){
+   const card=elem("div",undefined,"metric");card.append(elem("small",name),elem("strong",String(value??0)));snapshot.append(card)
+  }status.append(snapshot);root.append(status);
+  const panels=elem("div",undefined,"panels");panels.append(mailDeskBarPanel("Temas do período",period.topics,"category"),mailDeskBarPanel("Remetentes frequentes — todo o histórico",all.frequent_senders,"address"),mailDeskBarPanel("Palavras nos assuntos — todo o histórico",all.subject_terms,"term"),mailDeskBarPanel("Assuntos recorrentes — todo o histórico",all.themes,"label"));root.append(panels);
+  root.append(elem("p",period.limitations+" Os cartões de estado e gráficos identificados como todo o histórico não seguem o período. Para medir submissões reais, precisamos de eventos de ArticleRun/OJS.","analysis-note"));
+ }catch(err){if(request===MAILDESK_PERIOD.sequence)root.replaceChildren(elem("p","Dashboard indisponível: "+err.message,"hint"))}
+}
+
 function mailDeskSetTab(which){
  MAILDESK.activeTab=which;
  $("mailDeskMailboxPanel").classList.toggle("hidden",which!=="mailbox");
@@ -3352,6 +3439,9 @@ $("mailDeskTrainingToggle").onclick=mailDeskTrainingToggle;
 $("mailDeskTrainingReview").onclick=mailDeskTrainingReview;
 $("mailDeskTabMailbox").onclick=()=>mailDeskSetTab("mailbox");
 $("mailDeskTabDashboard").onclick=()=>mailDeskSetTab("dashboard");
+$("mailDeskPeriodPreset").onchange=mailDeskPeriodDefault;
+$("mailDeskPeriodApply").onclick=mailDeskDashboardLoad;
+mailDeskPeriodDefault();
 $("mailDeskDashboardReload").onclick=mailDeskDashboardLoad;
 for(const b of document.querySelectorAll("[data-mailfolder]"))b.onclick=()=>{$("mailDeskFilter").value=b.dataset.mailfolder;MAILDESK.selected=null;MAILDESK.selectedIds.clear();mailDeskLoad()};
 $("mailDeskSelectAll").onchange=e=>{MAILDESK.selectedIds.clear();if(e.target.checked)for(const t of mailDeskVisibleThreads())MAILDESK.selectedIds.add(t.id);mailDeskListRender()};
