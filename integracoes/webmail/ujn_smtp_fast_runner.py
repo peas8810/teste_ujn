@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Brain UJN SMTP fast runner (one-minute Cron, ~10-second checks).
+"""Brain UJN SMTP fast runner (one-minute Cron, ~5-second checks).
 
 Invokes existing single-item approved worker in short bursts. Serialized via
 local flock to prevent concurrent Cron instances. The database claims jobs
@@ -17,8 +17,8 @@ from pathlib import Path
 ROOT = Path("/home/ujn/brain-ujn")
 LOCK_FILE = ROOT / "state" / "smtp_fast_runner.lock"
 WORKER = ROOT / "ujn_smtp_supervised_worker.py"
-INTERVAL = 10.0
-DURATION = 54.0
+INTERVAL = 5.0
+DURATION = 56.0
 SINGLE_CALL_TIMEOUT = 36
 
 def diagnose():
