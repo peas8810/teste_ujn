@@ -45,6 +45,9 @@ def run(diagnose=False, limit=8):
                                ssl_context=ssl.create_default_context()) as conn:
             conn.login(base.USER, base.PASSWORD)
             available = folders.available_folders(conn)
+            sent_folder = base.detect_sent_folder(conn)
+            if sent_folder and sent_folder not in available:
+                available.append(sent_folder)
             result["folders_available"] = len(available)
             if diagnose:
                 result["no_changes"] = True
@@ -60,7 +63,12 @@ def run(diagnose=False, limit=8):
                     result["errors"] += 1
             for key, attachments in grouped.items():
                 found = False
+                is_outbound = all(x.get("direction") == "OUTBOUND" for x in attachments)
                 for folder in available:
+                    if is_outbound and folder != sent_folder:
+                        continue
+                    if not is_outbound and folder == sent_folder:
+                        continue
                     if time.monotonic() - started > 80:
                         result["deferred"] += len(attachments)
                         break
@@ -88,6 +96,12 @@ def run(diagnose=False, limit=8):
                                 continue
                             msg = email.message_from_bytes(data)
                             if str(msg.get("Message-ID") or "").strip() != key:
+                                continue
+                            from email.utils import parseaddr
+                            sender = parseaddr(msg.get("From", ""))[1].lower()
+                            if is_outbound != (sender == base.MAILBOX):
+                                continue
+                            if not is_outbound and base.MAILBOX not in base.addrs(msg.get("To", "")) and base.MAILBOX not in base.addrs(msg.get("Cc", "")):
                                 continue
                             uploads = mime.extract(msg).get("upload_files", [])
                             for att in attachments:
