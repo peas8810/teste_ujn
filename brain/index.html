@@ -472,12 +472,33 @@ body > .maildesk-jump-nav .btn:hover{background:#dff4f1;border-color:#66b9b0}
  .notify-panel{max-width:calc(100vw - 22px)}
 }
 @media(max-width:380px){.topbar .topright .mode{display:none}.mobile-bottom-nav button{font-size:9px}}
+
+.strategic-toolbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:12px 0}
+.strategic-toolbar label{display:flex;align-items:center;gap:7px;font-size:12px;color:#617986}
+.strategic-toolbar input{padding:9px;border:1px solid #d0e0e5;border-radius:8px}
+.strategic-metrics{margin:15px 0}
+.strategic-columns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:14px 0}
+.strategic-columns .card{min-width:0}
+.strategic-bar{display:grid;grid-template-columns:85px minmax(0,1fr) 35px;align-items:center;gap:8px;margin:9px 0}
+.strategic-bar label{font-size:12px;font-weight:700;color:#30566c}
+.strategic-bar .track{background:#e2edee;height:12px;border-radius:9px;overflow:hidden}
+.strategic-bar .fill{height:100%;background:#138b86;border-radius:9px}
+.strategic-bar strong{font-size:13px;text-align:right}
+.strategic-sources{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px}
+.strategic-sources>div{display:flex;flex-direction:column;border:1px solid #d9e5e9;border-radius:10px;padding:12px;background:#f7fbfc;gap:5px}
+.strategic-sources>div strong{color:#173a4d}
+.strategic-sources>div span{font-size:12px;color:#607b88}
+.strategic-insights-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px}
+.strategic-insights-grid>div{background:#f5fafb;border:1px solid #d9e5e9;border-radius:10px;padding:12px;min-width:0}
+.strategic-insights-grid h3{font-size:15px;color:#173a4d;margin:0 0 8px}
+.strategic-insights-grid p{font-size:12px;line-height:1.55;margin:7px 0}
+@media(max-width:900px){.strategic-columns{grid-template-columns:1fr}.strategic-toolbar label{flex:1 1 140px}.strategic-toolbar input{width:100%}.strategic-toolbar #strategicStatus{flex-basis:100%}}
 </style>
 </head><body><a class="skip" href="#maincontent">Pular para conteúdo</a><div id="overlay"></div><div class="shell">
 <aside class="sidebar" id="sidebar"><div class="brand"><svg width="38" height="38" viewBox="0 0 40 40" fill="none" aria-hidden="true"><path d="M10 30L20 10L32 28L10 30" stroke="#53bbbc" stroke-width="2.5"/><circle cx="10" cy="30" r="4" fill="#fff"/><circle cx="20" cy="10" r="4" fill="#fff"/><circle cx="32" cy="28" r="4" fill="#fff"/></svg>brain <small>UJN</small></div><div class="tagline">RELACIONAMENTO QUE CONECTA</div>
 <div class="navtitle">OPERAÇÃO</div><nav class="nav"><button data-screen="overview">▦　Visão geral</button><button data-screen="inbox">▤　Caixa de entrada</button><button data-screen="emails">✉　E-mails · IA e envios</button><button data-screen="contacts">♙　Contatos e vínculos</button></nav>
 <div class="navtitle">ECOSSISTEMA</div><nav class="nav"><button data-screen="academy">♧　Atendimento Academy</button><button data-screen="journals">▥　Revistas</button><button data-screen="submit">▤　Submissões · ArticleRun</button><button data-screen="genius">✧　ArticleGenius</button></nav>
-<div class="navtitle">GESTÃO</div><nav class="nav"><button data-screen="editorialwa">☏　WhatsApp · OJS</button><button data-screen="marketing">▥　WhatsApp · Marketing</button><button data-screen="ai">✧　IA · Atendimento</button><button data-screen="notifications">♧　Notificações</button><button data-screen="settings">☷　Configurações</button></nav>
+<div class="navtitle">GESTÃO</div><nav class="nav"><button data-screen="editorialwa">☏　WhatsApp · OJS</button><button data-screen="marketing">▥　WhatsApp · Marketing</button><button data-screen="ai">◈　Strategic Brain</button><button data-screen="notifications">♧　Notificações</button><button data-screen="settings">☷　Configurações</button></nav>
 <div class="sidebar-footer">Integração autenticada com Academy.<br/>Nenhuma mensagem é enviada automaticamente ao abrir o painel.</div></aside>
 <div class="main"><header class="topbar"><div class="row"><button class="btn small mobilebar" id="toggleNav" aria-label="Abrir menu">☰</button><span class="breadcrumb">Central UJN　›　<span id="crumb">Acesso</span></span></div><div class="topright"><div class="notify-shell" id="notifyShell" hidden>
  <button class="notify-bell" id="notifyBell" type="button" aria-label="Abrir notificações" aria-expanded="false" title="Notificações do Brain UJN">
@@ -775,6 +796,32 @@ body > .maildesk-jump-nav .btn:hover{background:#dff4f1;border-color:#66b9b0}
 <div class="mkt-footer">Os consentimentos para acompanhar artigos e receber mensagens editoriais não autorizam marketing. Todo novo contato começa sem permissão comercial. Os módulos de campanhas e jornadas estão em modo de planejamento, sem envio automático.</div>
 </section>
 <section data-page="ai" class="screen hidden">
+ <div class="eyebrow">INTELIGÊNCIA ESTRATÉGICA · EDITORA UJN</div>
+ <div class="head"><div><h1>Strategic Brain</h1><p class="lead">Inteligência geográfica, demanda editorial e oportunidades para aquisição de submissões.</p></div><div class="actions"><button type="button" class="btn" id="strategicRefresh">Atualizar indicadores</button></div></div>
+ <div class="strategic-toolbar card"><label>De <input type="date" id="strategicFrom"/></label><label>Até <input type="date" id="strategicTo"/></label><button class="btn primary" type="button" id="strategicApply">Aplicar período</button><span class="hint" id="strategicStatus" aria-live="polite">Carregando fontes agregadas...</span></div>
+ <div class="notice">Indicadores por DDD são estimativas da área original do número, não localização comprovada. O Strategic Brain mostra apenas dados agregados e nunca identifica sexo ou gênero de pessoas a partir de nomes ou telefones.</div>
+ <div id="strategicMetrics" class="grid strategic-metrics"></div>
+ <div class="strategic-columns">
+   <div class="card"><div class="head"><h2>Presença por UF — DDD</h2><span class="hint">Números únicos válidos; base interna</span></div><div id="strategicStates"></div></div>
+   <div class="card"><h2>DDD por região de origem</h2><div id="strategicDDDs"></div></div>
+ </div>
+ <div class="strategic-columns">
+   <div class="card"><h2>Linhas temporais observadas</h2><p class="hint">Registros novos de contatos e volume semanal de e-mails, sem inferir causalidade.</p><div id="strategicTimeline"></div></div>
+   <div class="card"><h2>Publicações capturadas</h2><p class="hint">Amostra de registros OJS sincronizados — não é o acervo completo.</p><div id="strategicPubs"></div></div>
+ </div>
+ <div class="card"><div class="head"><div><h2>Fontes de inteligência de mercado</h2><p class="hint">Integrações previstas e grau de comprovação dos dados.</p></div></div>
+   <div class="strategic-sources">
+     <div><strong>WhatsApp / DDD</strong><span>Disponível — origem aproximada do número</span></div>
+     <div><strong>E-mails e conversas</strong><span>Disponível — volumes sem atribuição geográfica</span></div>
+     <div><strong>IES / artigos publicados</strong><span>Parcial — falta validar afiliação das cinco revistas</span></div>
+     <div><strong>MEC / INEP</strong><span>Pendente — matrículas por curso, UF, município, ano e sexo agregado</span></div>
+     <div><strong>ArticleRun / OJS</strong><span>Pendente — funil real de submissões e conversões</span></div>
+     <div><strong>Meta Ads / campanhas de e-mail</strong><span>Pendente — gastos, cliques, UTMs e resultados</span></div>
+   </div>
+ </div>
+ <div class="card"><div class="head"><div><h2>IA — recomendações estratégicas</h2><p class="hint">A IA separa observações, hipóteses e ações mensuráveis. Não realiza disparos nem compra anúncios.</p></div><button type="button" id="strategicAnalyze" class="btn primary" disabled>Gerar análise estratégica</button></div><div id="strategicInsights" aria-live="polite"><p class="hint">Atualize os indicadores para analisar oportunidades.</p></div></div>
+ <div id="aiLegacySupport" class="hidden" aria-hidden="true">
+
  <div class="eyebrow">INTELIGÊNCIA · CENTRAL UJN</div>
  <div class="head"><div><h1>IA · Análise e respostas</h1><p class="lead">Aprendizado com históricos de e-mail e WhatsApp. Respostas são sempre rascunhos para aprovação humana.</p></div><div class="actions"><button class="btn primary" id="aiToMailDesk" type="button">Abrir e-mails · IA e envios</button><button class="btn" id="aiRefresh">Atualizar IA</button></div></div>
  <div id="aiStats" class="grid"></div>
@@ -788,6 +835,7 @@ body > .maildesk-jump-nav .btn:hover{background:#dff4f1;border-color:#66b9b0}
  <div class="card"><h2>Analisar um e-mail</h2><p class="hint">Cole somente a solicitação pertinente. Remova anexos, dados financeiros e outras informações sensíveis antes da análise.</p><textarea id="aiEmailInput" maxlength="3000" placeholder="Cole aqui o texto de um e-mail de atendimento que precisa de resposta…"></textarea><div class="actions"><button class="btn primary" id="aiEmailSuggest">Criar rascunho de resposta</button></div></div>
  <div class="card"><h2>Respostas propostas — aprovação humana</h2><div id="aiDrafts"></div></div>
  <div id="aiSuggestion" class="notice hidden" aria-live="polite"></div>
+ </div>
 </section>
 <section data-page="notifications" class="screen hidden"><div class="eyebrow">GESTÃO</div><div class="head"><div><h1>Monitor de notificações</h1><p class="lead">Filas de WhatsApp, e-mail e eventos Academy; consulta sem disparo de mensagens.</p></div><button class="btn" id="notificationsRefresh">Atualizar monitor</button></div><div id="notificationsStatus" class="card">Carregue o monitor para visualizar os estados.</div></section>
 <section data-page="settings" class="screen hidden"><div class="eyebrow">GESTÃO</div><h1>Configurações</h1><p class="lead">Edição controlada do menu institucional do WhatsApp, com histórico de versões.</p><div class="card"><div class="head"><h2>Mensagem principal</h2><button class="btn" id="loadMenu">Carregar mensagem</button></div><label>Texto do menu (opções 1 a 5)</label><textarea id="menuText" maxlength="3800" rows="16" style="min-height:300px"></textarea><div class="actions"><button class="btn primary" id="saveMenu" disabled>Publicar alteração</button></div><p class="hint">Somente superadministrador. Alterações afetam novas respostas; não disparam mensagens automaticamente.</p></div></section>
@@ -797,7 +845,7 @@ body > .maildesk-jump-nav .btn:hover{background:#dff4f1;border-color:#66b9b0}
 "use strict";
 const BASE="https://jufnkfyvqgkrxsbctqqk.supabase.co",PUB="sb_publishable_Gw7GOqQKaGan1a-RnvHDhw_ePj9JLYY",API=BASE+"/functions/v1/ujn-central";
 const $=id=>document.getElementById(id);let token=null,role=null,serviceNames={},cases=[],contacts=[],current=null,menuVersion=null;
-const names={overview:"Visão geral",inbox:"Caixa de entrada",emails:"E-mails · IA e envios",contacts:"Contatos e vínculos",academy:"Atendimento Academy",journals:"Revistas",submit:"Submissões",genius:"ArticleGenius",notifications:"Notificações",editorialwa:"WhatsApp OJS",marketing:"WhatsApp · Marketing",ai:"IA · Atendimento",settings:"Configurações"};
+const names={overview:"Visão geral",inbox:"Caixa de entrada",emails:"E-mails · IA e envios",contacts:"Contatos e vínculos",academy:"Atendimento Academy",journals:"Revistas",submit:"Submissões",genius:"ArticleGenius",notifications:"Notificações",editorialwa:"WhatsApp OJS",marketing:"WhatsApp · Marketing",ai:"Strategic Brain",settings:"Configurações"};
 const journals={REMUNOM:"https://remunom.ojsbr.com/multidisciplinar",JIRRS:"https://jirrs.org.uk/jirrs",NEXUS:"https://nexussr.org.uk/nexussr",RSV:"https://rsv.ojsbr.com/rsv",RJNM:"https://jrnm.ojsbr.com/juridica"};
 const say=(s,error=false)=>{const n=$("notice");n.textContent=s;n.className=error?"notice error":"notice";if(!s)n.classList.add("hidden")};
 const elem=(tag,content,cls)=>{const x=document.createElement(tag);if(content!==undefined)x.textContent=String(content);if(cls)x.className=cls;return x};
@@ -970,7 +1018,7 @@ async function brainKeepSessionAlive(){
 setInterval(brainKeepSessionAlive,60000);
 document.addEventListener("visibilitychange",()=>{if(!document.hidden)brainKeepSessionAlive()});
 
-function show(page){if(!token)return;for(const x of document.querySelectorAll("[data-page]"))x.classList.toggle("hidden",x.dataset.page!==page);for(const x of document.querySelectorAll(".nav button"))x.classList.toggle("active",x.dataset.screen===page);for(const x of document.querySelectorAll("[data-mobile-screen]")){x.classList.toggle("active",x.dataset.mobileScreen===page);x.setAttribute("aria-current",x.dataset.mobileScreen===page?"page":"false")};$("crumb").textContent=names[page];$("sidebar").classList.remove("open");$("overlay").classList.remove("show");say("");if(page==="overview")overview();if(page==="inbox")inbox();if(page==="emails")mailDeskLoad();if(page==="contacts")contactLoad();if(page==="academy")academy();if(page==="journals")renderJournals();if(page==="notifications")notifications();if(page==="marketing")marketing();if(page==="editorialwa")editorialWa();if(page==="ai")aiDash()}
+function show(page){if(!token)return;for(const x of document.querySelectorAll("[data-page]"))x.classList.toggle("hidden",x.dataset.page!==page);for(const x of document.querySelectorAll(".nav button"))x.classList.toggle("active",x.dataset.screen===page);for(const x of document.querySelectorAll("[data-mobile-screen]")){x.classList.toggle("active",x.dataset.mobileScreen===page);x.setAttribute("aria-current",x.dataset.mobileScreen===page?"page":"false")};$("crumb").textContent=names[page];$("sidebar").classList.remove("open");$("overlay").classList.remove("show");say("");if(page==="overview")overview();if(page==="inbox")inbox();if(page==="emails")mailDeskLoad();if(page==="contacts")contactLoad();if(page==="academy")academy();if(page==="journals")renderJournals();if(page==="notifications")notifications();if(page==="marketing")marketing();if(page==="editorialwa")editorialWa();if(page==="ai")strategicBrainLoad()}
 
 const WA_OJS_API=BASE+"/functions/v1/ujn-editorial-dashboard";let editorialCache=null;
 function makeEditorialTable(root,heads,rows){
@@ -2413,6 +2461,73 @@ $("mktViewBody").addEventListener("click",e=>{
 $("mktViewBody").addEventListener("change",e=>{
  const x=e.target.closest("select[data-mkt-stage]");if(x)mktRun("change_opportunity",{id:x.dataset.mktStage,stage:x.value});
 });
+
+const STRATEGIC={report:null,from:null,to:null,sequence:0};
+function strategicDate(d){return [d.getFullYear(),String(d.getMonth()+1).padStart(2,"0"),String(d.getDate()).padStart(2,"0")].join("-")}
+function strategicCard(label,value,detail){
+ const card=elem("div",undefined,"card");card.append(elem("small",label),elem("h2",String(value??"—")));
+ if(detail)card.append(elem("p",detail,"hint"));return card;
+}
+function strategicBars(root,rows,labelKey,valueKey,desc){
+ root.replaceChildren();const total=Math.max(1,...(rows||[]).map(x=>Number(x[valueKey])||0));
+ if(!rows?.length){root.append(elem("p","Dados não disponíveis.","hint"));return}
+ for(const item of rows){
+  const row=elem("div",undefined,"strategic-bar"),label=elem("label",item[labelKey]||"—"),track=elem("div",undefined,"track"),fill=elem("div",undefined,"fill"),n=elem("strong",String(item[valueKey]||0));
+  fill.style.width=Math.max(2,Math.round(100*(Number(item[valueKey])||0)/total))+"%";track.append(fill);
+  label.title=desc?desc(item):label.textContent;
+  row.append(label,track,n);root.append(row);
+ }
+}
+async function strategicBrainLoad(){
+ const from=$("strategicFrom"),to=$("strategicTo");
+ if(!from.value||!to.value){const now=new Date(),start=new Date(now);start.setDate(start.getDate()-89);from.value=strategicDate(start);to.value=strategicDate(now)}
+ if(from.value>to.value||(Date.parse(to.value)-Date.parse(from.value))/86400000>366)return $("strategicStatus").textContent="Intervalo inválido ou superior a 366 dias.";
+ const id=++STRATEGIC.sequence;
+ $("strategicStatus").textContent="Consultando fontes internas...";
+ $("strategicAnalyze").disabled=true;
+ try{
+  const response=await mailDeskCall("strategic_brain",{from:from.value,to:to.value});
+  if(id!==STRATEGIC.sequence)return;
+  const d=response.report||{},summary=d.summary||{};
+  STRATEGIC.report=d;STRATEGIC.from=from.value;STRATEGIC.to=to.value;
+  $("strategicStatus").textContent="Dados atualizados · "+from.value+" até "+to.value;
+  const metrics=$("strategicMetrics");metrics.replaceChildren();
+  for(const [label,value,detail] of [
+   ["Números únicos",summary.unique_phone_count,"WhatsApp e contatos manuais deduplicados"],
+   ["DDD brasileiros",summary.valid_brazil_phone_count,"Origem de numeração, não residência"],
+   ["Destinatários WhatsApp",summary.verified_wa_recipient_rows,"Linhas com vínculo verificado"],
+   ["Conversas de e-mail",summary.email_thread_count,"Histórico sincronizado"],
+   ["Publicações no snapshot",summary.published_snapshot_count,"Amostra capturada; não catálogo completo"]])metrics.append(strategicCard(label,value,detail));
+  strategicBars($("strategicStates"),(d.states||[]).filter(x=>x.contacts>=3),"uf","contacts",x=>"Área inferida por DDD: "+x.uf);
+  strategicBars($("strategicDDDs"),(d.ddds||[]).filter(x=>x.contacts>=3).map(x=>({...x,ddd:"("+x.ddd+") "+x.uf})),"ddd","contacts",x=>"DDD original "+x.ddd);
+  const timeline=$("strategicTimeline");timeline.replaceChildren();
+  const weeks=d.weekly_email_volume||[];
+  if(!weeks.length)timeline.append(elem("p","Sem mensagens no intervalo.","hint"));
+  else for(const week of weeks)timeline.append(elem("p",week.week+" · "+week.received+" recebidas / "+week.sent+" enviadas"));
+  const pubs=$("strategicPubs");pubs.replaceChildren();
+  for(const item of d.publication_snapshots||[])pubs.append(elem("p",item.journal_code+": "+item.published_records+" registros com publicação no snapshot"));
+  if(!(d.publication_snapshots||[]).length)pubs.append(elem("p","Nenhuma publicação no snapshot.","hint"));
+  $("strategicAnalyze").disabled=false;
+  $("strategicInsights").replaceChildren(elem("p","Indicadores carregados. Gere hipóteses e prioridades, sem assumir dados ausentes do MEC ou de campanhas.","hint"));
+ }catch(err){if(id===STRATEGIC.sequence){$("strategicStatus").textContent="Erro ao consultar a inteligência: "+err.message;$("strategicAnalyze").disabled=true}}
+}
+async function strategicBrainAnalyze(){
+ if(!STRATEGIC.report)return;
+ const button=$("strategicAnalyze"),root=$("strategicInsights");button.disabled=true;root.replaceChildren(elem("p","Analisando dados agregados e incertezas…","hint"));
+ try{
+  const data=await mailDeskCall("strategic_brain_ai",{from:STRATEGIC.from,to:STRATEGIC.to});
+  if(!STRATEGIC.report)return;
+  const a=data.analysis||{};root.replaceChildren(elem("p",a.executive_summary||"Sem diagnóstico disponível."));
+  const grid=elem("div",undefined,"strategic-insights-grid");
+  for(const [heading,items] of [["Observações confirmadas",a.observations],["Hipóteses a testar",a.hypotheses],["Próximas integrações",a.next_data_steps],["Ressalvas",a.warnings]]){
+   const panel=elem("div");panel.append(elem("h3",heading));
+   for(const item of items||[])panel.append(elem("p",item));
+   grid.append(panel);
+  }
+  const panel=elem("div");panel.append(elem("h3","Oportunidades de marketing"));
+  for(const o of a.opportunities||[]){const block=elem("div");block.append(elem("strong",(o.uf?o.uf+" · ":"")+o.proposal));if(o.why)block.append(elem("p",o.why));if(o.validation)block.append(elem("p","Validação: "+o.validation));if(o.metric)block.append(elem("p","KPI: "+o.metric));panel.append(block)}grid.append(panel);root.append(grid);
+ }catch(err){root.replaceChildren(elem("p","Não foi possível gerar a análise: "+err.message,"hint"))}finally{button.disabled=false}
+}
 async function aiDash(){
  const st=$("aiStats"),aud=$("aiEmailStats"),topics=$("aiTopics"),kb=$("aiKnowledge"),recent=$("aiRecent"),drafts=$("aiDrafts");
  st.replaceChildren();empty(aud,"Consultando histórico…");
@@ -3533,6 +3648,7 @@ $("mailDeskCopy").onclick=async()=>{try{const plain=mailRichPlain(),html=$("mail
 $("aiToMailDesk").onclick=()=>show("emails");
 let mailDeskStatusBusy=false;setInterval(async()=>{if(!token||!MAILDESK.request||document.hidden||mailDeskStatusBusy)return;mailDeskStatusBusy=true;try{await mailDeskPollStatus()}finally{mailDeskStatusBusy=false}},3000);
 
+$("strategicRefresh").onclick=strategicBrainLoad;$("strategicApply").onclick=strategicBrainLoad;$("strategicAnalyze").onclick=strategicBrainAnalyze;
 $("loginForm").onsubmit=login;$("signout").onclick=logout;for(const b of document.querySelectorAll("[data-screen]"))b.onclick=()=>show(b.dataset.screen);for(const b of document.querySelectorAll("[data-mobile-screen]"))b.onclick=()=>{show(b.dataset.mobileScreen);window.scrollTo({top:0,behavior:"smooth"})};$("mobileMore").onclick=()=>{$("sidebar").classList.add("open");$("overlay").classList.add("show")};$("toggleNav").onclick=()=>{$("sidebar").classList.add("open");$("overlay").classList.add("show")};$("overlay").onclick=()=>{$("sidebar").classList.remove("open");$("overlay").classList.remove("show")};$("refreshOverview").onclick=overview;$("reloadInbox").onclick=inbox;$("inboxAISuggest").onclick=inboxSuggest;$("inboxAIAudit").onclick=inboxAIAudit;
 setInterval(async()=>{
  if(!token||document.hidden||!document.querySelector('[data-page="inbox"]:not(.hidden)'))return;
