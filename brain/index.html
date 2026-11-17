@@ -3285,7 +3285,7 @@ async function mailDeskPollStatus(){
    await mailDeskLoad();
   }
   else if(["FAILED","UNKNOWN","CANCELLED"].includes(state)){mailDeskNotice("Envio com status "+state+". Verifique o log e não repita antes de conciliar.","error");MAILDESK.request=null;}
-  else mailDeskNotice(state==="QUEUED"?"Resposta aprovada. Aguardando a próxima verificação SMTP (aproximadamente 10 segundos).":state==="CLAIMED"?"Enviando pelo servidor institucional…":"Solicitação "+state+". Aguardando execução supervisionada do SMTP.");
+  else mailDeskNotice(state==="QUEUED"?"Resposta aprovada e colocada na fila. Aguardando o executor SMTP; a conclusão será informada automaticamente.":state==="CLAIMED"?"Enviando pelo servidor institucional…":"Solicitação "+state+". Aguardando execução supervisionada do SMTP.");
  }catch(err){mailDeskNotice("Não foi possível consultar o envio: "+err.message,"error")}
 }
 async function mailDeskLightRefresh(){
