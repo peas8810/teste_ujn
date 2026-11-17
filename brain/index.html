@@ -2600,12 +2600,16 @@ function strategicHeatmap(){
  if(!r){root.append(elem("p","Carregue os indicadores primeiro.","hint"));return}
  const ext=r.external||{},dem=r.demographics||{};
  const cols=[
-  {name:"Contatos*",arr:r.states||[],key:"contacts",label:"DDD"},
-  {name:"WhatsApp*",arr:r.states||[],key:"verified_wa",label:"WA"},
-  {name:"Matrículas",arr:ext.inep_states||[],key:"enrollments",label:"INEP"},
-  {name:"Artigos IES",arr:ext.affiliation_states||[],key:"articles",label:"IES"},
-  {name:"Submissões atrib.",arr:ext.campaign_states||[],key:"submissions",label:"Conv."},
-  {name:"População",arr:dem.uf_population||[],key:"total_population",label:"IBGE"}
+  {name:"Contatos por DDD*",arr:r.states||[],key:"contacts",label:"DDD"},
+  {name:"WhatsApp verificado*",arr:r.states||[],key:"verified_wa",label:"WA"},
+  {name:"Matrículas oficiais",arr:ext.inep_states||[],key:"enrollments",label:"Matrículas"},
+  {name:"Instituições do INEP",arr:ext.inep_states||[],key:"institutions",label:"IES"},
+  {name:"Cursos do INEP",arr:ext.inep_states||[],key:"courses",label:"Cursos"},
+  {name:"Artigos com afiliação verificada",arr:ext.affiliation_states||[],key:"articles",label:"Artigos"},
+  {name:"Cliques pagos",arr:ext.campaign_states||[],key:"clicks",label:"Cliques"},
+  {name:"Investimento em campanhas",arr:ext.campaign_states||[],key:"spend_brl",label:"Gasto R$"},
+  {name:"Submissões atribuídas",arr:ext.campaign_states||[],key:"submissions",label:"Submis."},
+  {name:"População IBGE",arr:dem.uf_population||[],key:"total_population",label:"Pop."}
  ];
  const states=[...new Set(cols.flatMap(c=>(c.arr||[]).map(x=>x.uf).filter(v=>/^[A-Z]{2}$/.test(v))))].sort();
  const visible=states.filter(uf=>Number((r.states||[]).find(x=>x.uf===uf)?.contacts||0)>=3||!!(ext.inep_states||[]).find(x=>x.uf===uf)||!!(ext.affiliation_states||[]).find(x=>x.uf===uf)||!!(dem.uf_population||[]).find(x=>x.uf===uf));
@@ -2621,8 +2625,9 @@ function strategicHeatmap(){
    const c=cols[i],v=c.arr.find(x=>x.uf===uf),td=document.createElement("td");
    const total=Number((r.states||[]).find(x=>x.uf===uf)?.contacts||0);
    const privateSmall=(i<=1&&total<3);
-   const value=v?Number(v[c.key]):null;
-   if(!v||!Number.isFinite(value)||privateSmall){td.textContent="—";td.style.background="#f0f4f5";td.style.color="#8a9da6"}
+   const raw=v?.[c.key];
+   const value=raw===null||raw===undefined?null:Number(raw);
+   if(!v||value===null||!Number.isFinite(value)||privateSmall){td.textContent="—";td.style.background="#f0f4f5";td.style.color="#8a9da6"}
    else{td.textContent=Number.isInteger(value)?value.toLocaleString("pt-BR"):value.toFixed(1);let intensity=Math.min(1,Math.log1p(Math.max(0,value))/Math.log1p(maxima[i]));td.style.background="rgba(10,129,133,"+(0.09+intensity*0.78).toFixed(3)+")";td.style.color=intensity>.61?"white":"#204b55"}
    td.title=uf+" · "+c.name+": "+(td.textContent==="—"?"não disponível / suprimido por amostra baixa":td.textContent);row.append(td);
   }
@@ -2688,7 +2693,13 @@ function strategicTerritorialCorrelation(){
  for(const [name,source,key] of rows){
   const tr=document.createElement("tr");tr.append(elem("th",name));
   for(const [other,comparison,key2] of rows){
-   const common=source.filter(v=>comparison.some(w=>w.uf===v.uf)&&Number.isFinite(Number(v[key]))&&Number.isFinite(Number(comparison.find(w=>w.uf===v.uf)?.[key2]))&& (name!=="WhatsApp por DDD"||Number(v[key])>=3) && (other!=="WhatsApp por DDD"||Number(comparison.find(w=>w.uf===v.uf)?.[key2])>=3));
+   const common=source.filter(v=>{
+    const match=comparison.find(w=>w.uf===v.uf);
+    if(!match||v[key]===null||v[key]===undefined||match[key2]===null||match[key2]===undefined)return false;
+    return Number.isFinite(Number(v[key]))&&Number.isFinite(Number(match[key2]))&&
+      (name!=="WhatsApp por DDD"||Number(v[key])>=3)&&
+      (other!=="WhatsApp por DDD"||Number(match[key2])>=3);
+   });
    const td=document.createElement("td"),n=common.length;maxPairs=Math.max(maxPairs,n);
    const a=common.map(v=>Number(v[key])),b=common.map(v=>Number(comparison.find(w=>w.uf===v.uf)?.[key2]));
    const corr=n>=8?mailDeskCorr(a,b):null;
