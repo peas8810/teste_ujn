@@ -13,6 +13,7 @@ import socket
 import ssl
 import sys
 import time
+import urllib.error
 
 import ujn_imap_readonly_collector as base
 import ujn_imap_incremental_collector as inc
@@ -115,6 +116,23 @@ def run(diagnose=False, limit=8):
                                 try:
                                     mime.upload(base, key, candidates[0])
                                     result["stored"] += 1
+                                except urllib.error.HTTPError as exc:
+                                    result["errors"] += 1
+                                    result["last_upload_error_type"] = "HTTPError"
+                                    result["last_upload_http_status"] = int(exc.code)
+                                    try:
+                                        error_body = json.loads(exc.read(2048).decode("utf-8", "replace"))
+                                        # Only report predefined server error codes; never print attachment bytes.
+                                        code = str(error_body.get("error", "unknown"))
+                                        allowed = ("signature_invalid", "invalid_attachment", "message_not_synced",
+                                                   "file_too_large", "storage_unavailable", "ingest_failed",
+                                                   "too_large", "collector_only")
+                                        result["last_upload_error_code"] = code if code in allowed else "unknown"
+                                    except (ValueError, UnicodeError, OSError):
+                                        result["last_upload_error_code"] = "unknown"
+                                    key_name = str(result["last_upload_http_status"]) + ":" + result["last_upload_error_code"]
+                                    result.setdefault("upload_error_counts", {})
+                                    result["upload_error_counts"][key_name] = result["upload_error_counts"].get(key_name, 0) + 1
                                 except Exception as exc:
                                     result["errors"] += 1
                                     result["last_upload_error_type"] = type(exc).__name__
