@@ -3596,5 +3596,26 @@ $("crmManualContactForm").addEventListener("submit",crmManualSave);
 document.querySelector(".crm-next-tabs").addEventListener("click",e=>{const tab=e.target.closest("button[data-crm-view]");if(tab)crmNextSwitchTab(tab.dataset.crmView)});
 
 setInterval(()=>{if(!document.hidden&&document.querySelector('[data-page="editorialwa"]:not(.hidden)')&&token)editorialWa()},30000);
+
+/* Installable PWA: preserve online-only authenticated operations. */
+let brainInstallEvent=null;
+window.addEventListener("beforeinstallprompt",event=>{
+ event.preventDefault();
+ brainInstallEvent=event;
+ $("brainInstallBtn").hidden=false;
+});
+$("brainInstallBtn").addEventListener("click",async()=>{
+ if(!brainInstallEvent){
+  alert("No iPhone, abra esta página no Safari e toque em Compartilhar → Adicionar à Tela de Início. No Android, use Instalar no menu do Chrome.");
+  return;
+ }
+ const ready=brainInstallEvent;brainInstallEvent=null;
+ $("brainInstallBtn").hidden=true;
+ try{await ready.prompt()}catch(_){}
+});
+window.addEventListener("appinstalled",()=>{$("brainInstallBtn").hidden=true;brainInstallEvent=null});
+if("serviceWorker" in navigator&&location.protocol==="https:"){
+ window.addEventListener("load",()=>{navigator.serviceWorker.register("./sw.js",{scope:"./"}).catch(()=>{})});
+}
 brainRestoreSession();
 </script></body></html>
