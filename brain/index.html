@@ -3712,7 +3712,7 @@ function mailDeskNewReply(){
 function mailDeskRecipientValidation(){
  const recipient=$("mailDeskRecipient").value.trim().toLowerCase();
  const manual=MAILDESK.canManualRecipient===true&&$("mailDeskManualRecipient").checked;
- const valid=/^[^\\s@<>]+@[^\\s@<>]+\\.[a-zA-Z]{2,}$/.test(recipient)&&recipient.length<=254;
+ const valid=/^[^\s@<>]+@[^\s@<>]+\.[a-zA-Z]{2,}$/.test(recipient)&&recipient.length<=254;
  const notTechnical=recipient!=="contato@ujn.ojsbr.com"&&recipient!=="ujn@journals.ojsbr.com"&&!/^(no.?reply|do.?not.?reply|mailer-daemon)@/i.test(recipient);
  const official=MAILDESK.replyTarget?.safe&&MAILDESK.replyTarget?.header_verified&&recipient===String(MAILDESK.replyTarget.email||"").toLowerCase();
  return {recipient,manual,valid:valid&&notTechnical&&(manual||official)};
@@ -3733,7 +3733,7 @@ async function mailDeskSaveDraft(){
  if(!t)return;
  const plain=mailRichPlain(),html=$("mailDeskRichEditor").innerHTML,subject=$("mailDeskSubject").value.trim();
  const recipient=$("mailDeskRecipient").value.trim().toLowerCase();
- if(!mailDeskRecipientValidation().valid)return mailDeskNotice("Informe um destinatário válido ou aguarde a verificação do Reply-To.","error");
+ if(!mailDeskRecipientValidation().valid){mailDeskNotice("Destinatário não validado. Revise o endereço ou ative a opção manual de administrador.","error");$("mailDeskRecipient").focus();return}
  if(!subject||subject.length>500||plain.length>8000)return mailDeskNotice("Confira o assunto e limite de 8.000 caracteres.","error");
  const btn=$("mailDeskSaveDraft");btn.disabled=true;
  $("mailDeskDraftState").textContent="Salvando…";
@@ -3799,8 +3799,15 @@ async function mailDeskApprove(){
  const subject=$("mailDeskSubject").value.trim();
  const body=mailRichPlain();const body_html=$("mailDeskRichEditor").innerHTML;
  const choice=mailDeskRecipientValidation();
- if(!choice.valid||!subject||body.length<10||body.length>8000){
-  mailDeskNotice("Confira o destinatário original, o assunto e o texto da resposta.","error");return;
+ if(!choice.valid){
+  const why=!choice.recipient?"O destinatário está vazio.":!choice.manual&&!MAILDESK.replyTarget?.header_verified?"O Reply-To não foi confirmado. Marque a opção de destinatário manual e informe o endereço correto.":"O destinatário não é válido ou não corresponde ao endereço confirmado.";
+  mailDeskNotice(why+" Nenhum envio foi autorizado.","error");$("mailDeskRecipient").focus();return;
+ }
+ if(!subject||subject.length>500){
+  mailDeskNotice("Informe um assunto com até 500 caracteres. Nenhum envio foi autorizado.","error");$("mailDeskSubject").focus();return;
+ }
+ if(body.length<10||body.length>8000){
+  mailDeskNotice("O texto da resposta deve conter de 10 a 8.000 caracteres (atual: "+body.length+"). Nenhum envio foi autorizado.","error");$("mailDeskRichEditor").focus();return;
  }
  const real=MAILDESK.mailbox?.smtp_enabled===true&&MAILDESK.mailbox?.sync_enabled===true;
  if(!real){mailDeskNotice("Primeiro conclua a sincronização segura de Entrada e Enviados no cPanel.","warn");return;}
