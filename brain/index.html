@@ -2770,15 +2770,27 @@ function mailDeskFormatMessage(m){
  return body;
 }
 async function mailDeskOpenPrivateAttachment(item){
- const current=MAILDESK.selected;
- if(!current)return;
+ const threadId=MAILDESK.selected;
+ if(!threadId)return;
  try{
-  const response=await mailDeskCall("attachment_url",{thread_id:current,attachment_id:item.id});
-  if(!response?.url)throw Error("Link não disponível");
-  const u=new URL(response.url);
-  if(u.origin!=="https://leytqsyfrmzhectatcqm.supabase.co")throw Error("Endereço não autorizado");
-  window.open(u.href,"_blank","noopener,noreferrer");
- }catch(e){mailDeskNotice("Não foi possível abrir o anexo: "+e.message,"error")}
+  await brainEnsureAccess();
+  const response=await fetch(MAILDESK_API,{
+   method:"POST",cache:"no-store",
+   headers:{"content-type":"application/json","authorization":"Bearer "+token},
+   body:JSON.stringify({action:"attachment_download",thread_id:threadId,attachment_id:item.id})
+  });
+  if(!response.ok){
+   const payload=await response.json().catch(()=>({}));
+   throw Error(payload.error||("HTTP "+response.status));
+  }
+  const file=await response.blob();
+  if(!file.size)throw Error("Arquivo vazio");
+  const url=URL.createObjectURL(file);
+  const link=document.createElement("a");link.href=url;link.download=item.filename||"anexo";
+  document.body.appendChild(link);link.click();link.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),60000);
+  mailDeskNotice("Anexo transferido com segurança. Confira o arquivo baixado.");
+ }catch(e){mailDeskNotice("Não foi possível baixar o anexo: "+e.message,"error")}
 }
 function mailDeskInlineAttachments(messageId,attachments){
  const files=mailDeskVisibleAttachments(attachments).filter(x=>x.message_id===messageId),box=elem("div",undefined,"maildesk-message-files");
