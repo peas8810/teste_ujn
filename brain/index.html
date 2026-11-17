@@ -811,6 +811,9 @@ body > .maildesk-jump-nav .btn:hover{background:#dff4f1;border-color:#66b9b0}
    <div class="card"><h2>Publicações capturadas</h2><p class="hint">Amostra de registros OJS sincronizados — não é o acervo completo.</p><div id="strategicPubs"></div></div>
  </div>
  <div class="strategic-columns">
+   <div class="card"><h2>Demografia regional — IBGE</h2><p id="strategicIbgeYear" class="hint">Aguardando dados oficiais.</p><div id="strategicDemographics"></div></div>
+ </div>
+ <div class="strategic-columns">
    <div class="card"><h2>Potencial acadêmico — MEC/INEP</h2><p class="hint" id="strategicInepYear">Aguardando importação de dados oficiais.</p><div id="strategicInepStates"></div><p class="hint">Matrículas de estudantes por UF e curso, com sexo somente em totais estatísticos, conforme disponibilidade oficial.</p></div>
    <div class="card"><h2>Conversões e participação institucional</h2><p class="hint">Afiliações conferidas em artigos e campanhas com atribuição verificável.</p><div id="strategicAffiliations"></div><div id="strategicCampaigns"></div></div>
  </div>
@@ -820,6 +823,7 @@ body > .maildesk-jump-nav .btn:hover{background:#dff4f1;border-color:#66b9b0}
      <div><strong>E-mails e conversas</strong><span>Disponível — volumes sem atribuição geográfica</span></div>
      <div><strong>IES / artigos publicados</strong><span>Parcial — falta validar afiliação das cinco revistas</span></div>
      <div><strong>MEC / INEP</strong><span>Pendente — matrículas por curso, UF, município, ano e sexo agregado</span></div>
+     <div><strong>IBGE / SIDRA</strong><span>Pendente — população por UF, município e sexo agregado</span></div>
      <div><strong>ArticleRun / OJS</strong><span>Pendente — funil real de submissões e conversões</span></div>
      <div><strong>Meta Ads / campanhas de e-mail</strong><span>Pendente — gastos, cliques, UTMs e resultados</span></div>
    </div>
@@ -2511,6 +2515,10 @@ async function strategicBrainLoad(){
    ["Publicações no snapshot",summary.published_snapshot_count,"Amostra capturada; não catálogo completo"]])metrics.append(strategicCard(label,value,detail));
   strategicBars($("strategicStates"),(d.states||[]).filter(x=>x.contacts>=3),"uf","contacts",x=>"Área inferida por DDD: "+x.uf);
   strategicBars($("strategicDDDs"),(d.ddds||[]).filter(x=>x.contacts>=3).map(x=>({...x,ddd:"("+x.ddd+") "+x.uf})),"ddd","contacts",x=>"DDD original "+x.ddd);
+  const dem=d.demographics||{},demographicRoot=$("strategicDemographics");
+  $("strategicIbgeYear").textContent=dem.year?"Censo demográfico IBGE "+dem.year+" · população por sexo agregado":"Dados do IBGE não importados. Sem estimativas inventadas.";
+  if(dem.uf_population?.length)strategicBars(demographicRoot,dem.uf_population.slice(0,12).map(x=>({uf:x.uf,population:x.total_population})),"uf","population");
+  else demographicRoot.replaceChildren(elem("p","Aguardando população regional, incluindo distribuição feminina/masculina oficial.","hint"));
   const ext=d.external||{},inep=$("strategicInepStates"),aff=$("strategicAffiliations"),cam=$("strategicCampaigns");
   $("strategicInepYear").textContent=ext.inep_year?"Censo da Educação Superior "+ext.inep_year+" · matrícula total por UF":"Ainda sem dados importados do INEP. Fonte oficial preparada.";
   if(ext.inep_states?.length)strategicBars(inep,ext.inep_states.slice(0,12),"uf","enrollments");
