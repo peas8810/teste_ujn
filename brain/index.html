@@ -557,6 +557,11 @@
       <textarea id="mailDeskText" maxlength="8000" rows="12" hidden aria-hidden="true"></textarea>
       <div class="mail-rich-footer"><span id="mailRichCount">0 / 8000 caracteres</span><span>Ctrl+B negrito · Ctrl+I itálico · Ctrl+U sublinhado</span></div>
     </div>
+    <div class="maildesk-rewrite-panel" style="margin-top:14px;padding:14px;border:1px solid #d3e4e8;border-radius:12px;background:#f5fafb">
+      <label for="mailDeskRewritePrompt" style="display:block;font-weight:700;margin-bottom:6px">Instruções para a IA — reescrever resposta</label>
+      <textarea id="mailDeskRewritePrompt" maxlength="2000" rows="3" placeholder="Ex.: Responda de forma mais objetiva, explique as condições de alteração de autoria e não informe valores sem confirmação." style="width:100%;box-sizing:border-box"></textarea>
+      <div class="actions" style="margin-top:9px"><button type="button" class="btn" id="mailDeskRewrite">Reescrever com IA</button><span class="hint" id="mailDeskRewriteStatus" role="status" aria-live="polite">A IA usará o texto atual e o histórico desta conversa. A nova versão ficará disponível para sua revisão.</span></div>
+    </div>
     <div class="actions"><button type="button" class="btn primary" id="mailDeskApprove">Autorizar envio</button><button type="button" class="btn" id="mailDeskSaveDraft">Salvar rascunho</button><button type="button" class="btn" id="mailDeskCopy">Copiar texto</button><button type="button" class="btn" id="mailDeskCloseDraft">Fechar editor</button></div>
     <p class="hint">O envio exige confirmação explícita. A IA não dispara mensagens por conta própria. A formatação HTML é armazenada junto com uma versão em texto simples; a entrega formatada depende de suporte no executor SMTP do cPanel.</p>
    </div><div id="mailDeskSendStatus" class="notice hidden" aria-live="polite"></div>
@@ -3180,6 +3185,32 @@ function mailDeskCloseComposer(){
  if(MAILDESK.draftDirty&&!confirm("Existem alterações não salvas. Fechar e descartá-las?"))return;
  MAILDESK.draftDirty=false;$("mailDeskDraftPanel").classList.add("hidden");
 }
+async function mailDeskRewrite(){
+ const threadId=MAILDESK.selected;
+ const current=mailRichPlain(),instructions=$("mailDeskRewritePrompt").value.trim();
+ if(!threadId||!MAILDESK.activeDraft)return mailDeskNotice("Abra uma resposta antes de reescrevê-la.","warn");
+ if(instructions.length<5||instructions.length>2000)return mailDeskNotice("Informe uma orientação de 5 a 2.000 caracteres.","warn");
+ if(current.length<10||current.length>8000)return mailDeskNotice("O texto atual deve conter de 10 a 8.000 caracteres.","warn");
+ const btn=$("mailDeskRewrite"),status=$("mailDeskRewriteStatus");
+ const original=current,htmlOriginal=$("mailDeskRichEditor").innerHTML;
+ btn.disabled=true;status.textContent="Reescrevendo a resposta…";
+ try{
+  const answer=await mailDeskCall("rewrite_draft",{thread_id:threadId,current_text:current,instructions});
+  if(MAILDESK.selected!==threadId)return;
+  // Never overwrite subsequent manual edits made while the AI was working.
+  if(mailRichPlain()!==original||$("mailDeskRichEditor").innerHTML!==htmlOriginal){
+   status.textContent="A resposta mudou durante a geração. A sugestão não substituiu suas alterações.";
+   return mailDeskNotice("Sua edição foi preservada. Reenvie as instruções para aplicar a reescrita.","warn");
+  }
+  if(typeof answer.reply!=="string"||answer.reply.trim().length<10)throw Error("resposta_invalida");
+  mailRichSetContent(answer.reply,null);
+  MAILDESK.draftDirty=true;
+  $("mailDeskDraftState").textContent="Reescrita pela IA — alterações não salvas";
+  status.textContent="Nova versão no editor. Revise, ajuste manualmente e clique em Salvar rascunho.";
+  mailDeskNotice("Texto reescrito pela IA. Nenhuma mensagem foi enviada; revise e salve antes de autorizar.");
+ }catch(err){status.textContent="Não foi possível reescrever.";mailDeskNotice("Falha na reescrita: "+err.message,"error")}
+ finally{btn.disabled=false}
+}
 async function mailDeskGenerate(){
  const id=MAILDESK.selected;if(!id)return;
  if(MAILDESK.draftDirty&&!confirm("Você tem mudanças não salvas no rascunho atual. Descartar e gerar uma nova resposta com IA?"))return;
@@ -3293,6 +3324,7 @@ $("mailDeskCloseDraft").onclick=mailDeskCloseComposer;
 $("mailDeskRichEditor").addEventListener("input",()=>{if(!$("mailDeskDraftPanel").classList.contains("hidden")){MAILDESK.draftDirty=true;$("mailDeskDraftState").textContent="Alterações não salvas"}});
 $("mailDeskSubject").addEventListener("input",()=>{MAILDESK.draftDirty=true;$("mailDeskDraftState").textContent="Alterações não salvas"});
 $("mailDeskGenerate").onclick=mailDeskGenerate;
+$("mailDeskRewrite").onclick=mailDeskRewrite;
 $("mailDeskApprove").onclick=mailDeskApprove;
 $("mailDeskCopy").onclick=async()=>{try{const plain=mailRichPlain(),html=$("mailDeskRichEditor").innerHTML;if(navigator.clipboard.write&&window.ClipboardItem){await navigator.clipboard.write([new ClipboardItem({"text/plain":new Blob([plain],{type:"text/plain"}),"text/html":new Blob([html],{type:"text/html"})})])}else await navigator.clipboard.writeText(plain);mailDeskNotice("Texto copiado.");}catch{mailDeskNotice("Selecione o texto para copiar manualmente.","warn")}};
 $("aiToMailDesk").onclick=()=>show("emails");
