@@ -801,6 +801,7 @@ body > .maildesk-jump-nav .btn:hover{background:#dff4f1;border-color:#66b9b0}
  <div class="strategic-toolbar card"><label>De <input type="date" id="strategicFrom"/></label><label>Até <input type="date" id="strategicTo"/></label><button class="btn primary" type="button" id="strategicApply">Aplicar período</button><span class="hint" id="strategicStatus" aria-live="polite">Carregando fontes agregadas...</span></div>
  <div class="notice">Indicadores por DDD são estimativas da área original do número, não localização comprovada. O Strategic Brain mostra apenas dados agregados e nunca identifica sexo ou gênero de pessoas a partir de nomes ou telefones.</div>
  <div id="strategicMetrics" class="grid strategic-metrics"></div>
+ <div class="card"><h2>Relacionamento validado entre canais</h2><p class="hint">Contagens agregadas de associações documentadas. Nenhum telefone, e-mail ou nome individual é exibido neste painel.</p><div id="strategicLinkages" class="grid"></div></div>
  <div class="strategic-columns">
    <div class="card"><div class="head"><h2>Presença por UF — DDD</h2><span class="hint">Números únicos válidos; base interna</span></div><div id="strategicStates"></div></div>
    <div class="card"><h2>DDD por região de origem</h2><div id="strategicDDDs"></div></div>
@@ -2495,6 +2496,12 @@ async function strategicBrainLoad(){
   const d=response.report||{},summary=d.summary||{};
   STRATEGIC.report=d;STRATEGIC.from=from.value;STRATEGIC.to=to.value;
   $("strategicStatus").textContent="Dados atualizados · "+from.value+" até "+to.value;
+  const link=d.linkages||{},linked=$("strategicLinkages");linked.replaceChildren();
+  for(const [label,value,details] of [
+   ["E-mail + telefone",link.manual_email_phone_pairs,"Pares informados a pedido do autor"],
+   ["E-mails no atendimento",link.email_seen_in_desk,"Mesmo endereço localizado nas conversas"],
+   ["Vínculos editoriais",link.verified_editorial_links,"Telefone, hash de e-mail, revista e ID verificados"],
+   ["Pistas de artigo",link.journal_submission_hints,"Referências administrativas, não comprovação"]])linked.append(strategicCard(label,value,details));
   const metrics=$("strategicMetrics");metrics.replaceChildren();
   for(const [label,value,detail] of [
    ["Números únicos",summary.unique_phone_count,"WhatsApp e contatos manuais deduplicados"],
