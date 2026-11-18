@@ -208,7 +208,7 @@
 .inbox-ai-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .inbox-ai-head strong{display:block;font-size:14px;color:#174d4b}
 .inbox-ai-head span{display:block;color:#617e85;font-size:12px;margin-top:4px}
-#inboxAISuggestion{margin:12px 0;padding:14px;background:#fff;border:1px solid #d8e5e1;border-radius:9px;white-space:pre-wrap;line-height:1.55;font-size:13px;overflow-wrap:anywhere}
+#inboxAISuggestion .inbox-ai-evidence{margin-top:13px;border:1px solid #d9e6e7;border-radius:9px;padding:10px;background:#f8fbfa;white-space:normal}#inboxAISuggestion .inbox-ai-evidence summary{cursor:pointer;font-weight:700;color:#15584f}#inboxAISuggestion .inbox-ai-evidence-body p{margin:7px 0;line-height:1.5}#inboxAISuggestion{margin:12px 0;padding:14px;background:#fff;border:1px solid #d8e5e1;border-radius:9px;white-space:pre-wrap;line-height:1.55;font-size:13px;overflow-wrap:anywhere}
 .inbox-ai .hint{margin:12px 0 0}
 .msg .ai-label{display:inline-block;margin-left:9px;font-size:11px;background:#dcf3e8;color:#0c6957;padding:3px 7px;border-radius:5px}
 </style><style id="brain-notify-style">
@@ -1808,7 +1808,21 @@ async function inboxSuggest(){
   const v=await insight(INSIGHTS_AI,"suggest_reply",{channel:"whatsapp",message_id:last.id});
   const suggested=String(v.draft?.suggested_reply||"").trim();
   if(!suggested)throw Error("A IA não forneceu uma resposta.");
-  dest.replaceChildren(elem("strong","Sugestão da IA — não enviada"),elem("p",suggested),elem("p","Revise a resposta. Para enviar, assuma a conversa e use o campo de resposta do operador abaixo.","hint"));
+  dest.replaceChildren(elem("strong","Sugestão editorial contextual — não enviada"),elem("p",suggested));
+  const evidence=v.evidence||v.draft?.evidence||{},quality=v.quality||v.draft?.quality_flags||{};
+  const info=document.createElement("details");info.className="inbox-ai-evidence";info.open=true;
+  const header=document.createElement("summary");header.textContent="Fontes consultadas e qualidade da sugestão";info.append(header);
+  const details=elem("div",undefined,"inbox-ai-evidence-body");
+  const counts=evidence.counts||{};
+  details.append(elem("p","Histórico da conversa: "+(counts.conversation||0)+" mensagens · Referências de e-mail/atendimento: "+(counts.precedents||0)+" · Políticas aprovadas: "+(counts.knowledge||0),"hint"));
+  details.append(elem("p","Fontes: "+(evidence.sources||[]).join(" · "),"hint"));
+  if(evidence.verified_article)details.append(elem("p","Artigo verificado: "+evidence.verified_article.journal_code+" #"+evidence.verified_article.submission_id,"hint"));
+  else details.append(elem("p","Sem vínculo editorial individual confirmado para esta consulta.","hint"));
+  if((quality.answered_questions||[]).length)details.append(elem("p","Questões abordadas: "+quality.answered_questions.join("; "),"hint"));
+  if((quality.missing_facts||[]).length)details.append(elem("p","Confirmar com a equipe: "+quality.missing_facts.join("; "),"hint"));
+  if(quality.notes)details.append(elem("p","Revisão: "+quality.notes,"hint"));
+  info.append(details);dest.append(info);
+  dest.append(elem("p","A geração usa respostas editoriais anteriores como precedentes, mas não presume que outro autor tenha a mesma situação. Revise e aprove antes de enviar.","hint"));
   const copy=elem("button","Copiar para resposta","btn small");
   copy.onclick=()=>{if(current?.state!=="HUMAN")return say("Assuma a conversa antes de enviar uma resposta humana.",true);$("replyText").value=suggested;$("replyText").focus();say("Sugestão copiada para o editor. Revise e confirme o envio.")};
   dest.append(copy);
