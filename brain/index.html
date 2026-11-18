@@ -840,6 +840,18 @@ body > .maildesk-jump-nav .btn:hover{background:#dff4f1;border-color:#66b9b0}
    <div class="card"><h2>Potencial acadêmico — MEC/INEP</h2><p class="hint" id="strategicInepYear">Aguardando importação de dados oficiais.</p><div id="strategicInepStates"></div><p class="hint">Matrículas de estudantes por UF e curso, com sexo somente em totais estatísticos, conforme disponibilidade oficial.</p></div>
    <div class="card"><h2>Conversões e participação institucional</h2><p class="hint">Afiliações conferidas em artigos e campanhas com atribuição verificável.</p><div id="strategicAffiliations"></div><div id="strategicCampaigns"></div></div>
  </div>
+ <div class="card"><div class="head"><div><h2>Inteligência bibliométrica — publicações e submissões observadas</h2><p class="hint">Datas reais de publicações capturadas nos OJS; temas classificados de forma exploratória pelos títulos. Não representa o acervo integral.</p></div></div>
+ <div id="strategicPublicationCoverage" class="strategic-sources"></div>
+ <div class="strategic-columns">
+  <div class="card"><h3>Dias com mais publicações</h3><div id="strategicPublicationPeaks"></div><h3>Mapa de calor — dia × revista</h3><div id="strategicPublicationCalendar"></div></div>
+  <div class="card"><h3>Temas de manuscritos observados × temas publicados</h3><div id="strategicTopicComparison"></div></div>
+ </div>
+ <div class="strategic-columns">
+  <div class="card"><h3>Instituições e localização dos artigos</h3><div id="strategicInstitutions"></div></div>
+  <div class="card"><h3>Autores por artigo e extensão em páginas</h3><div id="strategicAuthorsPages"></div></div>
+ </div>
+ <div class="card"><h3>Artigos identificados — fontes e metadados</h3><p class="hint">Cada linha permite conferir título, revista, data, instituição, UF, autores e páginas, quando os metadados estiverem verificados.</p><div id="strategicArticleTable" class="strategic-matrix-scroll"></div></div>
+ </div>
  <div class="card"><div class="head"><div><h2>Fontes de inteligência de mercado</h2><p class="hint">Integrações previstas e grau de comprovação dos dados.</p></div></div>
    <div class="strategic-sources">
      <div><strong>WhatsApp / DDD</strong><span>Disponível — origem aproximada do número</span></div>
@@ -2745,6 +2757,72 @@ function strategicFinanceEstimate(){
  }
  box.append(summary,elem("p","Cenário matemático hipotético, não previsão. Taxa de publicação é uma premissa e não deve ser manipulada por metas de receita. Não inclui impostos, custo fixo ou despesas não informadas. Rejeições e decisões editoriais devem permanecer independentes.","strategic-table-key"));
 }
+
+function strategicPublicationBar(root,items,labelKey,countKey){
+ root.replaceChildren();
+ if(!items?.length){root.append(elem("p","Nenhum registro disponível neste recorte.","hint"));return}
+ const max=Math.max(1,...items.map(x=>Number(x[countKey])||0));
+ for(const x of items.slice(0,15)){
+  const row=elem("div",undefined,"strategic-bar"),label=elem("label",String(x[labelKey]??"—")),track=elem("div",undefined,"track"),fill=elem("div",undefined,"fill"),num=elem("strong",String(x[countKey]??0));
+  label.title=String(x[labelKey]??"");
+  fill.style.width=(100*(Number(x[countKey])||0)/max).toFixed(2)+"%";
+  track.append(fill);row.append(label,track,num);root.append(row);
+ }
+}
+function strategicPublicationRender(d){
+ const r=d||{},coverage=r.coverage||{},articles=r.articles||[];
+ const cov=$("strategicPublicationCoverage");cov.replaceChildren();
+ for(const [label,value] of [["Publicações capturadas",coverage.published_records],["Títulos disponíveis",coverage.titled],["Instituições verificadas",coverage.institutions_known],["Nº de autores conhecido",coverage.authors_known],["Nº de páginas conhecido",coverage.pages_known],["DOIs conhecidos",coverage.doi_known]]){
+  const item=elem("div");item.append(elem("strong",label),elem("span",String(value??"Não disponível")));cov.append(item)
+ }
+ strategicPublicationBar($("strategicPublicationPeaks"),r.publication_peaks||[],"day","published");
+ const calendar=$("strategicPublicationCalendar");calendar.replaceChildren();
+ const records=r.publication_by_day_journal||[],days=[...new Set(records.map(x=>x.day))].sort(),journals=[...new Set(records.map(x=>x.journal_code))].sort();
+ if(!days.length){calendar.append(elem("p","Ainda sem publicações capturadas no período.","hint"))}
+ else {
+  const t=elem("table",undefined,"strategic-matrix");const h=document.createElement("tr");h.append(elem("th","Dia"));for(const j of journals)h.append(elem("th",j));t.append(h);
+  const max=Math.max(1,...records.map(x=>Number(x.total)||0));
+  for(const day of days){const tr=document.createElement("tr");tr.append(elem("th",day));
+   for(const journal of journals){const item=records.find(x=>x.day===day&&x.journal_code===journal),v=item?Number(item.total):0,td=document.createElement("td");td.textContent=String(v);td.style.background="rgba(8,127,130,"+(0.08+0.82*v/max).toFixed(2)+")";td.style.color=v/max>.6?"white":"#174b57";td.title=day+" · "+journal+": "+v+" publicações registradas";tr.append(td)}
+   t.append(tr)
+  }
+  const w=elem("div",undefined,"strategic-matrix-scroll");w.append(t);calendar.append(w,elem("p","Zero significa nenhuma publicação encontrada no snapshot para o dia e revista apresentados, não ausência comprovada no site.","strategic-table-key"));
+ }
+ const topicRoot=$("strategicTopicComparison");topicRoot.replaceChildren();
+ const submitted=r.observed_pipeline_topics||[],published=r.published_topics||[];
+ const labels=[...new Set([...submitted.map(x=>x.topic),...published.map(x=>x.topic)])].sort();
+ if(!labels.length)topicRoot.append(elem("p","Não há temas observados.","hint"));
+ else{
+  const t=elem("table",undefined,"strategic-matrix"),h=document.createElement("tr");
+  for(const name of ["Tema","Manuscritos observados*","Publicações capturadas"]){h.append(elem("th",name))}t.append(h);
+  for(const name of labels){const tr=document.createElement("tr");tr.append(elem("th",name),elem("td",String(submitted.find(x=>x.topic===name)?.observed_manuscripts??0)),elem("td",String(published.find(x=>x.topic===name)?.published??0)));t.append(tr)}
+  const w=elem("div",undefined,"strategic-matrix-scroll");w.append(t);topicRoot.append(w,elem("p","* IDs com eventos editoriais observados no período, não total de submissões. O tema por título é uma classificação inicial, não categorização científica validada.","strategic-table-key"))
+ }
+ const ies=$("strategicInstitutions");ies.replaceChildren();
+ if((r.institution_rank||[]).length)strategicPublicationBar(ies,r.institution_rank.map(x=>({...x,institution:x.institution+(x.uf?" · "+x.uf:"")})),"institution","published_articles");
+ else ies.append(elem("p","Afiliações não constam no catálogo verificado. Não é possível determinar as instituições ou seus estados com confiança.","hint"));
+ const ap=$("strategicAuthorsPages");ap.replaceChildren();
+ const knownA=articles.filter(x=>x.author_count!=null),knownP=articles.filter(x=>x.page_count!=null);
+ if(!knownA.length&&!knownP.length)ap.append(elem("p","Ainda sem quantidade de autores e páginas validada nos OJS. Os campos permanecem vazios; não serão estimados.","hint"));
+ else{
+  const avg=(list,key)=>(list.reduce((n,x)=>n+Number(x[key]),0)/list.length).toFixed(1).replace(".",",");
+  if(knownA.length)ap.append(elem("p","Autores por artigo: média "+avg(knownA,"author_count")+" ("+knownA.length+" artigos com metadados)."));
+  if(knownP.length)ap.append(elem("p","Páginas por artigo: média "+avg(knownP,"page_count")+" ("+knownP.length+" artigos com metadados)."));
+ }
+ const detail=$("strategicArticleTable");detail.replaceChildren();
+ if(!articles.length){detail.append(elem("p","Sem artigos no recorte.","hint"));return}
+ const t=elem("table",undefined,"strategic-matrix"),hdr=document.createElement("tr");
+ for(const label of ["Data","Revista","Artigo","Tema","Instituição / UF","Autores","Páginas","Fonte"]){hdr.append(elem("th",label))}t.append(hdr);
+ for(const art of articles.slice(0,100)){
+  const row=document.createElement("tr");row.append(elem("td",art.day||"—"),elem("td",art.journal_code||"—"));
+  const titleCell=document.createElement("td");
+  if(art.url&&/^https:\/\//.test(art.url)){const a=document.createElement("a");a.href=art.url;a.target="_blank";a.rel="noopener noreferrer";a.textContent=art.title||"Artigo "+art.submission_id;titleCell.append(a)}
+  else titleCell.textContent=art.title||"Artigo "+art.submission_id;
+  row.append(titleCell,elem("td",art.subject_group||"—"),elem("td",(art.institution_names||[]).map((name,i)=>name+((art.institution_ufs||[])[i]?" · "+art.institution_ufs[i]:"")).join("; ")||"Não verificado"),elem("td",art.author_count==null?"—":String(art.author_count)),elem("td",art.page_count==null?"—":String(art.page_count)),elem("td",art.source||"—"));
+  t.append(row);
+ }
+ detail.append(t,elem("p","Mostrando até 100 artigos. Autores, páginas, instituições e localização dependem de metadados OJS verificados e não são inferidos de títulos ou e-mails.","strategic-table-key"));
+}
 async function strategicBrainLoad(){
  const from=$("strategicFrom"),to=$("strategicTo");
  if(!from.value||!to.value){const now=new Date(),start=new Date(now);start.setDate(start.getDate()-89);from.value=strategicDate(start);to.value=strategicDate(now)}
@@ -2753,9 +2831,10 @@ async function strategicBrainLoad(){
  $("strategicStatus").textContent="Consultando fontes internas...";
  $("strategicAnalyze").disabled=true;
  try{
-  const response=await mailDeskCall("strategic_brain",{from:from.value,to:to.value});
+  const [response,pubsResponse]=await Promise.all([mailDeskCall("strategic_brain",{from:from.value,to:to.value}),mailDeskCall("strategic_publications",{from:from.value,to:to.value})]);
   if(id!==STRATEGIC.sequence)return;
   const d=response.report||{},summary=d.summary||{};
+  strategicPublicationRender(pubsResponse.report||{});
   STRATEGIC.report=d;STRATEGIC.from=from.value;STRATEGIC.to=to.value;
   $("strategicStatus").textContent="Dados atualizados · "+from.value+" até "+to.value;
   const link=d.linkages||{},linked=$("strategicLinkages");linked.replaceChildren();
