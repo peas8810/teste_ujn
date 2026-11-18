@@ -516,7 +516,7 @@ body > .maildesk-jump-nav .btn:hover{background:#dff4f1;border-color:#66b9b0}
 .strategic-finance-output .mini-card{background:#f7fbfc;border:1px solid #dce9eb;border-radius:8px;padding:12px}
 .strategic-finance-output .mini-card strong{display:block;font-size:20px;color:#137576;margin-top:5px}
 @media(max-width:640px){.strategic-decision-block .strategic-branches{grid-template-columns:1fr}.strategic-matrix th{font-size:10px}.strategic-finance-inputs{grid-template-columns:1fr 1fr}}
-</style>
+.maildesk-collector-status{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:10px 0 14px}.maildesk-collector-status .hint{flex:1;min-width:200px;line-height:1.5}</style>
 </head><body><a class="skip" href="#maincontent">Pular para conteúdo</a><div id="overlay"></div><div class="shell">
 <aside class="sidebar" id="sidebar"><div class="brand"><svg width="38" height="38" viewBox="0 0 40 40" fill="none" aria-hidden="true"><path d="M10 30L20 10L32 28L10 30" stroke="#53bbbc" stroke-width="2.5"/><circle cx="10" cy="30" r="4" fill="#fff"/><circle cx="20" cy="10" r="4" fill="#fff"/><circle cx="32" cy="28" r="4" fill="#fff"/></svg>brain <small>UJN</small></div><div class="tagline">RELACIONAMENTO QUE CONECTA</div>
 <div class="navtitle">OPERAÇÃO</div><nav class="nav"><button data-screen="overview">▦　Visão geral</button><button data-screen="inbox">▤　Caixa de entrada</button><button data-screen="emails">✉　E-mails · IA e envios</button><button data-screen="contacts">♙　Contatos e vínculos</button></nav>
@@ -564,13 +564,13 @@ body > .maildesk-jump-nav .btn:hover{background:#dff4f1;border-color:#66b9b0}
    <div id="mailDeskTrainingExamples" class="hidden" aria-live="polite"></div>
  </div>
  <div id="mailDeskMailboxPanel">
- <div class="notice" id="mailDeskStatus">Consultando conta institucional…</div>
+ <div class="notice" id="mailDeskStatus">Consultando conta institucional…</div><div class="maildesk-collector-status"><button type="button" class="btn small" id="mailDeskCollectorCheck">Diagnóstico da sincronização</button><span id="mailDeskCollectorStatus" class="hint" aria-live="polite">Consulta somente leitura; nenhuma mensagem será importada manualmente.</span></div>
  <div class="grid maildesk-stats"><div class="card"><small>Conversas</small><strong id="mailDeskTotal">—</strong></div><div class="card"><small>Possíveis pendências</small><strong id="mailDeskWaiting">—</strong></div><div class="card"><small>Respondidas registradas</small><strong id="mailDeskAnswered">—</strong></div></div>
  <div class="maildesk-layout">
   <div class="card maildesk-folder"><h3>Caixa de entrada</h3><div class="maildesk-search"><input type="search" id="mailDeskSearch" placeholder="Pesquisar remetente, assunto ou artigo..." aria-label="Pesquisar mensagens"></div><div class="maildesk-quickfilters"><button type="button" id="mailDeskShowAll" class="active">Todas</button><button type="button" id="mailDeskOnlyUnread">Não lidas</button></div><label for="mailDeskFilter">Filtrar situação</label>
-   <select id="mailDeskFilter"><option value="queue">Entrada · fila de atendimento</option><option value="sent">Enviados</option><option value="drafts">Rascunhos</option><option value="archived">Arquivados</option><option value="trash">Lixeira</option><option value="answered">Respondidas</option></select>
+   <select id="mailDeskFilter"><option value="queue">Entrada · pendentes</option><option value="received">Recebidas · todas (inclusive respondidas)</option><option value="sent">Enviados</option><option value="drafts">Rascunhos</option><option value="archived">Arquivados</option><option value="trash">Lixeira</option><option value="answered">Respondidas</option></select>
    <div class="maildesk-folders" id="mailDeskFolders">
-    <button type="button" data-mailfolder="queue" class="active">Entrada</button>
+    <button type="button" data-mailfolder="queue" class="active">Pendentes</button><button type="button" data-mailfolder="received">Recebidas</button>
     <button type="button" data-mailfolder="sent">Enviados</button>
     <button type="button" data-mailfolder="drafts">Rascunhos</button>
     <button type="button" data-mailfolder="archived">Arquivados</button>
@@ -3453,7 +3453,7 @@ async function mailDeskLoad(){
   $("mailDeskAnswered").textContent=$("mailDeskFilter").value==="answered"?MAILDESK.threads.filter(t=>t.state==="ANSWERED").length:"—";
   $("mailDeskStatus").textContent="contato@ujn.ojsbr.com · IMAP "+(MAILDESK.mailbox?.connection_state==="VERIFIED"?"validado":"não validado")+
    " · SMTP "+(MAILDESK.mailbox?.smtp_enabled?(MAILDESK.mailbox?.sync_enabled?"habilitado para envio revisado":"homologado; aguardando conciliação IMAP"):"desativado")+
-   " · Janela móvel: até 300 conversas desta categoria; registros anteriores preservados.";
+   " · "+(MAILDESK.mailbox?.sync_enabled?"Sincronização IMAP saudável":"⚠ Sincronização IMAP com alerta; verifique o diagnóstico")+" · Janela móvel: até 300 conversas desta categoria; registros anteriores preservados.";
   mailDeskListRender();
   if(MAILDESK.selected&&MAILDESK.threads.some(t=>t.id===MAILDESK.selected)&&!MAILDESK.draftDirty)await mailDeskOpen(MAILDESK.selected,{refresh:true});
  }catch(err){$("mailDeskStatus").textContent="Não foi possível carregar a Central de E-mails: "+err.message;mailDeskNotice(err.message,"error")}
@@ -4085,6 +4085,23 @@ async function mailDeskPollStatus(){
   else mailDeskNotice(state==="QUEUED"?"Resposta aprovada e colocada na fila. Aguardando o executor SMTP; a conclusão será informada automaticamente.":state==="CLAIMED"?"Enviando pelo servidor institucional…":"Solicitação "+state+". Aguardando execução supervisionada do SMTP.");
  }catch(err){mailDeskNotice("Não foi possível consultar o envio: "+err.message,"error")}
 }
+async function mailDeskCollectorCheck(){
+ const field=$("mailDeskCollectorStatus"),button=$("mailDeskCollectorCheck");button.disabled=true;field.textContent="Consultando histórico do coletor…";
+ try{
+  const data=await mailDeskCall("collector_diagnostics",{});
+  const rows=data.diagnostics||[];
+  if(!rows.length){field.textContent="Ainda não há verificações registradas. A coleta pode não estar em execução.";return}
+  const latest=rows[0],lastHealthy=rows.find(x=>x.sync_enabled===true);
+  field.textContent="Última verificação: "+stamp(latest.observed_at)+
+   " · IMAP Entrada "+(latest.inbox_ok?"OK":"COM FALHA")+
+   " · Enviados "+(latest.sent_ok?"OK":"COM FALHA")+
+   " · "+latest.errors+" erro(s)"+
+   " · sincronização "+(latest.sync_enabled?"saudável":"não saudável")+
+   (lastHealthy?" · última saudável: "+stamp(lastHealthy.observed_at):"")+
+   ". Para identificar a causa exata, consulte no cPanel: /home/ujn/brain-ujn/state/imap_maildesk_cron.log";
+ }catch(err){field.textContent="Diagnóstico indisponível: "+err.message}
+ finally{button.disabled=false}
+}
 async function mailDeskLightRefresh(){
  if(!token || document.hidden || MAILDESK.loading || !document.querySelector('[data-page="emails"]:not(.hidden)'))return;
  try{
@@ -4102,6 +4119,7 @@ async function mailDeskLightRefresh(){
 }
 setInterval(mailDeskLightRefresh,15000);
 
+$("mailDeskCollectorCheck").onclick=mailDeskCollectorCheck;
 $("mailDeskReload").onclick=mailDeskLoad;$("mailDeskToggleRead").onclick=()=>mailDeskSetRead($("mailDeskReadBadge").classList.contains("unread"));$("mailDeskReanalyze").onclick=()=>mailDeskAnalyze(MAILDESK.selected);$("mailDeskEscalate").onclick=()=>mailDeskWorkflow("MANUAL_REVIEW");$("mailDeskResolve").onclick=()=>mailDeskWorkflow("ARCHIVED");$("mailDeskLink").onclick=()=>mailDeskWorkflow("LINK");
 $("mailDeskTrainingToggle").onclick=mailDeskTrainingToggle;
 $("mailDeskTrainingReview").onclick=mailDeskTrainingReview;
