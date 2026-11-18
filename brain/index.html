@@ -739,6 +739,7 @@ body > .maildesk-jump-nav .btn:hover{background:#dff4f1;border-color:#66b9b0}
 </form><div id="crmManualFeedback" role="status" aria-live="polite"></div>
 <p class="crm-manual-warning">O superadministrador pode registrar uma autorização comprovada a pedido do autor. A autoria e o artigo ainda precisam ser conferidos no OJS antes de qualquer notificação.</p>
 <h3>Contatos cadastrados manualmente <span id="crmManualCount"></span></h3>
+<div id="crmManualEdit" class="hidden" style="margin:14px 0;padding:18px;border:1px solid #9bd4ca;border-radius:12px;background:#f5fbf9"></div>
 <div id="crmManualTable" style="overflow-x:auto"></div></section>
 </div>
 </div>
@@ -1291,12 +1292,77 @@ const crmNextDate=t=>t?new Date(t).toLocaleDateString("pt-BR",{timeZone:"America
 function crmNextNode(tag,text,className){
  const n=document.createElement(tag);if(text!==undefined&&text!==null)n.textContent=String(text);if(className)n.className=className;return n;
 }
+
+let crmManualRows=[];
 function crmManualDisplay(d){
  const list=d.manual_contacts||[],root=$("crmManualTable");if(!root)return;
+ crmManualRows=list;
  $("crmManualCount").textContent="("+list.length+")";
- makeEditorialTable(root,["E-mail","WhatsApp","Data","Situação"],list.map(x=>[
- x.email,x.phone_e164,stamp(x.created_at),x.requested_by_author?"Pedido do autor registrado · Aguardando conferência OJS":"Contato salvo · Sem autorização editorial"
- ]));
+ makeEditorialTable(root,["E-mail","WhatsApp","Revista / artigo","Data","Situação","Ações"],list.map(x=>{
+  const actions=elem("div",undefined,"crm-edit-actions"),button=elem("button","Editar","btn small");
+  button.type="button";button.title="Editar dados do contato";button.onclick=()=>crmOpenManualEdit(x.id);
+  actions.append(button);
+  return [x.email,x.phone_e164,(x.journal_hint||"—")+(x.submission_hint?" #"+x.submission_hint:""),
+   stamp(x.created_at),x.requested_by_author?"Pedido do autor registrado · Aguardando conferência OJS":"Contato salvo · Sem autorização editorial",actions];
+ }));
+}
+function crmCloseManualEdit(){
+ const editor=$("crmManualEdit");if(editor){editor.replaceChildren();editor.classList.add("hidden")}
+}
+function crmOpenManualEdit(id){
+ const record=crmManualRows.find(x=>x.id===id);
+ if(!record)return say("Contato não encontrado. Atualize a lista.",true);
+ const root=$("crmManualEdit");root.replaceChildren();root.classList.remove("hidden");
+ root.append(elem("h3","Editar contato editorial"));
+ root.append(elem("p","A atualização altera o cadastro existente e mantém o histórico. Se e-mail ou telefone mudarem, a autorização anterior não será transferida.","hint"));
+ const form=document.createElement("form");form.id="crmManualEditForm";
+ form.style.cssText="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px";
+ const make=(label,id,type,value)=>{
+  const l=document.createElement("label");l.textContent=label;
+  const n=document.createElement("input");n.id=id;n.type=type;n.required=true;n.value=value||"";n.style.cssText="width:100%;margin-top:6px;padding:11px;border:1px solid #c8dbe0;border-radius:8px";
+  l.append(n);form.append(l);return n;
+ };
+ const email=make("E-mail","crmEditEmail","email",record.email);
+ const phone=make("WhatsApp com DDI","crmEditPhone","tel",record.phone_e164);
+ const label=document.createElement("label");label.textContent="Revista (opcional)";
+ const journal=document.createElement("select");journal.id="crmEditJournal";journal.style.cssText="display:block;width:100%;margin-top:6px;padding:11px;border:1px solid #c8dbe0;border-radius:8px";
+ for(const code of ["","REMUNOM","RSV","RJNM","JIRRS","NEXUS"]){const opt=document.createElement("option");opt.value=code;opt.textContent=code||"Sem revista identificada";journal.append(opt)}
+ journal.value=record.journal_hint||"";label.append(journal);form.append(label);
+ const submission=make("ID do artigo (opcional)","crmEditSubmission","text",record.submission_hint||"");
+ submission.required=false;submission.inputMode="numeric";submission.maxLength=9;
+ const controls=elem("div",undefined,"actions");controls.style.gridColumn="1/-1";
+ const save=elem("button","Salvar alterações","btn primary");save.type="submit";
+ const cancel=elem("button","Cancelar","btn");cancel.type="button";cancel.onclick=crmCloseManualEdit;
+ const feedback=elem("p","","hint");feedback.id="crmManualEditFeedback";feedback.setAttribute("role","status");
+ controls.append(save,cancel);form.append(controls,feedback);root.append(form);
+ form.onsubmit=async event=>{
+  event.preventDefault();
+  let updatedPhone=phone.value.trim().replace(/[\s().-]/g,"");
+  if(updatedPhone.startsWith("00"))updatedPhone="+"+updatedPhone.slice(2);
+  if(!updatedPhone.startsWith("+")&&updatedPhone.startsWith("55"))updatedPhone="+"+updatedPhone;
+  const updatedEmail=email.value.trim().toLowerCase(),idValue=submission.value.trim();
+  if(!/^[^\s@<>]+@[^\s@<>]+\.[a-z]{2,}$/i.test(updatedEmail)||!/^\+[1-9][0-9]{7,14}$/.test(updatedPhone)){
+   feedback.textContent="Informe um e-mail válido e WhatsApp internacional com DDI.";return;
+  }
+  if((journal.value&&!/^[1-9]\d{0,8}$/.test(idValue))||(!journal.value&&idValue)){
+   feedback.textContent="Para vincular um artigo, selecione a revista e informe o ID válido.";return;
+  }
+  const identityChanged=updatedEmail!==record.email||updatedPhone!==record.phone_e164;
+  if(identityChanged&&!confirm("O e-mail ou WhatsApp mudou. A autorização editorial anterior NÃO será transferida para esses novos dados. Deseja continuar?"))return;
+  save.disabled=true;feedback.textContent="Salvando alterações…";
+  try{
+   const result=await editorialCall("?crm=1",{action:"manual_contact_edit",contact_id:record.id,
+    expected_updated_at:record.updated_at,email:updatedEmail,phone:updatedPhone,
+    journal:journal.value||null,submission_id:idValue||null});
+   await editorialWa();
+   crmCloseManualEdit();
+   $("crmManualFeedback").textContent=result.consent_reset?
+    "Contato atualizado. A autorização editorial deverá ser novamente comprovada para o novo e-mail/WhatsApp.":
+    "Contato atualizado com sucesso. O histórico foi preservado.";
+  }catch(e){feedback.textContent=e.message||"Não foi possível alterar o contato. Atualize a lista e tente novamente."}
+  finally{save.disabled=false}
+ };
+ root.scrollIntoView({behavior:"smooth",block:"center"});
 }
 async function crmManualSave(e){
  e.preventDefault();
