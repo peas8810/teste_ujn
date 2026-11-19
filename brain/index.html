@@ -516,7 +516,14 @@ body > .maildesk-jump-nav .btn:hover{background:#dff4f1;border-color:#66b9b0}
 .strategic-finance-output .mini-card{background:#f7fbfc;border:1px solid #dce9eb;border-radius:8px;padding:12px}
 .strategic-finance-output .mini-card strong{display:block;font-size:20px;color:#137576;margin-top:5px}
 @media(max-width:640px){.strategic-decision-block .strategic-branches{grid-template-columns:1fr}.strategic-matrix th{font-size:10px}.strategic-finance-inputs{grid-template-columns:1fr 1fr}}
-.maildesk-collector-status{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:10px 0 14px}.maildesk-collector-status .hint{flex:1;min-width:200px;line-height:1.5}</style>
+.maildesk-collector-status{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:10px 0 14px}.maildesk-collector-status .hint{flex:1;min-width:200px;line-height:1.5}.maildesk-autoprep-metrics{padding:9px 11px;margin:10px 0;background:#f0f9f8;border:1px solid #cbe5e2;border-radius:9px;color:#24606a;font-size:12px;line-height:1.5}
+.maildesk-auto-preview{padding:14px 16px;margin:10px 0 14px;border:1px solid #bcdedb;background:#f1faf9;border-radius:11px;display:flex;flex-direction:column;gap:8px;align-items:flex-start}
+.maildesk-auto-preview strong{font-size:14px;color:#18505a}
+.maildesk-auto-preview .maildesk-auto-excerpt{font-size:13px;line-height:1.6;max-width:850px;white-space:pre-line;max-height:180px;overflow:hidden}
+.maildesk-auto-chip{margin-top:4px;display:block;font-size:11px;font-weight:750;color:#4c7180}
+.maildesk-auto-chip.ready{color:#07837c}.maildesk-auto-chip.review{color:#a67023}
+@media(max-width:820px){.maildesk-auto-preview{padding:10px}.maildesk-auto-preview .maildesk-auto-excerpt{max-height:125px}}
+</style>
 </head><body><a class="skip" href="#maincontent">Pular para conteúdo</a><div id="overlay"></div><div class="shell">
 <aside class="sidebar" id="sidebar"><div class="brand"><svg width="38" height="38" viewBox="0 0 40 40" fill="none" aria-hidden="true"><path d="M10 30L20 10L32 28L10 30" stroke="#53bbbc" stroke-width="2.5"/><circle cx="10" cy="30" r="4" fill="#fff"/><circle cx="20" cy="10" r="4" fill="#fff"/><circle cx="32" cy="28" r="4" fill="#fff"/></svg>brain <small>UJN</small></div><div class="tagline">RELACIONAMENTO QUE CONECTA</div>
 <div class="navtitle">OPERAÇÃO</div><nav class="nav"><button data-screen="overview">▦　Visão geral</button><button data-screen="inbox">▤　Caixa de entrada</button><button data-screen="emails">✉　E-mails · IA e envios</button><button data-screen="contacts">♙　Contatos e vínculos</button></nav>
@@ -567,7 +574,8 @@ body > .maildesk-jump-nav .btn:hover{background:#dff4f1;border-color:#66b9b0}
  <div class="notice" id="mailDeskStatus">Consultando conta institucional…</div><div class="maildesk-collector-status"><button type="button" class="btn small" id="mailDeskCollectorCheck">Diagnóstico da sincronização</button><span id="mailDeskCollectorStatus" class="hint" aria-live="polite">Consulta somente leitura; nenhuma mensagem será importada manualmente.</span></div>
  <div class="grid maildesk-stats"><div class="card"><small>Conversas</small><strong id="mailDeskTotal">—</strong></div><div class="card"><small>Possíveis pendências</small><strong id="mailDeskWaiting">—</strong></div><div class="card"><small>Respondidas registradas</small><strong id="mailDeskAnswered">—</strong></div></div>
  <div class="maildesk-layout">
-  <div class="card maildesk-folder"><h3>Caixa de entrada</h3><div class="maildesk-search"><input type="search" id="mailDeskSearch" placeholder="Pesquisar remetente, assunto ou artigo..." aria-label="Pesquisar mensagens"></div><div class="maildesk-quickfilters"><button type="button" id="mailDeskShowAll" class="active">Todas</button><button type="button" id="mailDeskOnlyUnread">Não lidas</button></div><label for="mailDeskFilter">Filtrar situação</label>
+  <div class="card maildesk-folder"><h3>Caixa de entrada</h3><div class="maildesk-search"><input type="search" id="mailDeskSearch" placeholder="Pesquisar remetente, assunto ou artigo..." aria-label="Pesquisar mensagens"></div><div class="maildesk-quickfilters"><button type="button" id="mailDeskShowAll" class="active">Todas</button><button type="button" id="mailDeskOnlyUnread">Não lidas</button><button type="button" id="mailDeskOnlyPrepared">✨ IA pronta</button></div>
+ <div id="mailDeskAutoStats" class="maildesk-autoprep-metrics" aria-live="polite">Respostas antecipadas: carregando indicadores…</div><label for="mailDeskFilter">Filtrar situação</label>
    <select id="mailDeskFilter"><option value="queue">Entrada · pendentes</option><option value="received">Recebidas · todas (inclusive respondidas)</option><option value="sent">Enviados</option><option value="drafts">Rascunhos</option><option value="archived">Arquivados</option><option value="trash">Lixeira</option><option value="answered">Respondidas</option></select>
    <div class="maildesk-folders" id="mailDeskFolders">
     <button type="button" data-mailfolder="queue" class="active">Pendentes</button><button type="button" data-mailfolder="received">Recebidas</button>
@@ -597,7 +605,7 @@ body > .maildesk-jump-nav .btn:hover{background:#dff4f1;border-color:#66b9b0}
    </details>
    <div id="mailDeskList" class="maildesk-list" aria-live="polite"><p class="hint">Carregando…</p></div>
   </div>
-  <div class="card maildesk-reading-pane"><div class="maildesk-reading-top"><span>PAINEL DE LEITURA</span><div class="actions"><button class="btn small primary" type="button" id="mailDeskReply" disabled>Responder</button><button class="btn small" type="button" id="mailDeskForward" disabled>Encaminhar</button><button class="btn small" type="button" id="mailDeskArchiveOne" disabled>Arquivar</button><button class="btn small" type="button" id="mailDeskTrashOne" disabled>Excluir</button><button class="btn small" type="button" id="mailDeskOpenSavedDraft" disabled>Abrir rascunho</button></div></div><h2 id="mailDeskTitle">Selecione uma conversa</h2><p id="mailDeskMeta" class="hint">Escolha um e-mail para analisar e responder.</p>
+  <div class="card maildesk-reading-pane"><div class="maildesk-reading-top"><span>PAINEL DE LEITURA</span><div class="actions"><button class="btn small primary" type="button" id="mailDeskReply" disabled>Responder</button><button class="btn small" type="button" id="mailDeskForward" disabled>Encaminhar</button><button class="btn small" type="button" id="mailDeskArchiveOne" disabled>Arquivar</button><button class="btn small" type="button" id="mailDeskTrashOne" disabled>Excluir</button><button class="btn small" type="button" id="mailDeskOpenSavedDraft" disabled>Abrir rascunho</button></div></div><h2 id="mailDeskTitle">Selecione uma conversa</h2><div id="mailDeskAutoPreview" class="maildesk-auto-preview hidden" aria-live="polite"></div><p id="mailDeskMeta" class="hint">Escolha um e-mail para analisar e responder.</p>
    <div class="maildesk-toolbar"><span id="mailDeskReadBadge" class="maildesk-readbadge">Sem conversa selecionada</span><button type="button" class="btn small" id="mailDeskToggleRead" disabled>Marcar como não lido</button><span class="hint" id="mailDeskReadMeta"></span></div>
    <div class="maildesk-toolbar" id="mailDeskWorkflows">
     <button type="button" class="btn small" id="mailDeskEscalate" disabled>Encaminhar para revisão</button>
@@ -3145,7 +3153,7 @@ setInterval(()=>{if(token&&!document.hidden&&(role?.superuser||(role?.allowed||[
 /* Central de E-mails — usa a sessão Academy já autenticada; API verifica
    SUPERADMIN do Academy e o operador UJN correspondente no servidor. */
 const MAILDESK_API="https://leytqsyfrmzhectatcqm.supabase.co/functions/v1/ujn-email-desk-v1";
-const MAILDESK={threads:[],selected:null,activeDraft:null,mailbox:null,request:null,loading:false,search:"",unreadOnly:false,draftDirty:false,lastDraft:null,replyTarget:null,canManualRecipient:false,selectedIds:new Set(),contacts:[],currentThreadData:null,activeTab:"mailbox"};
+const MAILDESK={threads:[],selected:null,preparedOnly:false,activeDraft:null,mailbox:null,request:null,loading:false,search:"",unreadOnly:false,draftDirty:false,lastDraft:null,replyTarget:null,canManualRecipient:false,selectedIds:new Set(),contacts:[],currentThreadData:null,activeTab:"mailbox"};
 async function mailDeskCall(action,data={}){
  await brainEnsureAccess();
  const r=await fetch(MAILDESK_API,{method:"POST",cache:"no-store",
@@ -3220,7 +3228,7 @@ async function mailDeskTrainingReview(){
  }catch(e){root.replaceChildren(elem("p","Erro ao consultar exemplos: "+e.message,"hint"))}
 }
 
-function mailDeskVisibleThreads(){return MAILDESK.threads.filter(t=>(!MAILDESK.unreadOnly||t.unread)&&(!MAILDESK.search||[t.correspondent,t.subject,...(t.article_links||[]).map(x=>x.journal_code+" "+x.submission_id)].join(" ").toLowerCase().includes(MAILDESK.search)))}
+function mailDeskVisibleThreads(){return MAILDESK.threads.filter(t=>(!MAILDESK.preparedOnly||["READY","REVIEW"].includes(t.auto_prep?.status))&&(!MAILDESK.unreadOnly||t.unread)&&(!MAILDESK.search||[t.correspondent,t.subject,...(t.article_links||[]).map(x=>x.journal_code+" "+x.submission_id)].join(" ").toLowerCase().includes(MAILDESK.search)))}
 function mailDeskSelectedRefresh(){
  const ids=[...MAILDESK.selectedIds], all=mailDeskVisibleThreads().map(t=>t.id);
  $("mailDeskSelectedCount").textContent=ids.length+" selecionadas";
@@ -3417,6 +3425,33 @@ function mailDeskSetTab(which){
  if(which==="dashboard")mailDeskDashboardLoad();
 }
 
+async function mailDeskAutoStatsLoad(){
+ const node=$("mailDeskAutoStats");
+ try{
+  const r=await mailDeskCall("auto_prep_stats");
+  const c=r.counts||{};
+  node.textContent="IA antecipada · "+(c.READY||0)+" prontas · "+(c.REVIEW||0)+" para conferir · "+((c.QUEUED||0)+(c.RUNNING||0))+" preparando · "+(c.NO_REPLY||0)+" informativas · "+(c.FAILED||0)+" falhas (últimos 7 dias)";
+ }catch(e){node.textContent="Indicadores da IA antecipada indisponíveis: "+e.message}
+}
+function mailDeskAutoPreview(info,draft){
+ const box=$("mailDeskAutoPreview");box.replaceChildren();box.classList.add("hidden");
+ if(!info)return;
+ const titles={READY:"✨ Resposta antecipada pronta para revisão",REVIEW:"⚠ Resposta preparada — conferir informações",QUEUED:"◷ Resposta na fila de geração",RUNNING:"✦ A IA está preparando a resposta",NO_REPLY:"ℹ Mensagem identificada como informativa — resposta não necessária",FAILED:"⚠ Não foi possível preparar automaticamente",HUMAN_DRAFT:"✎ Rascunho anterior preservado",SUPERSEDED:"↻ Sugestão anterior desatualizada"};
+ const headline=titles[info.status];if(!headline)return;
+ const title=elem("strong",headline);box.append(title);
+ if(info.category)box.append(elem("small","Categoria: "+info.category+" · Evidência: "+(info.confidence||"em análise"),"hint"));
+ if(info.status==="READY"||info.status==="REVIEW"){
+  if(draft?.body_text){
+   box.append(elem("p",String(draft.body_text).slice(0,470)+(draft.body_text.length>470?"…":""),"maildesk-auto-excerpt"));
+   const action=elem("button","Ir à resposta pronta","btn primary small");action.type="button";action.onclick=()=>$("mailDeskDraftPanel").scrollIntoView({behavior:"smooth",block:"start"});box.append(action);
+  }
+  const notes=info.evidence?.notes;
+  if(notes)box.append(elem("p","Atenção: "+String(notes).slice(0,320),"hint"));
+ }else if(info.status==="QUEUED"||info.status==="RUNNING"){
+  box.append(elem("p","O editor será preenchido assim que a IA concluir. Você pode continuar lendo; a geração não envia mensagens.","hint"));
+ }
+ box.classList.remove("hidden");
+}
 function mailDeskListRender(){
  const box=$("mailDeskList");box.replaceChildren();
  const items=mailDeskVisibleThreads();
@@ -3432,6 +3467,11 @@ function mailDeskListRender(){
    elem("span",t.subject||"(sem assunto)"),
    elem("small",(t.article_links?.length?t.article_links.map(x=>x.journal_code+" #"+x.submission_id).join(" · "):"Sem artigo vinculado")+" · "+stamp(t.updated_at),"maildesk-article-list"),
    elem("small",(t.unread?"● NÃO LIDA":"✓ Lida")+" · "+(t.state==="AWAITING_REPLY"?"Aguardando equipe":"Histórico")));
+  const auto=t.auto_prep;
+  if(auto?.status){
+   const name={READY:"✨ IA pronta · revisar",REVIEW:"⚠ IA pronta · conferir evidências",QUEUED:"◷ IA na fila",RUNNING:"✦ IA preparando",NO_REPLY:"ℹ Notificação informativa",HUMAN_DRAFT:"✎ Rascunho humano preservado",FAILED:"⚠ Falha de IA",SUPERSEDED:"↻ Resposta anterior desatualizada"}[auto.status]||auto.status;
+   b.append(elem("small",name+(auto.category?" · "+auto.category:""),"maildesk-auto-chip "+(auto.status==="READY"?"ready":auto.status==="REVIEW"?"review":"")));
+  }
   b.title="Clique para ler a mensagem";
   b.onclick=()=>mailDeskOpen(t.id);
   wrapper.append(b);box.append(wrapper);
@@ -3446,6 +3486,7 @@ async function mailDeskLoad(){
   const data=await mailDeskCall("list",{view:$("mailDeskFilter").value});
   MAILDESK.threads=data.threads||[];
   MAILDESK.mailbox=data.mailbox||null;
+  mailDeskAutoStatsLoad();
   const visible=new Set(MAILDESK.threads.map(t=>t.id));for(const id of MAILDESK.selectedIds)if(!visible.has(id))MAILDESK.selectedIds.delete(id);
   for(const el of document.querySelectorAll("[data-mailfolder]"))el.classList.toggle("active",el.dataset.mailfolder===$("mailDeskFilter").value);
   $("mailDeskTotal").textContent=MAILDESK.threads.length;
@@ -3781,6 +3822,11 @@ async function mailDeskOpen(id,options={}){
   MAILDESK.canManualRecipient=data.allow_manual_recipient===true;
   MAILDESK.currentThreadData=data;
   MAILDESK.lastDraft=(data.drafts||[]).find(x=>x.state==="DRAFT")||null;
+  const auto=data.auto_prep||null;
+  const autoDraft=(["READY","REVIEW"].includes(auto?.status)&&auto?.draft_id)?
+   (data.drafts||[]).find(x=>x.id===auto.draft_id&&x.state==="DRAFT"&&x.source_snapshot?.inbound_message_id===auto.inbound_message_id):null;
+  mailDeskAutoPreview(auto,autoDraft);
+
   $("mailDeskOpenSavedDraft").disabled=!MAILDESK.lastDraft;
   $("mailDeskForward").disabled=false;$("mailDeskArchiveOne").disabled=false;$("mailDeskTrashOne").disabled=false;
   $("mailDeskReply").disabled=false;
@@ -3827,7 +3873,11 @@ async function mailDeskOpen(id,options={}){
   mailDeskDrawAttachments(data);mailDeskDrawAnalytics(data);
   mailDeskAnalyze(id);
   $("mailDeskGenerate").disabled=false;
-  if(MAILDESK.lastDraft){$("mailDeskOpenSavedDraft").textContent="Abrir rascunho salvo";}else $("mailDeskOpenSavedDraft").textContent="Sem rascunho salvo";
+  if(MAILDESK.lastDraft){$("mailDeskOpenSavedDraft").textContent=autoDraft?"Resposta IA pronta":"Abrir rascunho salvo";}else $("mailDeskOpenSavedDraft").textContent="Sem rascunho salvo";
+  if(autoDraft&&!MAILDESK.draftDirty){
+   mailDeskDrawDraft(autoDraft,auto?.evidence?.notes||"Resposta preparada antecipadamente. Revise todos os dados antes de enviar.");
+   $("mailDeskDraftState").textContent=auto?.status==="REVIEW"?"IA antecipada · verificação obrigatória":"IA antecipada · pronta para revisão";
+  }
   if(r?.unread&&!options.refresh){try{await mailDeskCall("mark_read",{thread_id:id,read:true});r.unread=false;mailDeskListRender();$("mailDeskReadBadge").textContent="✓ Lido no Brain";$("mailDeskReadBadge").classList.remove("unread");$("mailDeskToggleRead").textContent="Marcar como não lido";}catch(e){mailDeskNotice("Não foi possível marcar como lido: "+e.message,"warn")}}
  }catch(err){mailDeskNotice("Falha ao carregar: "+err.message,"error")}
 }
