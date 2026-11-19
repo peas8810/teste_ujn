@@ -3161,7 +3161,9 @@ async function mailDeskCall(action,data={}){
   body:JSON.stringify({action,...data})});
  const v=await r.json().catch(()=>({}));
  if(!r.ok)throw Error(v.error==="operator_auth_required"?
-  "Seu usuário não possui a permissão de e-mail no Brain. Verifique o cadastro UJN vinculado ao mesmo e-mail do Academy.":(v.error||"Erro HTTP "+r.status));
+  "Seu usuário não possui a permissão de e-mail no Brain. Verifique o cadastro UJN vinculado ao mesmo e-mail do Academy.":
+  v.error==="auto_draft_stale_new_inbound"?"A resposta antecipada foi preparada para uma mensagem anterior. Revise o novo e-mail e gere uma resposta atualizada antes de autorizar.":
+  (v.error||"Erro HTTP "+r.status));
  return v;
 }
 function mailDeskNotice(message,kind="info"){
@@ -3438,7 +3440,7 @@ async function mailDeskAutoStatsLoad(){
 function mailDeskAutoPreview(info,draft){
  const box=$("mailDeskAutoPreview");box.replaceChildren();box.classList.add("hidden");
  if(!info)return;
- const titles={READY:"✨ Resposta antecipada pronta para revisão",REVIEW:"⚠ Resposta preparada — conferir informações",QUEUED:"◷ Resposta na fila de geração",RUNNING:"✦ A IA está preparando a resposta",NO_REPLY:"ℹ Mensagem identificada como informativa — resposta não necessária",COMPLETED:"✓ Resposta enviada — acompanhamento concluído",FAILED:"⚠ Não foi possível preparar automaticamente",HUMAN_DRAFT:"✎ Rascunho anterior preservado",SUPERSEDED:"↻ Sugestão anterior desatualizada"};
+ const titles={READY:"✨ Resposta antecipada pronta para revisão",REVIEW:"⚠ Resposta preparada — conferir informações",QUEUED:"◷ Resposta na fila de geração",RUNNING:"✦ A IA está preparando a resposta",NO_REPLY:"ℹ Mensagem identificada como informativa — resposta não necessária",COMPLETED:"✓ Resposta enviada — acompanhamento concluído",FAILED:"⚠ Não foi possível preparar automaticamente",HUMAN_DRAFT:"⚠ Rascunho humano preservado — revise à luz do novo e-mail",SUPERSEDED:"↻ Sugestão anterior desatualizada"};
  const headline=titles[info.status];if(!headline)return;
  const title=elem("strong",headline);box.append(title);
  if(info.category)box.append(elem("small","Categoria: "+info.category+" · Evidência: "+(info.confidence||"em análise"),"hint"));
@@ -3471,7 +3473,7 @@ function mailDeskListRender(){
    elem("small",(t.unread?"● NÃO LIDA":"✓ Lida")+" · "+(t.state==="AWAITING_REPLY"?"Aguardando equipe":"Histórico")));
   const auto=t.auto_prep;
   if(auto?.status){
-   const name={READY:"✨ IA pronta · revisar",REVIEW:"⚠ IA pronta · conferir evidências",QUEUED:"◷ IA na fila",RUNNING:"✦ IA preparando",NO_REPLY:"ℹ Notificação informativa",COMPLETED:"✓ Resposta enviada e concluída",HUMAN_DRAFT:"✎ Rascunho humano preservado",FAILED:"⚠ Falha de IA",SUPERSEDED:"↻ Resposta anterior desatualizada"}[auto.status]||auto.status;
+   const name={READY:"✨ IA pronta · revisar",REVIEW:"⚠ IA pronta · conferir evidências",QUEUED:"◷ IA na fila",RUNNING:"✦ IA preparando",NO_REPLY:"ℹ Notificação informativa",COMPLETED:"✓ Resposta enviada e concluída",HUMAN_DRAFT:"⚠ Nova mensagem: conferir rascunho humano preservado",FAILED:"⚠ Falha de IA",SUPERSEDED:"↻ Resposta anterior desatualizada"}[auto.status]||auto.status;
    b.append(elem("small",name+(auto.category?" · "+auto.category:""),"maildesk-auto-chip "+(auto.status==="READY"?"ready":auto.status==="REVIEW"?"review":"")));
   }
   b.title="Clique para ler a mensagem";
