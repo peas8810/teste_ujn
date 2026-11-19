@@ -3430,7 +3430,9 @@ async function mailDeskAutoStatsLoad(){
  try{
   const r=await mailDeskCall("auto_prep_stats");
   const c=r.counts||{};
-  node.textContent="IA antecipada · "+(c.READY||0)+" prontas · "+(c.REVIEW||0)+" para conferir · "+((c.QUEUED||0)+(c.RUNNING||0))+" preparando · "+(c.NO_REPLY||0)+" informativas · "+(c.FAILED||0)+" falhas (últimos 7 dias)";
+  const mean=r.mean_prep_seconds==null?"—":r.mean_prep_seconds+" s";
+  const edited=r.prepared_drafts?Math.round(100*r.edited_drafts/r.prepared_drafts)+"%":"—";
+  node.textContent="IA antecipada (7 dias) · "+(c.READY||0)+" prontas · "+(c.REVIEW||0)+" para conferir · "+((c.QUEUED||0)+(c.RUNNING||0))+" preparando · "+(c.NO_REPLY||0)+" informativas · "+(c.FAILED||0)+" falhas · Tempo médio: "+mean+" · Edição humana: "+edited;
  }catch(e){node.textContent="Indicadores da IA antecipada indisponíveis: "+e.message}
 }
 function mailDeskAutoPreview(info,draft){
