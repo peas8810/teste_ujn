@@ -3153,7 +3153,7 @@ setInterval(()=>{if(token&&!document.hidden&&(role?.superuser||(role?.allowed||[
 /* Central de E-mails — usa a sessão Academy já autenticada; API verifica
    SUPERADMIN do Academy e o operador UJN correspondente no servidor. */
 const MAILDESK_API="https://leytqsyfrmzhectatcqm.supabase.co/functions/v1/ujn-email-desk-v1";
-const MAILDESK={threads:[],selected:null,preparedOnly:false,noticesOnly:false,activeDraft:null,mailbox:null,request:null,loading:false,search:"",unreadOnly:false,draftDirty:false,lastDraft:null,replyTarget:null,canManualRecipient:false,selectedIds:new Set(),contacts:[],currentThreadData:null,activeTab:"mailbox"};
+const MAILDESK={threads:[],selected:null,preparedOnly:false,noticesOnly:false,activeDraft:null,mailbox:null,emergencyAvailable:false,request:null,loading:false,search:"",unreadOnly:false,draftDirty:false,lastDraft:null,replyTarget:null,canManualRecipient:false,selectedIds:new Set(),contacts:[],currentThreadData:null,activeTab:"mailbox"};
 async function mailDeskCall(action,data={}){
  await brainEnsureAccess();
  const r=await fetch(MAILDESK_API,{method:"POST",cache:"no-store",
@@ -3500,6 +3500,7 @@ async function mailDeskLoad(){
   const data=await mailDeskCall("list",{view:$("mailDeskFilter").value});
   MAILDESK.threads=data.threads||[];
   MAILDESK.mailbox=data.mailbox||null;
+  MAILDESK.emergencyAvailable=data.smtp_manual_recovery_available===true;
   mailDeskAutoStatsLoad();
   const visible=new Set(MAILDESK.threads.map(t=>t.id));for(const id of MAILDESK.selectedIds)if(!visible.has(id))MAILDESK.selectedIds.delete(id);
   for(const el of document.querySelectorAll("[data-mailfolder]"))el.classList.toggle("active",el.dataset.mailfolder===$("mailDeskFilter").value);
@@ -3981,8 +3982,11 @@ function mailDeskDrawDraft(d,notes){
  MAILDESK.draftDirty=false;
  $("mailDeskDraftState").textContent=d.manual_saved_at?"Salvo em "+stamp(d.manual_saved_at):"Aguardando salvamento";
  $("mailDeskDraftPanel").classList.remove("hidden");
- $("mailDeskApprove").disabled=(technicalRecipient&&!manual.checked)||!d?.id||!(MAILDESK.mailbox?.smtp_enabled&&MAILDESK.mailbox?.sync_enabled);
- $("mailDeskApprove").textContent=MAILDESK.mailbox?.smtp_enabled&&MAILDESK.mailbox?.sync_enabled?"Autorizar e colocar na fila de envio":"Envio aguarda sincronização de Entrada e Enviados";
+ const normalSend=MAILDESK.mailbox?.smtp_enabled===true&&MAILDESK.mailbox?.sync_enabled===true;
+ const specialSend=!normalSend&&MAILDESK.emergencyAvailable===true&&MAILDESK.canManualRecipient===true;
+ $("mailDeskApprove").disabled=(technicalRecipient&&!manual.checked)||!d?.id||!(normalSend||specialSend);
+ $("mailDeskApprove").textContent=normalSend?"Autorizar e colocar na fila de envio":
+  specialSend?"Autorizar envio excepcional (IMAP em alerta)":"Envio aguarda sincronização de Entrada e Enviados";
  if(technicalRecipient&&!manual.checked){
    $("mailDeskDraftState").textContent="⚠️ Envio bloqueado: destinatário ainda não identificado.";
    $("mailDeskNotes").textContent="Aguardando captura segura do campo Reply-To da mensagem original. Não serão usadas suposições a partir do assunto ou de outras conversas.";
@@ -4101,17 +4105,24 @@ async function mailDeskApprove(){
  if(body.length<10||body.length>8000){
   mailDeskNotice("O texto da resposta deve conter de 10 a 8.000 caracteres (atual: "+body.length+"). Nenhum envio foi autorizado.","error");$("mailDeskRichEditor").focus();return;
  }
- const real=MAILDESK.mailbox?.smtp_enabled===true&&MAILDESK.mailbox?.sync_enabled===true;
- if(!real){mailDeskNotice("Primeiro conclua a sincronização segura de Entrada e Enviados no cPanel.","warn");return;}
- const warning=real?"ATENÇÃO: Você está autorizando o envio REAL para "+recipient+". A mensagem será transmitida pelo servidor SMTP quando o executor estiver ativo.":"Você está registrando aprovação sem envio; o SMTP está desativado.";
- if(!confirm(warning+"\n\n"+(choice.manual?"ATENÇÃO: destinatário informado manualmente. Confirme a identidade antes do envio.\n\n":"")+"Confirma esta ação?"))return;
+ const normal=MAILDESK.mailbox?.smtp_enabled===true&&MAILDESK.mailbox?.sync_enabled===true;
+ const degraded=!normal&&MAILDESK.emergencyAvailable===true&&MAILDESK.canManualRecipient===true;
+ if(!normal&&!degraded){mailDeskNotice("SMTP não verificado para envio. A sincronização IMAP também está com alerta; nenhuma mensagem foi autorizada.","warn");return}
+ if(degraded){
+  const message="ATENÇÃO: A caixa IMAP está com falha de sincronização. O histórico do Brain pode estar incompleto.\n\nANTES de autorizar, confira no Webmail/Roundcube a mensagem mais recente, o destinatário e se não houve resposta anterior.\n\nO SMTP tem confirmação recente de funcionamento, mas isto não garante entrega.\n\nAutorizar EXCEPCIONALMENTE esta resposta para "+recipient+"?";
+  if(!confirm(message))return;
+  const verification=prompt("Para confirmar que conferiu a conversa atual no Webmail, digite CONFERI:");
+  if(verification!=="CONFERI")return mailDeskNotice("Confirmação excepcional cancelada; nenhum envio autorizado.","warn");
+ }else{
+  if(!confirm("ATENÇÃO: Você está autorizando o envio REAL para "+recipient+". A mensagem será transmitida pelo servidor SMTP quando o executor estiver ativo.\n\n"+(choice.manual?"Destinatário informado manualmente — confira sua identidade.\n\n":"")+"Confirma esta ação?"))return;
+ }
  if(choice.manual){
   const reconfirm=prompt("CONFIRMAÇÃO ADMINISTRATIVA: digite novamente o endereço completo de destino ("+recipient+").");
   if(reconfirm===null||reconfirm.trim().toLowerCase()!==recipient)return mailDeskNotice("Confirmação do destinatário não corresponde. Nenhum envio foi autorizado.","warn");
  }
  $("mailDeskApprove").disabled=true;
  try{
-  const out=await mailDeskCall("approve_send",{draft_id:d.id,recipient,subject,body_text:body,body_html,manual_recipient:choice.manual,recipient_confirmation:choice.manual?recipient:null,confirm_manual_send:choice.manual});
+  const out=await mailDeskCall("approve_send",{draft_id:d.id,recipient,subject,body_text:body,body_html,manual_recipient:choice.manual,recipient_confirmation:choice.manual?recipient:null,confirm_manual_send:choice.manual,confirm_imap_degraded_send:degraded});
   MAILDESK.request=out.request_id;
   // The exact contents submitted to approve_send are now persisted server-side.
   // Never warn that they are unsaved after successful authorization.
@@ -4122,7 +4133,9 @@ async function mailDeskApprove(){
   $("mailDeskSubject").disabled=true;
   $("mailDeskSaveDraft").disabled=true;
   $("mailDeskOpenSavedDraft").disabled=true;
-  mailDeskNotice("Resposta aprovada e registrada com versão HTML e texto simples. A preservação da formatação no destinatário depende da confirmação do executor SMTP do cPanel.");
+  mailDeskNotice(out.status==="QUEUED"?
+   (degraded?"Envio excepcional autorizado e colocado na fila SMTP. O alerta IMAP permanece ativo. Acompanhe a confirmação de entrega.":"Resposta autorizada e colocada na fila SMTP. Aguarde confirmação de envio.") :
+   "Autorização registrada, mas o envio NÃO foi ativado: "+(out.status||"PENDENTE")+". Não autorize novamente antes de conferir a fila.","warn");
   $("mailDeskApprove").textContent="Autorização registrada";
   if(out.status==="QUEUED")mailDeskPollStatus();
  }catch(err){mailDeskNotice("A autorização não foi gravada: "+err.message,"error");$("mailDeskApprove").disabled=false}
@@ -4173,6 +4186,7 @@ async function mailDeskLightRefresh(){
   const previousStatus=MAILDESK.threads.find(t=>t.id===MAILDESK.selected)?.auto_prep?.status||null;
   MAILDESK.threads=d.threads||[];
   MAILDESK.mailbox=d.mailbox||null;
+  MAILDESK.emergencyAvailable=d.smtp_manual_recovery_available===true;
   $("mailDeskTotal").textContent=MAILDESK.threads.length;
   $("mailDeskWaiting").textContent=MAILDESK.threads.filter(t=>t.state==="AWAITING_REPLY").length;
   $("mailDeskAnswered").textContent=MAILDESK.threads.filter(t=>t.state==="ANSWERED").length;
