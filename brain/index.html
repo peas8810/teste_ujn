@@ -4160,6 +4160,7 @@ async function mailDeskLightRefresh(){
  if(!token || document.hidden || MAILDESK.loading || !document.querySelector('[data-page="emails"]:not(.hidden)'))return;
  try{
   const d=await mailDeskCall("list",{view:$("mailDeskFilter").value});
+  const previousStatus=MAILDESK.threads.find(t=>t.id===MAILDESK.selected)?.auto_prep?.status||null;
   MAILDESK.threads=d.threads||[];
   MAILDESK.mailbox=d.mailbox||null;
   $("mailDeskTotal").textContent=MAILDESK.threads.length;
@@ -4169,6 +4170,11 @@ async function mailDeskLightRefresh(){
    " · "+(MAILDESK.mailbox?.sync_enabled?"IMAP sincronizado":"IMAP em atualização")+
    " · janela móvel de 300 conversas · atualização automática a cada 15 s.";
   mailDeskListRender(); // Never overwrite an operator's edited draft.
+  const current=MAILDESK.threads.find(t=>t.id===MAILDESK.selected);
+  if(current&&!MAILDESK.activeDraft&&!MAILDESK.draftDirty&&
+     previousStatus!==current.auto_prep?.status&&["READY","REVIEW"].includes(current.auto_prep?.status)){
+    await mailDeskOpen(current.id,{refresh:true}); // Show newly completed preview without another click.
+  }
  }catch(err){$("mailDeskStatus").textContent="Atualização de e-mails indisponível: "+err.message}
 }
 setInterval(mailDeskLightRefresh,15000);
