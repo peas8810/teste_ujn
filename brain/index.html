@@ -524,7 +524,15 @@ body > .maildesk-jump-nav .btn:hover{background:#dff4f1;border-color:#66b9b0}
 .maildesk-auto-chip.ready{color:#07837c}.maildesk-auto-chip.review{color:#a67023}
 @media(max-width:820px){.maildesk-auto-preview{padding:10px}.maildesk-auto-preview .maildesk-auto-excerpt{max-height:125px}}
 </style>
-</head><body><a class="skip" href="#maincontent">Pular para conteúdo</a><div id="overlay"></div><div class="shell">
+<style id="crm-pagination-style">
+.crm-contact-tools{display:flex;flex-wrap:wrap;gap:12px;align-items:end;justify-content:space-between;margin:14px 0}
+.crm-contact-tools label{font-weight:650;display:grid;gap:5px;min-width:170px;flex:1}
+.crm-contact-tools input{width:100%;min-width:220px;padding:10px;border:1px solid #cbdce0;border-radius:8px}
+.crm-contact-tools select{max-width:170px;padding:10px;border:1px solid #cbdce0;border-radius:8px}
+.crm-pager{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin:12px 0 4px}
+.crm-page-actions{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.crm-page-actions .btn{padding:7px 10px;font-size:12px}
+</style></head><body><a class="skip" href="#maincontent">Pular para conteúdo</a><div id="overlay"></div><div class="shell">
 <aside class="sidebar" id="sidebar"><div class="brand"><svg width="38" height="38" viewBox="0 0 40 40" fill="none" aria-hidden="true"><path d="M10 30L20 10L32 28L10 30" stroke="#53bbbc" stroke-width="2.5"/><circle cx="10" cy="30" r="4" fill="#fff"/><circle cx="20" cy="10" r="4" fill="#fff"/><circle cx="32" cy="28" r="4" fill="#fff"/></svg>brain <small>UJN</small></div><div class="tagline">RELACIONAMENTO QUE CONECTA</div>
 <div class="navtitle">OPERAÇÃO</div><nav class="nav"><button data-screen="overview">▦　Visão geral</button><button data-screen="inbox">▤　Caixa de entrada</button><button data-screen="emails">✉　E-mails · IA e envios</button><button data-screen="contacts">♙　Contatos e vínculos</button></nav>
 <div class="navtitle">ECOSSISTEMA</div><nav class="nav"><button data-screen="academy">♧　Atendimento Academy</button><button data-screen="journals">▥　Revistas</button><button data-screen="submit">▤　Submissões · ArticleRun</button><button data-screen="genius">✧　ArticleGenius</button></nav>
@@ -748,7 +756,7 @@ body > .maildesk-jump-nav .btn:hover{background:#dff4f1;border-color:#66b9b0}
 <p class="crm-manual-warning">O superadministrador pode registrar uma autorização comprovada a pedido do autor. A autoria e o artigo ainda precisam ser conferidos no OJS antes de qualquer notificação.</p>
 <h3>Contatos cadastrados manualmente <span id="crmManualCount"></span></h3>
 <div id="crmManualEdit" class="hidden" style="margin:14px 0;padding:18px;border:1px solid #9bd4ca;border-radius:12px;background:#f5fbf9"></div>
-<div id="crmManualTable" style="overflow-x:auto"></div></section>
+<div class="crm-contact-tools"><label>Buscar em todos os contatos do WhatsApp<input id="crmAllContactSearch" type="search" placeholder="E-mail, telefone, revista ou artigo…" autocomplete="off"></label><label>Linhas por página<select id="crmManualPageSize"><option value="30" selected>30</option><option value="50">50</option><option value="100">100</option><option value="150">150</option></select></label></div><p id="crmAllSearchInfo" class="hint"></p><div id="crmManualTable" style="overflow-x:auto"></div><div id="crmManualPager" class="crm-pager"></div></section>
 </div>
 </div>
 <div id="crmNextLegacyReports" class="hidden">
@@ -777,7 +785,7 @@ body > .maildesk-jump-nav .btn:hover{background:#dff4f1;border-color:#66b9b0}
  <div class="crm-queue" id="crmQueueTable"></div><p class="crm-note" id="crmQueueFootnote"></p>
 </div>
 
-<div class="card"><div class="head"><h2>Cadastros e autorizações</h2><div class="row"><select id="editorialJournal"><option value="">Todas as revistas</option><option>REMUNOM</option><option>RSV</option><option>RJNM</option><option>JIRRS</option><option>NEXUS</option></select><input id="editorialSearch" placeholder="Buscar e-mail ou artigo" style="max-width:220px"/></div></div><div id="editorialActivationEdit" class="hidden" style="margin:15px 0;border:1px solid #9cd4cc;background:#f5fbfa;padding:18px;border-radius:12px"></div><div id="editorialContacts" style="overflow-x:auto"></div></div>
+<div class="card"><div class="head"><h2>Cadastros e autorizações</h2><div class="row"><select id="editorialJournal"><option value="">Todas as revistas</option><option>REMUNOM</option><option>RSV</option><option>RJNM</option><option>JIRRS</option><option>NEXUS</option></select><input id="editorialSearch" placeholder="Buscar e-mail ou artigo" style="max-width:220px"/></div></div><div id="editorialActivationEdit" class="hidden" style="margin:15px 0;border:1px solid #9cd4cc;background:#f5fbfa;padding:18px;border-radius:12px"></div><div class="crm-contact-tools"><label>Exibir<select id="editorialPageSize"><option value="30" selected>30 linhas</option><option value="50">50 linhas</option><option value="100">100 linhas</option><option value="150">150 linhas</option></select></label></div><div id="editorialContacts" style="overflow-x:auto"></div><div id="editorialPager" class="crm-pager"></div></div>
 <div class="card hidden" id="editorialContactService">
  <div class="crm-surface" style="margin-bottom:15px"><h3>Gestão do contato</h3><div class="crm-service-meta">
  <label>Prioridade<select id="crmContactPriority"><option>NORMAL</option><option>ALTA</option><option>URGENTE</option><option>BAIXA</option></select></label>
@@ -1301,18 +1309,79 @@ function crmNextNode(tag,text,className){
  const n=document.createElement(tag);if(text!==undefined&&text!==null)n.textContent=String(text);if(className)n.className=className;return n;
 }
 
+
+let crmManualPage=1,crmActivationPage=1;
+const crmNormalize=v=>String(v??"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+const crmNormalizePhone=v=>String(v??"").replace(/\D/g,"");
+function crmPageRows(rows,page,size){const total=Math.max(1,Math.ceil(rows.length/size)),current=Math.min(Math.max(1,page),total);return {visible:rows.slice((current-1)*size,current*size),total,current,from:rows.length?(current-1)*size+1:0,to:Math.min(rows.length,current*size)}}
+function crmRenderPager(root,rows,page,size,onPage){
+ if(!root)return;
+ const p=crmPageRows(rows,page,size);
+ root.replaceChildren();
+ const summary=elem("span",rows.length?p.from+"–"+p.to+" de "+rows.length+" contatos · Página "+p.current+" de "+p.total:"Nenhum contato encontrado","hint");root.append(summary);
+ const nav=elem("div",undefined,"crm-page-actions");
+ const btn=(label,number,disabled)=>{
+  const b=elem("button",label,"btn small");b.type="button";b.disabled=disabled;b.onclick=()=>onPage(number);nav.append(b)
+ };
+ btn("« Primeira",1,p.current===1);btn("‹ Anterior",p.current-1,p.current===1);
+ const min=Math.max(1,p.current-2),max=Math.min(p.total,min+4);
+ for(let i=Math.max(1,max-4);i<=max;i++)btn(String(i),i,i===p.current);
+ btn("Próxima ›",p.current+1,p.current===p.total);btn("Última »",p.total,p.current===p.total);
+ root.append(nav);
+}
+function crmContactMatch(row,query){
+ if(!query)return true;
+ const searchable=[row.email,row.phone_e164,row.phone,row.journal_hint,row.journal_code,row.submission_hint,row.submission_id,row.display_name,row.name,row.status].join(" ");
+ const q=crmNormalize(query);
+ return crmNormalize(searchable).includes(q) || (crmNormalizePhone(query).length>=4&&crmNormalizePhone(searchable).includes(crmNormalizePhone(query)));
+}
+function crmAllContactDirectory(d,query){
+ const records=[],seen=new Set();
+ const add=(x,source)=>{
+  if(!x?.email&&!x?.phone_e164&&!x?.phone)return;
+  const row={...x,source_type:source,phone_e164:x.phone_e164||x.phone||""};
+  if(!crmContactMatch(row,query))return;
+  const key=String(row.id||source+":"+row.email+":"+row.phone_e164);
+  if(seen.has(key))return;seen.add(key);records.push(row);
+ };
+ for(const x of d.manual_contacts||[])add(x,"Cadastro manual");
+ for(const x of d.requests||[])add(x,"Autorização editorial");
+ for(const x of d.central_contacts||[])add(x,"Central de atendimento");
+ for(const x of d.recipients||[])add(x,"Destinatário OJS");
+ return records;
+}
+
 let crmManualRows=[];
 function crmManualDisplay(d){
  const list=d.manual_contacts||[],root=$("crmManualTable");if(!root)return;
  crmManualRows=list;
  $("crmManualCount").textContent="("+list.length+")";
- makeEditorialTable(root,["E-mail","WhatsApp","Revista / artigo","Data","Situação","Ações"],list.map(x=>{
-  const actions=elem("div",undefined,"crm-edit-actions"),button=elem("button","Editar","btn small");
-  button.type="button";button.title="Editar dados do contato";button.onclick=()=>crmOpenManualEdit(x.id);
-  actions.append(button);
-  return [x.email,x.phone_e164,(x.journal_hint||"—")+(x.submission_hint?" #"+x.submission_hint:""),
-   stamp(x.created_at),x.requested_by_author?"Pedido do autor registrado · Aguardando conferência OJS":"Contato salvo · Sem autorização editorial",actions];
+ const query=$("crmAllContactSearch")?.value?.trim()||"";
+ const results=query?crmAllContactDirectory(d,query):list;
+ const count=results.length;
+ const size=Math.min(150,Math.max(30,Number($("crmManualPageSize")?.value||30)));
+ const page=crmPageRows(results,crmManualPage,size);
+ crmManualPage=page.current;
+ const status=$("crmAllSearchInfo");
+ if(status)status.textContent=query?"Busca em todos os contatos carregados do WhatsApp: "+count+" registros encontrados. Resultados de outros cadastros abrem o atendimento original para edição.":"Exibindo contatos cadastrados manualmente. Use a busca para localizar também autorizações, destinatários OJS e contatos da Central.";
+ makeEditorialTable(root,["E-mail","WhatsApp","Revista / artigo","Origem","Data","Situação","Ações"],page.visible.map(x=>{
+  const actions=elem("div",undefined,"crm-edit-actions");
+  if(x.source_type==="Cadastro manual"||!query){
+   const button=elem("button","Editar","btn small");button.type="button";button.title="Editar dados do contato";button.onclick=()=>crmOpenManualEdit(x.id);actions.append(button);
+  }else if(x.source_type==="Autorização editorial"){
+   const edit=elem("button","Editar","btn small");edit.type="button";edit.onclick=()=>{
+    if(editorialCache)editorialActivationEditOpen(x.id);
+   };actions.append(edit);
+  }else{
+   const open=elem("button","Atender / Histórico","btn small");open.type="button";
+   open.onclick=()=>editorialOpenService(x.phone_e164);actions.append(open);
+  }
+  return [x.email||"—",x.phone_e164||"—",(x.journal_hint||x.journal_code||"—")+
+   ((x.submission_hint||x.submission_id)?" #"+(x.submission_hint||x.submission_id):""),
+   x.source_type||"Cadastro manual",stamp(x.created_at||x.accepted_at),
+   x.requested_by_author?"Pedido do autor · Aguardando OJS":x.status==="VERIFIED"?"ATIVO":x.status||"Sem autorização editorial",actions];
  }));
+ crmRenderPager($("crmManualPager"),results,crmManualPage,size,n=>{crmManualPage=n;crmManualDisplay(d)});
 }
 function crmCloseManualEdit(){
  const editor=$("crmManualEdit");if(editor){editor.replaceChildren();editor.classList.add("hidden")}
@@ -1709,8 +1778,10 @@ function renderEditorial(d){
  const req=d.requests||[],recipient=d.recipients||[],events=new Map((d.events||[]).map(v=>[v.id,v])),recipients=new Map(recipient.map(v=>[v.id,v]));
  crmRender(d);
  const journal=$("editorialJournal").value,search=$("editorialSearch").value.toLowerCase().trim();
- const filtered=req.filter(r=>(!journal||r.journal_code===journal)&&(!search||[r.email,r.phone_e164,r.submission_id].join(" ").toLowerCase().includes(search)));
- const contacts=filtered.map(r=>{
+ const filtered=req.filter(r=>(!journal||r.journal_code===journal)&&(!search||crmContactMatch(r,search)));
+ const pageSize=Math.min(150,Math.max(30,Number($("editorialPageSize")?.value||30)));
+ const page=crmPageRows(filtered,crmActivationPage,pageSize);crmActivationPage=page.current;
+ const contacts=page.visible.map(r=>{
   const button=elem("button","Vincular artigo","btn small");button.dataset.request=r.id;button.disabled=r.status==="VERIFIED";
   button.title=r.status==="VERIFIED"?"Já habilitado":"Conferir e-mail e ID do manuscrito no OJS";
   const service=elem("button","Atender / Histórico","btn small");service.dataset.editorialphone=r.phone_e164;
@@ -1719,6 +1790,7 @@ function renderEditorial(d){
  return [r.email,r.phone_e164,r.journal_code?(r.journal_code+" #"+r.submission_id):"Aguardando manuscrito",stamp(r.accepted_at),r.status==="VERIFIED"?"ATIVO":"PENDENTE",actions]
  });
  makeEditorialTable($("editorialContacts"),["E-mail do autor","WhatsApp","Revista / Manuscrito","Aceite","Estado","Ação"],contacts);
+ crmRenderPager($("editorialPager"),filtered,crmActivationPage,pageSize,n=>{crmActivationPage=n;renderEditorial(d)});
  const deliveries=(d.deliveries||[]).slice(0,150).map(v=>{const e=events.get(v.event_id)||{},r=recipients.get(v.recipient_id)||{};return [stamp(v.created_at),e.journal_code||"—",e.submission_id||"—",e.event_type||"—",r.phone_e164||"—",v.read_at?"LIDO":v.delivered_at?"ENTREGUE":v.state,v.last_error_code||"—"]});
  makeEditorialTable($("editorialDeliveries"),["Data","Revista","ID","Movimentação","WhatsApp","Status","Erro"],deliveries);
  makeEditorialTable($("editorialReplies"),["Data","Telefone","Mensagem"],(d.inbound||[]).slice(0,120).map(x=>[stamp(x.created_at),x.phone,x.body]));
@@ -4286,8 +4358,11 @@ setInterval(async()=>{
  }catch(e){$("inboxLiveStatus").textContent="Atualização indisponível — tente manualmente"}
 },20000);$("inboxFilter").onchange=renderInbox;$("sendReply").onclick=()=>{const t=$("replyText").value.trim();if(t)operate("reply",t)};$("saveNote").onclick=()=>{const t=$("replyText").value.trim();if(t)operate("note",t)};$("refreshContacts").onclick=contactLoad;$("contactQuery").oninput=renderContacts;$("academyRefresh").onclick=academy;$("notificationsRefresh").onclick=notifications;$("mktRefresh").onclick=marketing;$("aiRefresh").onclick=aiDash;$("aiHumanRefresh").onclick=aiHumanLoad;$("aiEmailSuggest").onclick=()=>{const v=$("aiEmailInput").value.trim();if(v.length<8)return say("Informe o texto do e-mail.",true);aiSuggest({channel:"email",message:v})};$("loadMenu").onclick=menuLoad;$("saveMenu").onclick=menuSave;
 $("editorialRefresh").addEventListener("click",()=>editorialWa());
-$("editorialJournal").addEventListener("change",()=>{if(editorialCache)renderEditorial(editorialCache)});
-$("editorialSearch").addEventListener("input",()=>{if(editorialCache)renderEditorial(editorialCache)});
+$("editorialJournal").addEventListener("change",()=>{crmActivationPage=1;if(editorialCache)renderEditorial(editorialCache)});
+$("editorialSearch").addEventListener("input",()=>{crmActivationPage=1;if(editorialCache)renderEditorial(editorialCache)});
+$("crmManualPageSize").addEventListener("change",()=>{crmManualPage=1;if(editorialCache)crmManualDisplay(editorialCache)});
+$("crmAllContactSearch").addEventListener("input",()=>{crmManualPage=1;if(editorialCache)crmManualDisplay(editorialCache)});
+$("editorialPageSize").addEventListener("change",()=>{crmActivationPage=1;if(editorialCache)renderEditorial(editorialCache)});
 $("editorialContacts").addEventListener("click",e=>{const edit=e.target.closest("button[data-activationedit]");if(edit){editorialActivationEditOpen(edit.dataset.activationedit);return}const phone=e.target.closest("button[data-editorialphone]");if(phone){editorialOpenService(phone.dataset.editorialphone);return}const target=e.target.closest("button[data-request]");if(target)editorialLink(target.dataset.request)});
 $("editorialCloseService").addEventListener("click",()=>{$("editorialContactService").classList.add("hidden");editorialServicePhone=null;editorialServiceChat=null});
 $("editorialClaimChat").addEventListener("click",editorialClaimService);
