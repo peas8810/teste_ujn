@@ -691,7 +691,7 @@ body > .maildesk-jump-nav .btn:hover{background:#dff4f1;border-color:#66b9b0}
       <textarea id="mailDeskText" maxlength="8000" rows="12" hidden aria-hidden="true"></textarea>
       <input type="file" id="mailRichImageInput" accept="image/png,image/jpeg,image/webp" multiple hidden />
       <div id="mailRichImages" class="mail-rich-images" aria-live="polite"></div>
-      <p class="hint" id="mailRichImageHint">Cole um print com Ctrl+V ou clique em 🖼 Imagem. Até 5 imagens de 1,5 MB cada. As imagens aparecerão no corpo do e-mail enviado, após a resposta.</p>
+      <p class="hint" id="mailRichImageHint">Cole um print com Ctrl+V ou clique em 🖼 Imagem. Até 5 imagens de 1,5 MB cada. As imagens serão incorporadas à resposta quando o executor SMTP com imagens estiver habilitado.</p>
       <div class="mail-rich-footer"><span id="mailRichCount">0 / 8000 caracteres</span><span>Ctrl+B negrito · Ctrl+I itálico · Ctrl+U sublinhado</span></div>
     </div>
     <div class="maildesk-rewrite-panel" style="margin-top:14px;padding:14px;border:1px solid #d3e4e8;border-radius:12px;background:#f5fafb">
@@ -3246,6 +3246,7 @@ async function mailDeskCall(action,data={}){
  if(!r.ok)throw Error(v.error==="operator_auth_required"?
   "Seu usuário não possui a permissão de e-mail no Brain. Verifique o cadastro UJN vinculado ao mesmo e-mail do Academy.":
   v.error==="auto_draft_stale_new_inbound"?"A resposta antecipada foi preparada para uma mensagem anterior. Revise o novo e-mail e gere uma resposta atualizada antes de autorizar.":
+  v.error==="smtp_images_worker_update_required"?"Imagens salvas. O envio com prints ainda precisa da atualização do executor SMTP do cPanel; nenhum e-mail foi autorizado.":
   (v.error||"Erro HTTP "+r.status));
  return v;
 }
