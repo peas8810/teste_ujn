@@ -5,7 +5,7 @@ Default mode: SMTP authentication/connection test; sends NO message.
 --send-one: fetch ONE expressly operator-approved QUEUED job, deliver once, report status.
 Never run --send-one on Cron until verified and enabled in Supabase.
 """
-import sys, os, json, re, ssl, socket, smtplib, urllib.request, urllib.error, time, hmac, hashlib, uuid
+import sys, os, json, re, ssl, socket, smtplib, urllib.request, urllib.error, time, hmac, hashlib, uuid, base64, html
 from email.message import EmailMessage
 from email.utils import formatdate
 
@@ -103,7 +103,7 @@ def archive_sent_imap(message, password):
 def send_one(password,key):
     # A job is atomically claimed only after SMTP has been explicitly enabled in Supabase.
     # No automatic retry of a claimed job: prevents accidental duplicate delivery.
-    response=signed_request({"action":"worker_claim"},key)
+    response=signed_request({"action":"worker_claim","supports_images":True},key)
     job=response.get("item")
     if not response.get("ready") or not job:
         print(json.dumps({"ready":bool(response.get("ready")),"dispatched":0}))
@@ -133,6 +133,45 @@ def send_one(password,key):
             msg["In-Reply-To"] = parent
             msg["References"] = (root + " " + parent) if valid_mid(root) and root != parent else parent
         msg.set_content(job["body_text"],subtype="plain",charset="utf-8")
+        # Fetch private images only for this atomically claimed/approved request.
+        # Any failure happens BEFORE opening SMTP, never drop images silently.
+        try:
+            media=signed_request({"action":"worker_images","request_id":reqid},key)
+            if media.get("ok") is not True or not isinstance(media.get("files"),list):
+                raise ValueError("Approved image preflight failed")
+            files=media["files"]
+            if len(files)>5:
+                raise ValueError("Too many images")
+            parts=[]
+            for item in files:
+                if item.get("mime_type") not in ("image/png","image/jpeg","image/webp"):
+                    raise ValueError("Unsupported image MIME")
+                cid=item.get("cid","")
+                if not isinstance(cid,str) or not re.fullmatch(r"ujn-[a-f0-9-]{36}@images\.ujn\.ojsbr\.com",cid):
+                    raise ValueError("Invalid Content-ID")
+                data=base64.b64decode(item["base64"],validate=True)
+                if len(data)>1572864 or not data:
+                    raise ValueError("Invalid image size")
+                filename=safe_header(item["filename"])
+                if "/" in filename or "\\" in filename or len(filename)>160:
+                    raise ValueError("Unsafe image filename")
+                parts.append((filename,item["mime_type"].split("/")[1],cid,data))
+        except Exception as exc:
+            raise ValueError("SMTP_IMAGE_PREFLIGHT_FAILED") from exc
+        rich=job.get("body_html")
+        if not isinstance(rich,str) or not rich.strip():
+            rich="<div>"+html.escape(job["body_text"]).replace("\\n","<br>")+"</div>"
+        # HTML is sanitized by Brain UJN before it enters the approved queue.
+        if parts:
+            rich+="<div style='margin-top:16px'>"
+            for filename,subtype,cid,data in parts:
+                rich+="<p><img src='cid:"+cid+"' alt='"+html.escape(filename,quote=True)+"' style='max-width:100%;height:auto'></p>"
+            rich+="</div>"
+        msg.add_alternative(rich,subtype="html",charset="utf-8")
+        html_part=msg.get_payload()[-1]
+        for filename,subtype,cid,data in parts:
+            html_part.add_related(data,maintype="image",subtype=subtype,
+                                  cid="<"+cid+">",filename=filename,disposition="inline")
         with open_smtp(password) as smtp:
             refused=smtp.send_message(msg,from_addr=MAILBOX,to_addrs=[recipient])
         status="SENT" if not refused else "UNKNOWN"
