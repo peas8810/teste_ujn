@@ -160,7 +160,7 @@ def send_one(password,key):
             raise ValueError("SMTP_IMAGE_PREFLIGHT_FAILED") from exc
         rich=job.get("body_html")
         if not isinstance(rich,str) or not rich.strip():
-            rich="<div>"+html.escape(job["body_text"]).replace("\\n","<br>")+"</div>"
+            rich="<div>"+html.escape(job["body_text"]).replace("\n","<br>")+"</div>"
         # HTML is sanitized by Brain UJN before it enters the approved queue.
         if parts:
             rich+="<div style='margin-top:16px'>"
