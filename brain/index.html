@@ -203,7 +203,14 @@
 .mkt-calendar-day strong{color:#24475b}.mkt-calendar-day.muted{background:#f6f9fa}
 .mkt-calendar-event{padding:5px;border-radius:5px;font-size:10px;background:#dcf5eb;color:#00785e;margin-top:5px;white-space:normal;overflow-wrap:anywhere}
 @media(max-width:760px){.mkt-calendar-day{min-height:65px;padding:3px}.mkt-calendar-event{font-size:8px;padding:3px}.mkt-calendar-head{font-size:9px}}
-.crm-manual-panel{padding:20px;border:1px solid #dbe9eb;border-radius:14px;background:#fff;margin-bottom:18px}.crm-manual-panel h3{font-size:16px;margin:0 0 8px}.crm-manual-panel p{font-size:12px;color:#687f8b}.crm-manual-form{display:grid;grid-template-columns:1fr 1fr auto;align-items:end;gap:12px}.crm-manual-form label{font-weight:650;font-size:12px}.crm-manual-form input{display:block;width:100%;margin-top:6px;padding:11px;border:1px solid #c9dae0;border-radius:9px}.crm-manual-form button{height:44px}.crm-manual-warning{background:#edf7f4;border-left:3px solid #0b8a77;padding:12px;margin:12px 0!important}#crmManualFeedback{font-size:12px;margin:12px 0;color:#087c65}@media(max-width:800px){.crm-manual-form{grid-template-columns:1fr}}</style><style id="inbox-ai-style">
+.crm-manual-panel{padding:20px;border:1px solid #dbe9eb;border-radius:14px;background:#fff;margin-bottom:18px}.crm-manual-panel h3{font-size:16px;margin:0 0 8px}.crm-manual-panel p{font-size:12px;color:#687f8b}.crm-manual-form{display:grid;grid-template-columns:1fr 1fr auto;align-items:end;gap:12px}.crm-manual-form label{font-weight:650;font-size:12px}.crm-manual-form input{display:block;width:100%;margin-top:6px;padding:11px;border:1px solid #c9dae0;border-radius:9px}.crm-manual-form button{height:44px}.crm-manual-warning{background:#edf7f4;border-left:3px solid #0b8a77;padding:12px;margin:12px 0!important}#crmManualFeedback{font-size:12px;margin:12px 0;color:#087c65}@media(max-width:800px){.crm-manual-form{grid-template-columns:1fr}}
+.mail-rich-images{display:flex;gap:12px;flex-wrap:wrap;padding:10px 16px}
+.mail-rich-image{position:relative;border:1px solid #cbdde3;border-radius:10px;background:#fff;width:160px;padding:8px;display:flex;flex-direction:column;gap:6px}
+.mail-rich-image img{display:block;width:100%;height:100px;object-fit:contain;background:#f5f8fa;border-radius:5px}
+.mail-rich-image span{font-size:12px;overflow-wrap:anywhere;color:#17394a}
+.mail-rich-image button{border:1px solid #cbdde3;background:#fff;border-radius:7px;padding:4px;cursor:pointer}
+#mailRichImageButton{white-space:nowrap}
+</style><style id="inbox-ai-style">
 .inbox-ai{margin:15px 0;padding:15px;border:1px solid #cddfdb;background:#f2faf8;border-radius:12px}
 .inbox-ai-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .inbox-ai-head strong{display:block;font-size:14px;color:#174d4b}
@@ -677,10 +684,14 @@ body > .maildesk-jump-nav .btn:hover{background:#dff4f1;border-color:#66b9b0}
         <button type="button" data-rich="removeFormat" title="Limpar formatação">Tx</button>
         <button type="button" data-rich="undo" title="Desfazer">↶</button>
         <button type="button" data-rich="redo" title="Refazer">↷</button>
+        <button type="button" id="mailRichImageButton" title="Inserir imagem ou print (PNG, JPG, WebP)">🖼 Imagem</button>
         <label class="mail-rich-color" title="Cor do texto">Cor <input type="color" id="mailRichColor" value="#17394a" aria-label="Cor do texto"/></label>
       </div>
       <div id="mailDeskRichEditor" class="mail-rich-editor" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Resposta formatada ao autor" spellcheck="true"></div>
       <textarea id="mailDeskText" maxlength="8000" rows="12" hidden aria-hidden="true"></textarea>
+      <input type="file" id="mailRichImageInput" accept="image/png,image/jpeg,image/webp" multiple hidden />
+      <div id="mailRichImages" class="mail-rich-images" aria-live="polite"></div>
+      <p class="hint" id="mailRichImageHint">Cole um print com Ctrl+V ou clique em 🖼 Imagem. Até 5 imagens de 1,5 MB cada. As imagens aparecerão no corpo do e-mail enviado, após a resposta.</p>
       <div class="mail-rich-footer"><span id="mailRichCount">0 / 8000 caracteres</span><span>Ctrl+B negrito · Ctrl+I itálico · Ctrl+U sublinhado</span></div>
     </div>
     <div class="maildesk-rewrite-panel" style="margin-top:14px;padding:14px;border:1px solid #d3e4e8;border-radius:12px;background:#f5fafb">
@@ -4025,8 +4036,73 @@ $("mailRichFont").addEventListener("change",e=>mailRichCommand("fontName",e.targ
 $("mailRichSize").addEventListener("change",e=>mailRichCommand("fontSize",e.target.value));
 $("mailRichColor").addEventListener("input",e=>mailRichCommand("foreColor",e.target.value));
 $("mailDeskRichEditor").addEventListener("input",mailRichSync);
+
+let mailRichImages=[];
+function mailRichPaintImages(){
+ const host=$("mailRichImages");host.replaceChildren();
+ for(const item of mailRichImages){
+  const card=elem("div",undefined,"mail-rich-image");
+  const img=document.createElement("img");img.alt="Prévia de "+item.filename;img.src=item.preview_url;img.referrerPolicy="no-referrer";
+  const name=elem("span",item.filename+" · "+Math.ceil(item.size_bytes/1024)+" KB");
+  const del=document.createElement("button");del.type="button";del.textContent="Remover";del.disabled=$("mailDeskRichEditor").contentEditable==="false";
+  del.addEventListener("click",async()=>{
+   try{
+    del.disabled=true;
+    await mailDeskCall("image_remove",{draft_id:MAILDESK.activeDraft?.id,image_id:item.id});
+    mailRichImages=mailRichImages.filter(i=>i.id!==item.id);
+    mailRichPaintImages();mailDeskNotice("Imagem removida do rascunho. Nenhum e-mail enviado.");
+   }catch(error){del.disabled=false;mailDeskNotice("Falha ao remover imagem: "+error.message,"error")}
+  });
+  card.append(img,name,del);host.append(card);
+ }
+}
+async function mailRichLoadImages(id){
+ mailRichImages=[];mailRichPaintImages();
+ if(!id)return;
+ try{
+  const answer=await mailDeskCall("image_list",{draft_id:id});
+  if(MAILDESK.activeDraft?.id!==id)return;
+  mailRichImages=answer.files||[];mailRichPaintImages();
+ }catch(e){mailDeskNotice("Não foi possível consultar imagens do rascunho: "+e.message,"warn")}
+}
+async function mailRichAddImages(files){
+ if(!files.length)return;
+ if($("mailDeskRichEditor").contentEditable==="false")return mailDeskNotice("Esta resposta já foi autorizada.","warn");
+ const acceptable=["image/png","image/jpeg","image/webp"];
+ for(const file of files){
+  if(!acceptable.includes(file.type)||file.size>1572864||file.size===0){
+   mailDeskNotice("Use imagens PNG, JPG ou WebP com até 1,5 MB cada.","error");return;
+  }
+ }
+ if(!MAILDESK.activeDraft?.id||MAILDESK.draftDirty){
+  await mailDeskSaveDraft();
+  if(!MAILDESK.activeDraft?.id||MAILDESK.draftDirty)return mailDeskNotice("Salve a resposta antes de anexar imagens.","warn");
+ }
+ const id=MAILDESK.activeDraft.id;
+ const button=$("mailRichImageButton");button.disabled=true;
+ try{
+  for(const file of files){
+   if(mailRichImages.length>=5)throw Error("Limite de 5 imagens por mensagem.");
+   const base64=await new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onload=()=>resolve(String(reader.result).split(",")[1]||"");
+    reader.onerror=()=>reject(Error("Falha ao ler a imagem"));
+    reader.readAsDataURL(file);
+   });
+   const result=await mailDeskCall("image_upload",{draft_id:id,filename:file.name||"captura.png",mime_type:file.type,base64});
+   mailRichImages.push(result);mailRichPaintImages();
+  }
+  mailDeskNotice("Imagem armazenada no rascunho. Ela será incluída somente depois de autorizar o envio.");
+ }catch(error){mailDeskNotice("Falha ao incluir imagem: "+error.message,"error")}
+ finally{button.disabled=false;$("mailRichImageInput").value=""}
+}
+$("mailRichImageButton").addEventListener("click",()=>$("mailRichImageInput").click());
+$("mailRichImageInput").addEventListener("change",e=>mailRichAddImages(Array.from(e.target.files||[])));
 $("mailDeskRichEditor").addEventListener("paste",e=>{
- e.preventDefault();const value=e.clipboardData.getData("text/plain").slice(0,8000);
+ const imageFiles=Array.from(e.clipboardData?.files||[]).filter(x=>x.type.startsWith("image/"));
+ if(imageFiles.length){e.preventDefault();mailRichAddImages(imageFiles);return;}
+ e.preventDefault();
+ const value=e.clipboardData.getData("text/plain").slice(0,8000);
  document.execCommand("insertText",false,value);mailRichSync();
 });
 function mailDeskDrawDraft(d,notes){
@@ -4051,6 +4127,7 @@ function mailDeskDrawDraft(d,notes){
  $("mailDeskRecipient").title=manual.checked?"Endereço informado manualmente pelo administrador":technicalRecipient?"Nenhum destinatário confirmado para a última mensagem recebida.":"Destinatário automático verificado";
  $("mailDeskSubject").value=d.subject_override||(/^re:/i.test(t?.subject||"")?(t.subject||""):"Re: "+(t?.subject||""));
  mailRichSetContent(d.body_text||"",d.body_html||null);
+ mailRichLoadImages(d.id);
  MAILDESK.draftDirty=false;
  $("mailDeskDraftState").textContent=d.manual_saved_at?"Salvo em "+stamp(d.manual_saved_at):"Aguardando salvamento";
  $("mailDeskDraftPanel").classList.remove("hidden");
@@ -4115,6 +4192,7 @@ async function mailDeskSaveDraft(){
   $("mailDeskDraftState").textContent="✓ Rascunho salvo em "+stamp(resp.draft.manual_saved_at);
   $("mailDeskOpenSavedDraft").disabled=false;$("mailDeskOpenSavedDraft").textContent="Abrir rascunho salvo";
   mailDeskNotice("Rascunho salvo no Brain UJN. Nenhum e-mail foi enviado.");
+  return resp.draft;
  }catch(err){$("mailDeskDraftState").textContent="Não salvo";mailDeskNotice("Falha ao salvar rascunho: "+err.message,"error")}
  finally{btn.disabled=false}
 }
@@ -4202,6 +4280,7 @@ async function mailDeskApprove(){
   MAILDESK.lastDraft=null;
   $("mailDeskDraftState").textContent="✓ Resposta aprovada e salva para envio";
   $("mailDeskRichEditor").setAttribute("contenteditable","false");
+  mailRichPaintImages();
   $("mailDeskSubject").disabled=true;
   $("mailDeskSaveDraft").disabled=true;
   $("mailDeskOpenSavedDraft").disabled=true;
