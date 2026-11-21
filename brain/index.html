@@ -2222,6 +2222,44 @@ async function mktRunBulkContacts(){
  }catch(e){status.textContent="Importação interrompida: "+e.message+" (cadastrados até agora: "+created+")"}
  finally{button.disabled=false}
 }
+
+const mktSelectedContactIds=new Set();
+function mktSelectionSummary(){
+ const validIds=new Set((marketingData?.contacts||[]).map((x)=>x.id));
+ for(const id of [...mktSelectedContactIds])if(!validIds.has(id))mktSelectedContactIds.delete(id);
+ const label=$("mktSelectedCount");
+ if(label)label.textContent=mktSelectedContactIds.size+" selecionado(s) · máximo 100 por lote";
+ const submit=$("mktBatchApply");
+ if(submit)submit.disabled=mktSelectedContactIds.size===0;
+ const exit=$("mktBatchOptout");
+ if(exit)exit.disabled=mktSelectedContactIds.size===0;
+}
+async function mktSubmitBulkUpdate(form){
+ const ids=[...mktSelectedContactIds];
+ if(!ids.length||ids.length>100){say("Selecione de 1 a 100 contatos.",true);return}
+ const field=form.elements.bulk_field.value;
+ const value=String(form.elements.bulk_value.value||"").trim();
+ const mode=form.elements.bulk_mode.value;
+ const changes={};
+ if(["journal_interest","topic_tags"].includes(field)){
+   changes[field]=value.split(",").map(v=>field==="journal_interest"?v.trim().toUpperCase():v.trim()).filter(Boolean);
+   if(!changes[field].length){say("Informe ao menos um valor para o campo.",true);return}
+ }else if(["organization","language"].includes(field)){
+   if(!value){say("Informe o valor do campo.",true);return}
+   changes[field]=value;
+ }else{say("Campo inválido.",true);return}
+ const body={contact_ids:ids,changes,mode};
+ const btn=$("mktBatchApply");if(btn)btn.disabled=true;
+ try{
+   const preview=await mktCall("bulk_update_contacts",{...body,preview:true});
+   if(!confirm("Atualizar "+preview.total+" contatos?\nCampo: "+field+"\nModo: "+mode+"\nValor: "+value+"\n\nO consentimento comercial NÃO será alterado."))return;
+   const result=await mktCall("bulk_update_contacts",{...body,confirmed:true});
+   say("Atualização em lote: "+result.updated+" alterados, "+result.failed+" falhas. Nenhuma mensagem enviada.");
+   mktSelectedContactIds.clear();await marketing();
+ }catch(e){say("Erro na atualização em lote: "+e.message,true)}
+ finally{if(btn)btn.disabled=false;mktSelectionSummary()}
+}
+
 function mktAudience(root,d){
  const layout=mktEl("div",undefined,"mkt-layout"),left=mktEl("div"),right=mktEl("div");
  const panel=mktPanel("Base de contatos e consentimento","A inclusão de um contato não autoriza campanhas. Apenas evidências específicas de marketing permitem o opt-in.");
@@ -2230,14 +2268,43 @@ function mktAudience(root,d){
  consentLink.href="https://wa.me/553189474110?text=UJN%20MARKETING%20SIM";
  consentLink.target="_blank";consentLink.rel="noopener noreferrer";
  consentLink.style.cssText="display:inline-flex;align-items:center;text-decoration:none";
- controls.append(consentLink);panel.append(controls);
+ controls.append(consentLink);
+ const selectAll=mktBtn("Selecionar até 100","bulk_select_all");
+ const clearSelection=mktBtn("Limpar seleção","bulk_clear_selection");
+ controls.append(selectAll,clearSelection);
+ const counter=mktEl("strong",mktSelectedContactIds.size+" selecionado(s) · máximo 100 por lote","hint");
+ counter.id="mktSelectedCount";controls.append(counter);
+ panel.append(controls);
  panel.append(mktEl("div","Para autorizar marketing, o contato deve enviar UJN MARKETING SIM pelo próprio WhatsApp. O Brain registra a prova da Meta. Para cancelar apenas marketing: UJN MARKETING PARAR. O comando PARAR cancela também notificações editoriais.","mkt-notice"));
- panel.append(mktTable(["Contato","WhatsApp","Origem","Marketing","Ações"],d.contacts.map(x=>{
+ panel.append(mktTable(["Selecionar","Contato","WhatsApp","Origem","Marketing","Ações"],d.contacts.map(x=>{
   const action=mktEl("div");action.style.display="flex";action.style.gap="5px";
   action.append(mktBtn("Detalhes/consentimento","consent_contact",x.id));action.append(mktBtn("Editar perfil","edit_contact",x.id));
-  return [x.display_name||x.email||"Contato",x.phone||"Somente e-mail",x.origin,x.marketing_opt_in?mktBadge("AUTORIZADO","ok"):mktBadge("SEM AUTORIZAÇÃO","warn"),action];
+  const cb=mktEl("input");cb.type="checkbox";cb.dataset.mktSelectContact=x.id;cb.checked=mktSelectedContactIds.has(x.id);
+  cb.setAttribute("aria-label","Selecionar "+(x.display_name||x.email||x.phone||"contato"));cb.style.width="18px";cb.style.height="18px";
+  return [cb,x.display_name||x.email||"Contato",x.phone||"Somente e-mail",x.origin,x.marketing_opt_in?mktBadge("AUTORIZADO","ok"):mktBadge("SEM AUTORIZAÇÃO","warn"),action];
  })));
  left.append(panel);
+ const batch=mktPanel("Atualização de vários contatos","Selecione os contatos na tabela. Altere instituição, idioma, revistas ou interesses sem conceder automaticamente autorização de marketing.");
+ const formBatch=mktEl("form",undefined,"mkt-form");formBatch.dataset.mktForm="bulk_update_contacts";
+ const fields=[
+  ["bulk_field","Campo para atualizar",[["organization","Instituição"],["language","Idioma"],["journal_interest","Revistas de interesse"],["topic_tags","Temas e interesses"]]],
+  ["bulk_mode","Operação",[["merge","Adicionar valores sem apagar os anteriores (listas)"],["replace","Substituir os valores existentes"]]]
+ ];
+ for(const [name,title,options] of fields){
+  const label=mktEl("label",title,"wide"),sel=mktEl("select");sel.name=name;
+  for(const [value,text] of options){const o=mktEl("option",text);o.value=value;sel.append(o)}
+  label.append(sel);formBatch.append(label);
+ }
+ const valLabel=mktEl("label","Novo valor (para revistas e temas, separar por vírgula)","wide"),valueInput=mktEl("input");
+ valueInput.name="bulk_value";valueInput.placeholder="Ex.: REMUNOM, RSV ou Universidade";valueInput.required=true;
+ valLabel.append(valueInput);formBatch.append(valLabel);
+ const submit=mktEl("button","Prévia e atualizar selecionados","btn primary");submit.type="submit";submit.id="mktBatchApply";formBatch.append(submit);
+ batch.append(formBatch);
+ const optout=mktBtn("Revogar marketing dos selecionados","bulk_optout_selected");
+ optout.id="mktBatchOptout";optout.style.marginTop="10px";batch.append(optout);
+ batch.append(mktEl("p","Autorizar marketing continua exigindo prova específica por contato. Esta ferramenta não envia mensagens.","hint"));
+ right.append(batch);
+ mktSelectionSummary();
  right.append(mktCreateForm("Adicionar contato","O contato começa sem autorização de Marketing.",[
  {name:"display_name",label:"Nome"},{name:"phone",label:"WhatsApp com DDI (opcional)",placeholder:"+5531999999999"},
  {name:"email",label:"E-mail (ou WhatsApp)",placeholder:"autor@instituicao.br"},{name:"journal",label:"Revista de interesse",type:"select",options:mktJournalOptions}
@@ -2649,9 +2716,17 @@ async function mktRun(action,payload){
 $("mktTabs").addEventListener("click",e=>{
  const b=e.target.closest("button[data-mkt-view]");if(!b)return;marketingView=b.dataset.mktView;mktRender();
 });
+$("mktViewBody").addEventListener("change",e=>{
+ const cb=e.target.closest("input[data-mkt-select-contact]");if(!cb)return;
+ const id=cb.dataset.mktSelectContact;
+ if(cb.checked&&mktSelectedContactIds.size>=100){cb.checked=false;return say("O limite é de 100 contatos por lote.",true)}
+ if(cb.checked)mktSelectedContactIds.add(id);else mktSelectedContactIds.delete(id);
+ mktSelectionSummary();
+});
 $("mktViewBody").addEventListener("submit",e=>{
  const form=e.target.closest("form[data-mkt-form]");if(!form)return;e.preventDefault();
  const values=Object.fromEntries(new FormData(form).entries()),action=form.dataset.mktForm;
+ if(action==="bulk_update_contacts"){mktSubmitBulkUpdate(form);return}
  if(action==="update_limits"){
   if(!confirm("Salvar os limites de gastos do Marketing? Isso não enviará mensagens."))return;
  }
@@ -2679,6 +2754,27 @@ $("mktViewBody").addEventListener("submit",e=>{
 $("mktViewBody").addEventListener("click",e=>{
  const b=e.target.closest("button[data-mkt-action]");if(!b)return;
  const action=b.dataset.mktAction,id=b.dataset.mktId;
+ if(action==="bulk_select_all"){
+   for(const c of marketingData?.contacts||[]){if(mktSelectedContactIds.size>=100)break;mktSelectedContactIds.add(c.id)}
+   for(const cb of $("mktViewBody").querySelectorAll("input[data-mkt-select-contact]"))cb.checked=mktSelectedContactIds.has(cb.dataset.mktSelectContact);
+   mktSelectionSummary();return;
+ }
+ if(action==="bulk_clear_selection"){
+   mktSelectedContactIds.clear();
+   for(const cb of $("mktViewBody").querySelectorAll("input[data-mkt-select-contact]"))cb.checked=false;
+   mktSelectionSummary();return;
+ }
+ if(action==="bulk_optout_selected"){
+   const ids=[...mktSelectedContactIds];
+   if(!ids.length||ids.length>100)return say("Selecione de 1 a 100 contatos.",true);
+   mktCall("bulk_opt_out_marketing",{contact_ids:ids,preview:true}).then(r=>{
+    if(!confirm("Revogar a permissão de marketing de "+r.total+" contatos selecionados? Isso não interfere no consentimento editorial."))return;
+    mktCall("bulk_opt_out_marketing",{contact_ids:ids,confirmed:true}).then(x=>{
+     say("Revogação de marketing: "+x.updated+" contatos; falhas: "+x.failed);
+     mktSelectedContactIds.clear();marketing();
+    }).catch(e=>say(e.message,true));
+   }).catch(e=>say(e.message,true));return;
+ }
  if(action==="calendar_prev"){mktCalendarOffset--;mktRender();return}
  if(action==="calendar_next"){mktCalendarOffset++;mktRender();return}
  if(action==="consent_contact"){mktConsentDetail(id);return}
