@@ -2235,6 +2235,23 @@ function mktSelectionSummary(){
  if(exit)exit.disabled=mktSelectedContactIds.size===0;
 }
 
+
+async function mktCheckEditorialSelection(){
+ const ids=[...mktSelectedContactIds];
+ if(!ids.length||ids.length>100)return say("Selecione de 1 a 100 contatos.",true);
+ const area=$("mktEditorialCheckResult");
+ if(area)area.textContent="Conferindo o cadastro voluntário nos registros editoriais…";
+ try{
+  const report=await mktCall("bulk_check_editorial_activation",{contact_ids:ids});
+  if(area){
+   area.replaceChildren(
+    mktEl("strong","Conferência concluída · "+report.editorial_verified+" adesões verificadas"),
+    mktEl("p","Pendentes: "+report.editorial_pending+" · Não encontrados: "+report.unmatched),
+    mktEl("p","Nenhum consentimento comercial foi concedido. O botão ATIVAR WHATSAPP autorizava apenas atualizações editoriais.","mkt-notice warn")
+   );
+  }
+ }catch(e){if(area)area.textContent="Falha na conferência: "+e.message;say(e.message,true)}
+}
 async function mktBulkConsentSubmit(form){
  const selected=[...mktSelectedContactIds];
  if(!selected.length||selected.length>100)return say("Selecione de 1 a 100 contatos.",true);
@@ -2376,6 +2393,12 @@ function mktAudience(root,d){
  bulkConsent.append(consentForm);
  bulkConsent.append(mktEl("p","A ferramenta apenas registra a autorização comercial. Não envia campanhas nem modifica comunicações editoriais.","hint"));
  right.append(bulkConsent);
+ const editorialPanel=mktPanel("Conferir adesões voluntárias ao WhatsApp","Consulta em massa os registros do botão ATIVAR WHATSAPP, sem editar os comunicados editoriais nem criar opt-in promocional.");
+ const check=mktBtn("Conferir aceites dos contatos selecionados","bulk_check_editorial");
+ editorialPanel.append(check);
+ const results=mktEl("div","Selecione até 100 contatos para verificar o cadastro realizado pelo link.","mkt-notice");
+ results.id="mktEditorialCheckResult";results.style.marginTop="12px";editorialPanel.append(results);
+ right.append(editorialPanel);
  mktSelectionSummary();
  right.append(mktCreateForm("Adicionar contato","O contato começa sem autorização de Marketing.",[
  {name:"display_name",label:"Nome"},{name:"phone",label:"WhatsApp com DDI (opcional)",placeholder:"+5531999999999"},
@@ -2827,6 +2850,7 @@ $("mktViewBody").addEventListener("submit",e=>{
 $("mktViewBody").addEventListener("click",e=>{
  const b=e.target.closest("button[data-mkt-action]");if(!b)return;
  const action=b.dataset.mktAction,id=b.dataset.mktId;
+ if(action==="bulk_check_editorial"){mktCheckEditorialSelection();return}
  if(action==="bulk_select_all"){
    for(const c of marketingData?.contacts||[]){if(mktSelectedContactIds.size>=100)break;mktSelectedContactIds.add(c.id)}
    for(const cb of $("mktViewBody").querySelectorAll("input[data-mkt-select-contact]"))cb.checked=mktSelectedContactIds.has(cb.dataset.mktSelectContact);
