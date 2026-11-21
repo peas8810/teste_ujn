@@ -2255,46 +2255,22 @@ async function mktCheckEditorialSelection(){
 async function mktBulkConsentSubmit(form){
  const selected=[...mktSelectedContactIds];
  if(!selected.length||selected.length>100)return say("Selecione de 1 a 100 contatos.",true);
- const mode=form.elements.consent_mode.value;
  const origin=String(form.elements.consent_origin.value||"").trim();
  const batchProof=String(form.elements.consent_proof.value||"").trim();
  const attested=!!form.elements.consent_attest.checked;
- if(!attested)return say("Confirme que possui autorizações específicas de marketing comprovadas.",true);
- if(origin.length<3)return say("Informe a origem da autorização.",true);
- const d=marketingData;
- const selectedContacts=selected.map(id=>d.contacts.find(x=>x.id===id));
+ if(!attested)return say("Confirme que o formulário autorizou especificamente marketing, não apenas acompanhamento editorial.",true);
+ if(origin.length<3||batchProof.length<12)return say("Informe a origem e o ID do comprovante coletivo específico de marketing.",true);
+ const selectedContacts=selected.map(id=>marketingData?.contacts.find(x=>x.id===id));
  if(selectedContacts.some(c=>!c))return say("Atualize a página para conferir a seleção.",true);
- const entries=[];
- if(mode==="group"){
-  if(batchProof.length<12)return say("Informe uma referência documental específica (mínimo 12 caracteres) que comprove o aceite de TODOS os selecionados.",true);
-  for(const c of selectedContacts)entries.push({contact_id:c.id,origin,evidence_ref:batchProof});
- }else if(mode==="individual"){
-  const raw=String(form.elements.consent_individual.value||"").trim();
-  const map=new Map();
-  for(const line of raw.split(/\r?\n/).filter(x=>x.trim())){
-   const ix=line.indexOf(";");
-   if(ix<1)return say("Use telefone;referência da prova, um contato por linha.",true);
-   const phone=line.slice(0,ix).replace(/\D/g,"");
-   const proof=line.slice(ix+1).trim();
-   if(!phone||proof.length<12||map.has(phone))return say("Telefone duplicado ou referência inválida: "+line.slice(0,35),true);
-   map.set(phone,proof);
-  }
-  for(const c of selectedContacts){
-   const phone=String(c.phone||"").replace(/\D/g,"");
-   if(!phone||!map.has(phone))return say("Falta comprovação individual para "+(c.phone||c.email||c.id),true);
-   entries.push({contact_id:c.id,origin,evidence_ref:map.get(phone)});
-  }
- }else return say("Escolha a modalidade de comprovação.",true);
+ const entries=selectedContacts.map(c=>({contact_id:c.id,origin,evidence_ref:batchProof}));
  const btn=$("mktBatchConsentApply");if(btn)btn.disabled=true;
  try{
-  const preview=await mktCall("bulk_record_marketing_consent",{
-   entries,preview:true,attest_individual_marketing_consent:true});
-  if(!confirm("Registrar "+preview.proofs+" autorizações de MARKETING?\n\nA prova informada deve comprovar o consentimento comercial de cada contato selecionado.\n\nIsso NÃO envia mensagens e NÃO altera consentimentos editoriais."))return;
-  const out=await mktCall("bulk_record_marketing_consent",{
-   entries,confirmed:true,attest_individual_marketing_consent:true});
-  say("Consentimentos comerciais registrados: "+out.recorded+". Nenhuma mensagem enviada.");
+  const preview=await mktCall("bulk_record_marketing_consent",{entries,preview:true,attest_individual_marketing_consent:true});
+  if(!confirm("Registrar "+preview.proofs+" autorizações COMERCIAIS a partir de UM comprovante coletivo?\\n\\nEsse documento deve demonstrar autorização de marketing de todos os selecionados. O formulário editorial enviado anteriormente dizia 'Sem marketing' e não serve para isso.\\n\\nNenhuma mensagem será enviada."))return;
+  const out=await mktCall("bulk_record_marketing_consent",{entries,confirmed:true,attest_individual_marketing_consent:true});
+  say("Autorizações de marketing registradas: "+out.recorded+". Nenhuma mensagem enviada.");
   mktSelectedContactIds.clear();await marketing();
- }catch(e){say("Não foi possível registrar os consentimentos: "+e.message,true)}
+ }catch(e){say("Não foi possível registrar as autorizações: "+e.message,true)}
  finally{if(btn)btn.disabled=false;mktSelectionSummary()}
 }
 async function mktSubmitBulkUpdate(form){
@@ -2368,30 +2344,23 @@ function mktAudience(root,d){
  batch.append(mktEl("p","Autorizar marketing continua exigindo prova específica por contato. Esta ferramenta não envia mensagens.","hint"));
 
  right.append(batch);
- const bulkConsent=mktPanel("Consentimento de marketing em massa","Registre autorizações comprovadas de até 100 contatos selecionados. Aceites editoriais não autorizam publicidade.");
+ const bulkConsent=mktPanel("Autorizações comerciais em lote","Sem lista individual. Se um formulário de MARKETING já recolheu autorização de todos os selecionados, informe apenas a origem e a referência do documento coletivo.");
  const consentForm=mktEl("form",undefined,"mkt-form");consentForm.dataset.mktForm="bulk_record_marketing_consent";
- const mkLabel=(title,name,element,wide=true)=>{
-  const label=mktEl("label",title,wide?"wide":"");element.name=name;label.append(element);consentForm.append(label);return element;
+ const makeField=(title,name,placeholder)=>{
+   const label=mktEl("label",title,"wide"),input=mktEl("input");
+   input.name=name;input.required=true;input.placeholder=placeholder;label.append(input);consentForm.append(label);
  };
- const modeSelect=mktEl("select");
- for(const [value,title] of [
-  ["group","Comprovante coletivo (documento que inclui TODOS os selecionados)"],
-  ["individual","Referências individuais em lista (telefone;prova)"]
- ]){const opt=mktEl("option",title);opt.value=value;modeSelect.append(opt)}
- mkLabel("Modalidade da comprovação","consent_mode",modeSelect);
- const originField=mktEl("input");originField.placeholder="Ex.: formulário de marketing com data e identificação";originField.required=true;
- mkLabel("Origem do aceite específico para marketing","consent_origin",originField);
- const proofField=mktEl("input");proofField.placeholder="Ex.: ID do formulário coletivo, relatório de aceite ou protocolo"; 
- mkLabel("Referência da prova coletiva","consent_proof",proofField);
- const perField=mktEl("textarea");perField.rows=5;perField.placeholder="5533999999999;formulario-2026-contato-01\n5533888888888;formulario-2026-contato-02";
- mkLabel("Comprovações individuais (modo lista)","consent_individual",perField);
- const attestation=mktEl("label",undefined,"wide");
- const tick=mktEl("input");tick.type="checkbox";tick.name="consent_attest";tick.required=true;
- attestation.append(tick,document.createTextNode(" Confirmo que TODOS os selecionados autorizaram expressamente receber marketing e que a prova apresentada corresponde a cada pessoa."));
- consentForm.append(attestation);
- const send=mktEl("button","Conferir e registrar consentimentos","btn primary");send.type="submit";send.id="mktBatchConsentApply";consentForm.append(send);
+ makeField("Origem do formulário COM autorização de marketing","consent_origin","Ex.: formulário comercial Editora UJN");
+ makeField("Identificador do relatório/documento coletivo","consent_proof","Ex.: relatório exportado da plataforma com os aceites comerciais");
+ const checkLabel=mktEl("label",undefined,"wide"),check=mktEl("input");
+ check.type="checkbox";check.name="consent_attest";check.required=true;
+ checkLabel.append(check,document.createTextNode(" Confirmo que o documento inclui o aceite específico de marketing de TODOS os contatos selecionados."));
+ consentForm.append(checkLabel);
+ const button=mktEl("button","Registrar autorizações comerciais selecionadas","btn primary");
+ button.type="submit";button.id="mktBatchConsentApply";consentForm.append(button);
+ bulkConsent.append(mktEl("p","O formulário de ATIVAR WHATSAPP da submissão dizia 'Sem marketing'. Ele pode ser conferido automaticamente abaixo, mas não vale como autorização para propaganda.","mkt-notice warn"));
  bulkConsent.append(consentForm);
- bulkConsent.append(mktEl("p","A ferramenta apenas registra a autorização comercial. Não envia campanhas nem modifica comunicações editoriais.","hint"));
+ bulkConsent.append(mktEl("p","Para quem aceitou apenas as notificações editoriais, é necessário obter uma autorização comercial adicional. Não será feito disparo automático.","hint"));
  right.append(bulkConsent);
  const editorialPanel=mktPanel("Conferir adesões voluntárias ao WhatsApp","Consulta em massa os registros do botão ATIVAR WHATSAPP, sem editar os comunicados editoriais nem criar opt-in promocional.");
  const check=mktBtn("Conferir aceites dos contatos selecionados","bulk_check_editorial");
