@@ -2363,8 +2363,8 @@ function mktAudience(root,d){
  bulkConsent.append(mktEl("p","Para quem aceitou apenas as notificações editoriais, é necessário obter uma autorização comercial adicional. Não será feito disparo automático.","hint"));
  right.append(bulkConsent);
  const editorialPanel=mktPanel("Conferir adesões voluntárias ao WhatsApp","Consulta em massa os registros do botão ATIVAR WHATSAPP, sem editar os comunicados editoriais nem criar opt-in promocional.");
- const check=mktBtn("Conferir aceites dos contatos selecionados","bulk_check_editorial");
- editorialPanel.append(check);
+ const verifyEditorialBtn=mktBtn("Conferir aceites dos contatos selecionados","bulk_check_editorial");
+ editorialPanel.append(verifyEditorialBtn);
  const results=mktEl("div","Selecione até 100 contatos para verificar o cadastro realizado pelo link.","mkt-notice");
  results.id="mktEditorialCheckResult";results.style.marginTop="12px";editorialPanel.append(results);
  right.append(editorialPanel);
