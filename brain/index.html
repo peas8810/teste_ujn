@@ -2234,6 +2234,52 @@ function mktSelectionSummary(){
  const exit=$("mktBatchOptout");
  if(exit)exit.disabled=mktSelectedContactIds.size===0;
 }
+
+async function mktBulkConsentSubmit(form){
+ const selected=[...mktSelectedContactIds];
+ if(!selected.length||selected.length>100)return say("Selecione de 1 a 100 contatos.",true);
+ const mode=form.elements.consent_mode.value;
+ const origin=String(form.elements.consent_origin.value||"").trim();
+ const batchProof=String(form.elements.consent_proof.value||"").trim();
+ const attested=!!form.elements.consent_attest.checked;
+ if(!attested)return say("Confirme que possui autorizações específicas de marketing comprovadas.",true);
+ if(origin.length<3)return say("Informe a origem da autorização.",true);
+ const d=marketingData;
+ const selectedContacts=selected.map(id=>d.contacts.find(x=>x.id===id));
+ if(selectedContacts.some(c=>!c))return say("Atualize a página para conferir a seleção.",true);
+ const entries=[];
+ if(mode==="group"){
+  if(batchProof.length<12)return say("Informe uma referência documental específica (mínimo 12 caracteres) que comprove o aceite de TODOS os selecionados.",true);
+  for(const c of selectedContacts)entries.push({contact_id:c.id,origin,evidence_ref:batchProof});
+ }else if(mode==="individual"){
+  const raw=String(form.elements.consent_individual.value||"").trim();
+  const map=new Map();
+  for(const line of raw.split(/\r?\n/).filter(x=>x.trim())){
+   const ix=line.indexOf(";");
+   if(ix<1)return say("Use telefone;referência da prova, um contato por linha.",true);
+   const phone=line.slice(0,ix).replace(/\D/g,"");
+   const proof=line.slice(ix+1).trim();
+   if(!phone||proof.length<12||map.has(phone))return say("Telefone duplicado ou referência inválida: "+line.slice(0,35),true);
+   map.set(phone,proof);
+  }
+  for(const c of selectedContacts){
+   const phone=String(c.phone||"").replace(/\D/g,"");
+   if(!phone||!map.has(phone))return say("Falta comprovação individual para "+(c.phone||c.email||c.id),true);
+   entries.push({contact_id:c.id,origin,evidence_ref:map.get(phone)});
+  }
+ }else return say("Escolha a modalidade de comprovação.",true);
+ const btn=$("mktBatchConsentApply");if(btn)btn.disabled=true;
+ try{
+  const preview=await mktCall("bulk_record_marketing_consent",{
+   entries,preview:true,attest_individual_marketing_consent:true});
+  if(!confirm("Registrar "+preview.proofs+" autorizações de MARKETING?\n\nA prova informada deve comprovar o consentimento comercial de cada contato selecionado.\n\nIsso NÃO envia mensagens e NÃO altera consentimentos editoriais."))return;
+  const out=await mktCall("bulk_record_marketing_consent",{
+   entries,confirmed:true,attest_individual_marketing_consent:true});
+  say("Consentimentos comerciais registrados: "+out.recorded+". Nenhuma mensagem enviada.");
+  mktSelectedContactIds.clear();await marketing();
+ }catch(e){say("Não foi possível registrar os consentimentos: "+e.message,true)}
+ finally{if(btn)btn.disabled=false;mktSelectionSummary()}
+}
 async function mktSubmitBulkUpdate(form){
  const ids=[...mktSelectedContactIds];
  if(!ids.length||ids.length>100){say("Selecione de 1 a 100 contatos.",true);return}
@@ -2303,7 +2349,33 @@ function mktAudience(root,d){
  const optout=mktBtn("Revogar marketing dos selecionados","bulk_optout_selected");
  optout.id="mktBatchOptout";optout.style.marginTop="10px";batch.append(optout);
  batch.append(mktEl("p","Autorizar marketing continua exigindo prova específica por contato. Esta ferramenta não envia mensagens.","hint"));
+
  right.append(batch);
+ const bulkConsent=mktPanel("Consentimento de marketing em massa","Registre autorizações comprovadas de até 100 contatos selecionados. Aceites editoriais não autorizam publicidade.");
+ const consentForm=mktEl("form",undefined,"mkt-form");consentForm.dataset.mktForm="bulk_record_marketing_consent";
+ const mkLabel=(title,name,element,wide=true)=>{
+  const label=mktEl("label",title,wide?"wide":"");element.name=name;label.append(element);consentForm.append(label);return element;
+ };
+ const modeSelect=mktEl("select");
+ for(const [value,title] of [
+  ["group","Comprovante coletivo (documento que inclui TODOS os selecionados)"],
+  ["individual","Referências individuais em lista (telefone;prova)"]
+ ]){const opt=mktEl("option",title);opt.value=value;modeSelect.append(opt)}
+ mkLabel("Modalidade da comprovação","consent_mode",modeSelect);
+ const originField=mktEl("input");originField.placeholder="Ex.: formulário de marketing com data e identificação";originField.required=true;
+ mkLabel("Origem do aceite específico para marketing","consent_origin",originField);
+ const proofField=mktEl("input");proofField.placeholder="Ex.: ID do formulário coletivo, relatório de aceite ou protocolo"; 
+ mkLabel("Referência da prova coletiva","consent_proof",proofField);
+ const perField=mktEl("textarea");perField.rows=5;perField.placeholder="5533999999999;formulario-2026-contato-01\n5533888888888;formulario-2026-contato-02";
+ mkLabel("Comprovações individuais (modo lista)","consent_individual",perField);
+ const attestation=mktEl("label",undefined,"wide");
+ const tick=mktEl("input");tick.type="checkbox";tick.name="consent_attest";tick.required=true;
+ attestation.append(tick,document.createTextNode(" Confirmo que TODOS os selecionados autorizaram expressamente receber marketing e que a prova apresentada corresponde a cada pessoa."));
+ consentForm.append(attestation);
+ const send=mktEl("button","Conferir e registrar consentimentos","btn primary");send.type="submit";send.id="mktBatchConsentApply";consentForm.append(send);
+ bulkConsent.append(consentForm);
+ bulkConsent.append(mktEl("p","A ferramenta apenas registra a autorização comercial. Não envia campanhas nem modifica comunicações editoriais.","hint"));
+ right.append(bulkConsent);
  mktSelectionSummary();
  right.append(mktCreateForm("Adicionar contato","O contato começa sem autorização de Marketing.",[
  {name:"display_name",label:"Nome"},{name:"phone",label:"WhatsApp com DDI (opcional)",placeholder:"+5531999999999"},
@@ -2727,6 +2799,7 @@ $("mktViewBody").addEventListener("submit",e=>{
  const form=e.target.closest("form[data-mkt-form]");if(!form)return;e.preventDefault();
  const values=Object.fromEntries(new FormData(form).entries()),action=form.dataset.mktForm;
  if(action==="bulk_update_contacts"){mktSubmitBulkUpdate(form);return}
+ if(action==="bulk_record_marketing_consent"){mktBulkConsentSubmit(form);return}
  if(action==="update_limits"){
   if(!confirm("Salvar os limites de gastos do Marketing? Isso não enviará mensagens."))return;
  }
