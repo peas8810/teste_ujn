@@ -2619,6 +2619,29 @@ function mktConsentDetail(id){
  const personalButton=mktEl("button","Salvar autorização confirmada (sem enviar mensagem)","btn primary");personalButton.type="submit";personal.append(personalButton);
  host.append(personal);
  host.append(mktEl("p","A comprovação, o responsável e o horário serão registrados no histórico. Este procedimento não dispara mensagens automaticamente e não autoriza contatos sem aceite.","hint"));
+
+ const historyTrigger=mktEl("button","Consultar histórico de autorizações deste contato","btn");historyTrigger.type="button";
+ const historyPanel=mktEl("div",undefined,"mkt-notice");historyPanel.style.marginTop="8px";historyPanel.hidden=true;
+ historyTrigger.addEventListener("click",async()=>{
+  historyTrigger.disabled=true;historyPanel.hidden=false;historyPanel.replaceChildren(mktEl("p","Consultando autorizações registradas...","hint"));
+  try{
+   const result=await mktCall("personal_marketing_authorization_history",{contact_id:id});
+   historyPanel.replaceChildren();
+   if(!result.records?.length){historyPanel.append(mktEl("p","Nenhuma autorização por conversa individual foi registrada para este contato.","hint"));return}
+   for(const record of result.records){
+    const block=mktEl("div",undefined,"mkt-card");block.style.marginBottom="9px";block.style.padding="9px";
+    const ch={"PHONE_CALL":"Ligação telefônica","WHATSAPP_CONVERSATION":"WhatsApp","IN_PERSON":"Conversa presencial","EMAIL":"E-mail"}[record.channel]||record.channel;
+    block.append(mktEl("strong",ch+" · "+new Date(record.occurred_at).toLocaleString("pt-BR")));
+    block.append(mktEl("p","Declaração registrada: "+(record.statement||""),"hint"));
+    block.append(mktEl("p","Referência: "+(record.evidence_reference||""),"hint"));
+    block.append(mktEl("p","Registrado em "+new Date(record.created_at).toLocaleString("pt-BR")+" · responsável ID: "+record.actor_id,"hint"));
+    historyPanel.append(block);
+   }
+  }catch(e){historyPanel.replaceChildren(mktEl("p","Não foi possível carregar o histórico: "+e.message,"mkt-notice warn"))}
+  finally{historyTrigger.disabled=false}
+ });
+ host.append(historyTrigger,historyPanel);
+
  host.append(mktEl("h4","Autorizar recebimento de marketing (somente com aceite comprovado)"));
  const form=mktEl("form",undefined,"mkt-form");form.dataset.mktForm="record_consent";
  const hid=mktEl("input");hid.type="hidden";hid.name="contact_id";hid.value=id;form.append(hid);
