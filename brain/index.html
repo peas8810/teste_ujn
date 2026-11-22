@@ -2370,7 +2370,6 @@ function mktConsentDetail(id){
  host.append(mktEl("p","Situação: "+(c.marketing_opt_in?"AUTORIZADO PARA MARKETING":"AGUARDANDO AUTORIZAÇÃO COMERCIAL"),
    c.marketing_opt_in?"mkt-notice":"mkt-notice warn"));
  host.append(mktEl("p","Registre a autorização comercial apenas quando houver prova do aceite específico do contato. O cadastro editorial, por si só, não comprova esse aceite.","hint"));
- host.append(mktEl("p","A referência precisa identificar o aceite comercial deste contato (por exemplo, ID do formulário ou protocolo). Digitar apenas \"Formulário de cadastro e autorização\" não é suficiente e pode gerar duplicidade.","mkt-notice"));
  const form=mktEl("form",undefined,"mkt-form");form.dataset.mktForm="record_consent";
  const hid=mktEl("input");hid.type="hidden";hid.name="contact_id";hid.value=id;form.append(hid);
  for(const field of [
@@ -2758,7 +2757,17 @@ async function mktRun(action,payload){
  }
  say(action==="sync_central_contacts"?"Importados "+result.imported+" contatos. Duplicados: "+(result.duplicates||0)+". Nenhum opt-in comercial foi concedido.":"Configuração ou registro atualizado.");
  await marketing();
- }catch(e){say(e.message,true)}finally{btn.disabled=false}
+ }catch(e){
+  if(action==="record_consent"&&String(e.message||"").includes("Informe o ID, data ou protocolo")){
+   say("",false);
+   const host=$("mktConsentDetail");
+   if(host){
+    let note=$("mktConsentStatus");
+    if(!note){note=mktEl("p",undefined,"hint");note.id="mktConsentStatus";host.append(note)}
+    note.textContent="Autorização não registrada. Confira a comprovação comercial antes de salvar.";
+   }
+  }else say(e.message,true);
+ }finally{btn.disabled=false}
 }
 
 $("mktTabs").addEventListener("click",e=>{
