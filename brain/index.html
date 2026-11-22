@@ -659,6 +659,10 @@ body > .maildesk-jump-nav .btn:hover{background:#dff4f1;border-color:#66b9b0}
      <div class="actions"><button type="button" class="btn primary" id="mailDeskForwardApprove">Autorizar encaminhamento</button><button type="button" class="btn" id="mailDeskForwardCancel">Cancelar</button></div>
    </div>
    <h3 class="maildesk-reading-label">Mensagens <span id="mailDeskMessageCount" class="hint"></span></h3><nav class="maildesk-jump-nav" aria-label="Navegação rápida no histórico de e-mails"><span class="maildesk-jump-label">Navegar:</span><button class="btn small" type="button" id="mailDeskJumpTop" title="Ir para o início do histórico">↑ Início</button><button class="btn small" type="button" id="mailDeskJumpBottom" title="Ir para o final do histórico">↓ Final</button><button class="btn small" type="button" id="mailDeskJumpEditor" title="Ir diretamente para o editor da resposta">✎ Resposta</button></nav><div id="mailDeskHistory" class="maildesk-history"><p class="hint">Nenhuma conversa selecionada.</p></div>
+   <section class="maildesk-links-panel" id="mailDeskArticleIdentityPanel" style="margin:16px 0" aria-label="Identificação editorial do artigo">
+    <div class="maildesk-links-head"><strong>Artigo identificado na conversa</strong><button type="button" class="btn small" id="mailDeskArticleIdentityRefresh" disabled>Pesquisar novamente</button></div>
+    <div id="mailDeskArticleIdentity" aria-live="polite"><p class="hint">Abra um e-mail para identificar automaticamente o artigo e os links disponíveis.</p></div>
+   </section>
    <section class="maildesk-links-panel" style="margin:16px 0" id="mailDeskArticleEvidencePanel">
     <div class="maildesk-links-head"><strong>IA — identificação do artigo pelo anexo</strong><span class="hint">Conferência OJS quando possível</span></div>
     <div id="mailDeskArticleEvidence" class="maildesk-docs"><p class="hint">Abra uma conversa para identificar o título, ID, DOI ou link do artigo.</p></div>
@@ -4529,6 +4533,7 @@ async function mailDeskOpen(id,options={}){
  MAILDESK.selected=id;MAILDESK.activeDraft=null;MAILDESK.request=null;MAILDESK.lastDraft=null;
  mailDeskListRender();
  $("mailDeskHistory").replaceChildren(elem("p","Carregando mensagens…","hint"));
+ if(typeof window.brainMailArticleClear==="function")window.brainMailArticleClear();
  $("mailDeskDetails").open=false;
  $("mailDeskAttachments").replaceChildren(elem("p","Consultando anexos…","hint"));
  $("mailDeskMetrics").replaceChildren();$("mailDeskSummary").textContent="Analisando histórico…";$("mailDeskNextAction").textContent="Analisando situação…";$("mailDeskTimeline").replaceChildren();
@@ -4603,6 +4608,7 @@ async function mailDeskOpen(id,options={}){
   }
   if(!(data.messages||[]).length)view.append(elem("p","Nenhuma mensagem registrada.","hint"));
   mailDeskDrawAttachments(data);mailDeskDrawAnalytics(data);
+  if(typeof window.brainMailArticleOpen==="function")window.brainMailArticleOpen(id,data);
   mailDeskAnalyze(id);
   $("mailDeskGenerate").disabled=false;
   if(MAILDESK.lastDraft){$("mailDeskOpenSavedDraft").textContent=autoDraft?"Resposta IA pronta":"Abrir rascunho salvo";}else $("mailDeskOpenSavedDraft").textContent="Sem rascunho salvo";
@@ -5146,4 +5152,4 @@ if("serviceWorker" in navigator&&location.protocol==="https:"){
  window.addEventListener("load",()=>{navigator.serviceWorker.register("./sw.js",{scope:"./"}).catch(()=>{})});
 }
 brainRestoreSession();
-</script></body></html>
+</script><script src="./email-article-card.js?v=20261122" defer></script></body></html>
