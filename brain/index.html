@@ -2590,7 +2590,35 @@ function mktConsentDetail(id){
  reviewButton.type="submit";review.append(reviewButton);
  host.append(review);
  const reviewStatus=mktEl("p",c.marketing_review_status==="PENDING_EVIDENCE"?"Conferência anterior salva. Autorização comercial pendente.":"Ainda não conferido.","hint");
+
  host.append(reviewStatus);
+ host.append(mktEl("h4","Registrar autorização obtida em conversa pessoal"));
+ host.append(mktEl("p","Utilize esta opção somente se você falou com a pessoa e ela concordou expressamente em receber notícias institucionais, felicitações e divulgações científicas ou promocionais da UJN. Não basta ter conversado nem ter cadastro editorial.","hint"));
+ const personal=mktEl("form",undefined,"mkt-form");personal.dataset.mktForm="register_personal_marketing_authorization";
+ const contactInput=mktEl("input");contactInput.type="hidden";contactInput.name="contact_id";contactInput.value=id;personal.append(contactInput);
+ const channelLabel=mktEl("label","Canal em que houve o aceite","wide");
+ const channel=mktEl("select");channel.name="channel";channel.required=true;
+ for(const [value,label] of [["","Selecione"],["PHONE_CALL","Ligação telefônica"],["WHATSAPP_CONVERSATION","Conversa individual no WhatsApp"],["IN_PERSON","Conversa presencial"],["EMAIL","E-mail individual"]]){const opt=mktEl("option",label);opt.value=value;channel.append(opt)}
+ channelLabel.append(channel);personal.append(channelLabel);
+ const dateLabel=mktEl("label","Data e hora em que a pessoa autorizou","wide");
+ const occurred=mktEl("input");occurred.type="datetime-local";occurred.name="occurred_at";occurred.required=true;
+ const localNow=new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,16);
+ occurred.max=localNow;occurred.value=localNow;dateLabel.append(occurred);personal.append(dateLabel);
+ const statementLabel=mktEl("label","O que o contato autorizou (descrição do aceite)","wide");
+ const statement=mktEl("textarea");statement.name="statement";statement.rows=3;statement.minLength=25;statement.maxLength=1200;statement.required=true;
+ statement.placeholder="Ex.: Em ligação, o pesquisador autorizou expressamente receber pelo WhatsApp mensagens de Natal, informações institucionais, novidades acadêmicas e chamadas de publicação da Editora UJN.";
+ statementLabel.append(statement);personal.append(statementLabel);
+ const proofLabel=mktEl("label","Referência verificável da conversa","wide");
+ const proof=mktEl("textarea");proof.name="evidence_reference";proof.rows=2;proof.minLength=12;proof.maxLength=500;proof.required=true;
+ proof.placeholder="Ex.: conversa WhatsApp de 22/11/2026 às 14:20, ID da mensagem; e-mail identificado; ou anotação contemporânea da ligação com data, horário e responsável.";
+ proofLabel.append(proof);personal.append(proofLabel);
+ const agreementLabel=mktEl("label",undefined,"wide");agreementLabel.style.display="flex";agreementLabel.style.alignItems="flex-start";agreementLabel.style.gap="9px";
+ const agreement=mktEl("input");agreement.type="checkbox";agreement.name="confirmed";agreement.value="yes";agreement.required=true;agreement.style.width="auto";agreement.style.marginTop="3px";
+ const agreementText=mktEl("span","Confirmo que a própria pessoa autorizou, livre e expressamente, receber pelo WhatsApp notícias institucionais, datas comemorativas e campanhas acadêmicas/promocionais da Editora UJN. Sei que a autorização pode ser cancelada a qualquer momento.");
+ agreementLabel.append(agreement,agreementText);personal.append(agreementLabel);
+ const personalButton=mktEl("button","Salvar autorização confirmada (sem enviar mensagem)","btn primary");personalButton.type="submit";personal.append(personalButton);
+ host.append(personal);
+ host.append(mktEl("p","A comprovação, o responsável e o horário serão registrados no histórico. Este procedimento não dispara mensagens automaticamente e não autoriza contatos sem aceite.","hint"));
  host.append(mktEl("h4","Autorizar recebimento de marketing (somente com aceite comprovado)"));
  const form=mktEl("form",undefined,"mkt-form");form.dataset.mktForm="record_consent";
  const hid=mktEl("input");hid.type="hidden";hid.name="contact_id";hid.value=id;form.append(hid);
@@ -3017,6 +3045,35 @@ $("mktViewBody").addEventListener("submit",e=>{
      if(current)mktConsentDetail(current.id);
    }).catch(e=>say("Não foi possível salvar conferência: "+e.message,true));
    return;
+ }
+ if(action==="register_personal_marketing_authorization"){
+  const occurred=String(values.occurred_at||"");
+  const date=new Date(occurred);
+  if(!occurred||!Number.isFinite(date.getTime())||date.getTime()>Date.now()){
+   say("Informe uma data e hora válidas, anteriores ao momento do registro.",true);return;
+  }
+  if(values.confirmed!=="yes"){
+   say("É necessário confirmar que a pessoa concordou expressamente em receber marketing.",true);return;
+  }
+  const statement=String(values.statement||"").trim(),evidence=String(values.evidence_reference||"").trim();
+  if(statement.length<25||evidence.length<12){
+   say("Descreva a autorização e registre onde a evidência pode ser conferida.",true);return;
+  }
+  if(!confirm("Você confirma que este contato autorizou expressamente marketing pelo WhatsApp, conforme a conversa descrita? Esta ação fará o contato ficar elegível a campanhas, mas não enviará mensagens agora."))return;
+  const btn=form.querySelector('button[type="submit"]');if(btn)btn.disabled=true;
+  mktCall("register_personal_marketing_authorization",{
+   contact_id:values.contact_id,channel:values.channel,occurred_at:date.toISOString(),
+   statement,evidence_reference:evidence,confirmed:true
+  }).then(async res=>{
+   say(res.message||"Autorização registrada sem envio de mensagem.");
+   await marketing();
+   if(marketingData?.contacts?.some(c=>c.id===values.contact_id))mktConsentDetail(values.contact_id);
+  }).catch(e=>{
+   let notice=$("mktConsentStatus");if(!notice){notice=mktEl("p",undefined,"mkt-notice warn");notice.id="mktConsentStatus";$("mktConsentDetail")?.append(notice)}
+   notice.textContent="Não foi possível registrar: "+e.message;
+   say("Autorização não salva: "+e.message,true);
+  }).finally(()=>{if(btn)btn.disabled=false});
+  return;
  }
  if(action==="bulk_record_marketing_consent"){mktBulkConsentSubmit(form);return}
  if(action==="update_limits"){
