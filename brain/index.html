@@ -2317,7 +2317,7 @@ function mktAudience(root,d){
  panel.append(mktEl("div","Para autorizar marketing, o contato deve enviar UJN MARKETING SIM pelo próprio WhatsApp. O Brain registra a prova da Meta. Para cancelar apenas marketing: UJN MARKETING PARAR. O comando PARAR cancela também notificações editoriais.","mkt-notice"));
  panel.append(mktTable(["Selecionar","Contato","WhatsApp","Origem","Marketing","Ações"],d.contacts.map(x=>{
   const action=mktEl("div");action.style.display="flex";action.style.gap="5px";
-  action.append(mktBtn("Detalhes/consentimento","consent_contact",x.id));action.append(mktBtn("Editar perfil","edit_contact",x.id));
+  action.append(mktBtn("Conferir individualmente","consent_contact",x.id));action.append(mktBtn("Editar perfil","edit_contact",x.id));
   const cb=mktEl("input");cb.type="checkbox";cb.dataset.mktSelectContact=x.id;cb.checked=mktSelectedContactIds.has(x.id);
   cb.setAttribute("aria-label","Selecionar "+(x.display_name||x.email||x.phone||"contato"));cb.style.width="18px";cb.style.height="18px";
   return [cb,x.display_name||x.email||"Contato",x.phone||"Somente e-mail",x.origin,x.marketing_opt_in?mktBadge("AUTORIZADO","ok"):mktBadge("SEM AUTORIZAÇÃO","warn"),action];
@@ -2344,30 +2344,6 @@ function mktAudience(root,d){
  batch.append(mktEl("p","Autorizar marketing continua exigindo prova específica por contato. Esta ferramenta não envia mensagens.","hint"));
 
  right.append(batch);
- const bulkConsent=mktPanel("Autorizações comerciais em lote","Sem lista individual. Se um formulário de MARKETING já recolheu autorização de todos os selecionados, informe apenas a origem e a referência do documento coletivo.");
- const consentForm=mktEl("form",undefined,"mkt-form");consentForm.dataset.mktForm="bulk_record_marketing_consent";
- const makeField=(title,name,placeholder)=>{
-   const label=mktEl("label",title,"wide"),input=mktEl("input");
-   input.name=name;input.required=true;input.placeholder=placeholder;label.append(input);consentForm.append(label);
- };
- makeField("Origem do formulário COM autorização de marketing","consent_origin","Ex.: formulário comercial Editora UJN");
- makeField("Identificador do relatório/documento coletivo","consent_proof","Ex.: relatório exportado da plataforma com os aceites comerciais");
- const checkLabel=mktEl("label",undefined,"wide"),check=mktEl("input");
- check.type="checkbox";check.name="consent_attest";check.required=true;
- checkLabel.append(check,document.createTextNode(" Confirmo que o documento inclui o aceite específico de marketing de TODOS os contatos selecionados."));
- consentForm.append(checkLabel);
- const button=mktEl("button","Registrar autorizações comerciais selecionadas","btn primary");
- button.type="submit";button.id="mktBatchConsentApply";consentForm.append(button);
- bulkConsent.append(mktEl("p","O formulário de ATIVAR WHATSAPP da submissão dizia 'Sem marketing'. Ele pode ser conferido automaticamente abaixo, mas não vale como autorização para propaganda.","mkt-notice warn"));
- bulkConsent.append(consentForm);
- bulkConsent.append(mktEl("p","Para quem aceitou apenas as notificações editoriais, é necessário obter uma autorização comercial adicional. Não será feito disparo automático.","hint"));
- right.append(bulkConsent);
- const editorialPanel=mktPanel("Conferir adesões voluntárias ao WhatsApp","Consulta em massa os registros do botão ATIVAR WHATSAPP, sem editar os comunicados editoriais nem criar opt-in promocional.");
- const verifyEditorialBtn=mktBtn("Conferir aceites dos contatos selecionados","bulk_check_editorial");
- editorialPanel.append(verifyEditorialBtn);
- const results=mktEl("div","Selecione até 100 contatos para verificar o cadastro realizado pelo link.","mkt-notice");
- results.id="mktEditorialCheckResult";results.style.marginTop="12px";editorialPanel.append(results);
- right.append(editorialPanel);
  mktSelectionSummary();
  right.append(mktCreateForm("Adicionar contato","O contato começa sem autorização de Marketing.",[
  {name:"display_name",label:"Nome"},{name:"phone",label:"WhatsApp com DDI (opcional)",placeholder:"+5531999999999"},
@@ -2383,13 +2359,13 @@ function mktAudience(root,d){
  });bulk.append(file);
  const go=mktEl("button","Importar contatos (sem opt-in)","btn primary");go.type="button";go.id="mktBulkGo";go.onclick=mktRunBulkContacts;bulk.append(go);
  const stat=mktEl("p","Nenhuma campanha será enviada.","hint");stat.id="mktBulkStatus";bulk.append(stat);right.append(bulk);
- const detail=mktPanel("Gestão de consentimento","Selecione um contato na tabela para registrar a origem e a prova de autorização comercial.");
+ const detail=mktPanel("Conferência individual de consentimento","Selecione um contato para conferir seu status e registrar uma decisão de marketing somente quando houver comprovação.");
  detail.id="mktConsentDetail";detail.append(mktEl("div","Nenhum contato selecionado.","mkt-empty"));right.append(detail);
  layout.append(left,right);root.append(layout);
 }
 function mktConsentDetail(id){
  const d=marketingData,c=d?.contacts.find(x=>x.id===id),host=$("mktConsentDetail");if(!c||!host)return;
- host.replaceChildren(mktEl("h3","Consentimento · "+(c.display_name||c.phone)));
+ host.replaceChildren(mktEl("h3","Conferência individual · "+(c.display_name||c.phone)));
  host.append(mktEl("p","Telefone: "+c.phone+" · "+(c.marketing_opt_in?"Marketing autorizado":"Marketing não autorizado")));
  const form=mktEl("form",undefined,"mkt-form");form.dataset.mktForm="record_consent";
  const hid=mktEl("input");hid.type="hidden";hid.name="contact_id";hid.value=id;form.append(hid);
