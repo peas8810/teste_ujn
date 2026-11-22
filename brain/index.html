@@ -2252,6 +2252,24 @@ async function mktCheckEditorialSelection(){
   }
  }catch(e){if(area)area.textContent="Falha na conferência: "+e.message;say(e.message,true)}
 }
+async function mktCollectiveMarketingOptin(form){
+ const ids=[...mktSelectedContactIds];if(!ids.length||ids.length>100)return say("Selecione de 1 a 100 contatos.",true);
+ const origin=String(form.elements.collective_origin.value||"").trim();
+ const proof_ref=String(form.elements.collective_proof.value||"").trim();
+ const checked=!!form.elements.collective_confirm.checked;
+ if(!checked)return say("Confirme que a autorização comercial foi comprovada para todos os selecionados.",true);
+ const body={contact_ids:ids,origin,proof_ref,attest_collective_commercial_consent:true};
+ const btn=$("mktCollectiveSave");if(btn)btn.disabled=true;
+ try{
+  const prev=await mktCall("bulk_apply_verified_marketing_consent",{...body,preview:true});
+  const message="Selecionados: "+prev.selected+"\\nJá autorizados: "+prev.already_authorized+"\\nNovos registros: "+prev.pending_to_record+"\\n\\nConfirma que o documento informado comprova a autorização de MARKETING de cada contato? Não utilize o aceite editorial que dizia 'Sem marketing'. Nenhuma mensagem será enviada.";
+  if(!confirm(message))return;
+  const out=await mktCall("bulk_apply_verified_marketing_consent",{...body,confirmed:true});
+  say("Autorização coletiva: "+out.saved+" novos registros, "+out.already_authorized+" já autorizados e "+out.failed+" falhas.");
+  mktSelectedContactIds.clear();await marketing();
+ }catch(e){say("Falha na autorização coletiva: "+e.message,true)}
+ finally{if(btn)btn.disabled=false;mktSelectionSummary()}
+}
 async function mktBulkConsentSubmit(form){
  const selected=[...mktSelectedContactIds];
  if(!selected.length||selected.length>100)return say("Selecione de 1 a 100 contatos.",true);
@@ -2344,6 +2362,22 @@ function mktAudience(root,d){
  batch.append(mktEl("p","Autorizar marketing continua exigindo prova específica por contato. Esta ferramenta não envia mensagens.","hint"));
 
  right.append(batch);
+ const collective=mktPanel("Autorizar marketing em lote","Selecione até 100 contatos. Use apenas quando possuir uma comprovação coletiva que identifique o aceite promocional de todos os selecionados.");
+ const collForm=mktEl("form",undefined,"mkt-form");collForm.dataset.mktForm="bulk_apply_verified_marketing_consent";
+ for(const [name,title,hint] of [
+  ["collective_origin","Origem da autorização comercial","Ex.: formulário específico de marketing"],
+  ["collective_proof","Identificador do documento coletivo","Ex.: marketing-2026-11-22-relatorio-123"]
+ ]){
+  const label=mktEl("label",title,"wide"),input=mktEl("input");input.name=name;input.placeholder=hint;input.required=true;
+  label.append(input);collForm.append(label);
+ }
+ const ckLabel=mktEl("label",undefined,"wide"),ck=mktEl("input");ck.type="checkbox";ck.name="collective_confirm";ck.required=true;
+ ckLabel.append(ck,document.createTextNode(" Confirmo que cada contato selecionado autorizou especificamente o recebimento de marketing e está identificado no documento coletivo."));
+ collForm.append(ckLabel);
+ const button=mktEl("button","Conferir e autorizar selecionados","btn primary");button.type="submit";button.id="mktCollectiveSave";collForm.append(button);
+ collective.append(collForm);
+ collective.append(mktEl("p","Ação exclusiva de marketing; não altera notificações editoriais e não dispara mensagens. O aceite editorial antigo não serve como autorização promocional.","hint"));
+ right.append(collective);
  mktSelectionSummary();
  right.append(mktCreateForm("Adicionar contato","O contato começa sem autorização de Marketing.",[
  {name:"display_name",label:"Nome"},{name:"phone",label:"WhatsApp com DDI (opcional)",placeholder:"+5531999999999"},
@@ -2796,6 +2830,7 @@ $("mktViewBody").addEventListener("submit",e=>{
  const form=e.target.closest("form[data-mkt-form]");if(!form)return;e.preventDefault();
  const values=Object.fromEntries(new FormData(form).entries()),action=form.dataset.mktForm;
  if(action==="bulk_update_contacts"){mktSubmitBulkUpdate(form);return}
+ if(action==="bulk_apply_verified_marketing_consent"){mktCollectiveMarketingOptin(form);return}
  if(action==="save_marketing_review"){
    mktCall("save_marketing_review",values).then(async(result)=>{
      say(result.message||"Conferência salva. Autorização comercial pendente.");
