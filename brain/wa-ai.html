@@ -3,7 +3,7 @@
 <header><div><b>UJN Intelligence · Atendimento IA</b><small style="display:block">Central editorial das cinco revistas</small></div><div id="status">Acesso restrito</div></header>
 <section id="login" class="panel"><h2>Entrar como operador</h2><p class="muted">Use o e-mail e a senha cadastrados no Supabase do Brain UJN. A sessão do painel principal não é transferida automaticamente para esta página.</p><form id="loginForm"><label>E-mail<input id="email" type="email" required></label><label>Senha<input id="password" type="password" required></label><button type="submit">Entrar</button></form><p class="error" id="loginError"></p></section>
 <main id="app" class="hidden"><div class="top"><div><h2>Fila de mensagens</h2><p class="muted">Respostas automáticas, pendências e histórico de entregas.</p></div><div><button class="sub" id="refresh">Atualizar</button> <button class="sub" id="logout">Sair</button></div></div><div class="chips" id="stats"></div>
-<section class="panel" style="margin:14px 0"><div class="top"><div><h3>WhatsApp Inteligente 2.0 · Observação</h3><p class="muted">Interpretação de mensagens livres e comparação supervisionada. Nenhuma resposta desta seção é enviada automaticamente.</p></div><div class="chips"><button class="sub" id="pilotRealAnalyze">Analisar histórico real</button> <button class="sub" id="pilotAnalyze">Analisar últimas 3</button><button class="sub" id="pilotRefresh">Ver análises</button></div></div><div class="chips" id="pilotStats"></div><div style="display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end;margin:12px 0"><label>Simular pergunta livre (sem envio)<textarea id="pilotQuestion" maxlength="900" placeholder="Ex.: Meu artigo já foi publicado? Não sei o número da submissão."></textarea></label><button class="sub" id="pilotTest">Testar interpretação</button></div><div class="bubble hidden" id="pilotTestResult" aria-live="polite"></div><div id="pilotRealList"></div><div id="pilotList" class="list" style="max-height:320px"></div></section><div class="grid"><section class="panel"><select id="filter"><option value="">Todas as situações</option><option>ESCALATED</option><option>SENT</option><option>FAILED</option><option>DRAFT</option><option>READY</option><option>PROCESSING</option></select><div class="list" id="list"></div></section><section class="panel" id="detail"><p class="muted">Selecione uma mensagem.</p></section></div><p id="notice" class="muted"></p></main>
+<section class="panel" style="margin:14px 0"><div class="top"><div><h3>WhatsApp Inteligente 2.0 · Observação</h3><p class="muted">Interpretação de mensagens livres e comparação supervisionada. Nenhuma resposta desta seção é enviada automaticamente.</p></div><div class="chips"><button class="sub" id="pilotRealAnalyze">Analisar histórico real</button> <button class="sub" id="pilotAnalyze">Analisar últimas 3</button><button class="sub" id="pilotRefresh">Ver análises</button></div></div><div class="chips" id="pilotStats"></div><div class="chips" style="align-items:center"><strong>Liberação do novo assistente:</strong><span class="chip" id="pilotMode">Consultando...</span><button class="sub" id="pilotOff" type="button">Desativar nova camada</button><button class="sub" id="pilotTen" type="button">Ativar piloto de 10%</button></div><p class="muted">O piloto atua apenas em respostas informativas de baixo risco. O menu, consultas oficiais e atendimento humano continuam ativos.</p><div style="display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end;margin:12px 0"><label>Simular pergunta livre (sem envio)<textarea id="pilotQuestion" maxlength="900" placeholder="Ex.: Meu artigo já foi publicado? Não sei o número da submissão."></textarea></label><button class="sub" id="pilotTest">Testar interpretação</button></div><div class="bubble hidden" id="pilotTestResult" aria-live="polite"></div><div id="pilotRealList"></div><div id="pilotList" class="list" style="max-height:320px"></div></section><div class="grid"><section class="panel"><select id="filter"><option value="">Todas as situações</option><option>ESCALATED</option><option>SENT</option><option>FAILED</option><option>DRAFT</option><option>READY</option><option>PROCESSING</option></select><div class="list" id="list"></div></section><section class="panel" id="detail"><p class="muted">Selecione uma mensagem.</p></section></div><p id="notice" class="muted"></p></main>
 <script>
 const BASE="https://leytqsyfrmzhectatcqm.supabase.co", PUB="sb_publishable_d4F4MVCCYDMNZw0VzOsCKQ_q7pHO7JH";
 const E=x=>document.getElementById(x),state={token:null,rows:[],selected:null};
@@ -38,6 +38,24 @@ async function loadPilot(){
   if(!data.items.length)host.textContent="Aguardando primeiras análises do piloto.";
  }catch(e){E("pilotStats").textContent="Piloto indisponível: "+e.message;}
 }
+
+
+async function loadPilotConfig(){
+ try{
+  const data=await call("pilot_real",{method:"pilot_config"}),cfg=data.config||{};
+  E("pilotMode").textContent=cfg.automatic_reply_enabled?"Piloto ativo · "+cfg.sample_percent+"%":"Desativado (somente observação)";
+  E("pilotOff").disabled=!cfg.automatic_reply_enabled;
+  E("pilotTen").disabled=cfg.automatic_reply_enabled&&Number(cfg.sample_percent)===10;
+ }catch(e){E("pilotMode").textContent="Status indisponível: "+e.message}
+}
+async function pilotSwitch(enabled,percent){
+ if(!confirm(enabled?"Ativar respostas contextuais de baixo risco para até 10% das mensagens, preservando o bot existente?":"Desligar a nova camada e manter o bot original ativo?"))return;
+ for(const name of ["pilotOff","pilotTen"])E(name).disabled=true;
+ try{await call("pilot_switch",{enabled,percent});await loadPilotConfig();E("notice").textContent="Configuração registrada. O bot tradicional não foi desativado."}
+ catch(e){E("notice").textContent="Falha ao alterar piloto: "+e.message;await loadPilotConfig()}
+}
+E("pilotOff").onclick=()=>pilotSwitch(false,0);
+E("pilotTen").onclick=()=>pilotSwitch(true,10);
 
 async function loadPilotReal(){
  try{
@@ -116,7 +134,7 @@ E("loginForm").onsubmit=async ev=>{
   E("login").classList.add("hidden");E("app").classList.remove("hidden");
   E("status").textContent="Operador autenticado";msg.textContent="";
   E("notice").textContent="Acesso confirmado. Carregando dados...";
-  const results=await Promise.allSettled([load(),loadPilot(),loadPilotReal()]);
+  const results=await Promise.allSettled([load(),loadPilot(),loadPilotReal(),loadPilotConfig()]);
   const failed=results.filter(x=>x.status==="rejected");
   E("notice").textContent=failed.length?"Entrada autorizada; algumas consultas não carregaram. Clique em Atualizar.":"Painel carregado.";
  }catch(e){
