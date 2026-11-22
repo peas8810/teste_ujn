@@ -659,13 +659,36 @@ body > .maildesk-jump-nav .btn:hover{background:#dff4f1;border-color:#66b9b0}
      <div class="actions"><button type="button" class="btn primary" id="mailDeskForwardApprove">Autorizar encaminhamento</button><button type="button" class="btn" id="mailDeskForwardCancel">Cancelar</button></div>
    </div>
    <h3 class="maildesk-reading-label">Mensagens <span id="mailDeskMessageCount" class="hint"></span></h3><nav class="maildesk-jump-nav" aria-label="Navegação rápida no histórico de e-mails"><span class="maildesk-jump-label">Navegar:</span><button class="btn small" type="button" id="mailDeskJumpTop" title="Ir para o início do histórico">↑ Início</button><button class="btn small" type="button" id="mailDeskJumpBottom" title="Ir para o final do histórico">↓ Final</button><button class="btn small" type="button" id="mailDeskJumpEditor" title="Ir diretamente para o editor da resposta">✎ Resposta</button></nav><div id="mailDeskHistory" class="maildesk-history"><p class="hint">Nenhuma conversa selecionada.</p></div>
-   <section class="maildesk-links-panel" id="mailDeskArticleIdentityPanel" style="margin:16px 0" aria-label="Identificação editorial do artigo">
-    <div class="maildesk-links-head"><strong>Artigo identificado na conversa</strong><button type="button" class="btn small" id="mailDeskArticleIdentityRefresh" disabled>Pesquisar novamente</button></div>
-    <div id="mailDeskArticleIdentity" aria-live="polite"><p class="hint">Abra um e-mail para identificar automaticamente o artigo e os links disponíveis.</p></div>
-   </section>
    <section class="maildesk-links-panel" style="margin:16px 0" id="mailDeskArticleEvidencePanel">
-    <div class="maildesk-links-head"><strong>IA — identificação do artigo pelo anexo</strong><span class="hint">Conferência OJS quando possível</span></div>
-    <div id="mailDeskArticleEvidence" class="maildesk-docs"><p class="hint">Abra uma conversa para identificar o título, ID, DOI ou link do artigo.</p></div>
+    <div class="maildesk-links-head"><strong>IA — identificação do artigo pelo anexo</strong><span class="hint">Títulos extraídos + pesquisa nas revistas</span></div>
+    <div class="brain-article-manual">
+      <label for="mailDeskArticleTitleInput"><strong>Título do artigo para consulta</strong></label>
+      <textarea id="mailDeskArticleTitleInput" maxlength="250" rows="2" placeholder="Cole ou digite o título completo do artigo (pode corrigir o texto extraído do anexo)" aria-describedby="mailDeskArticleManualStatus"></textarea>
+      <div class="brain-article-search-row">
+        <label for="mailDeskArticleTitleSuggested">Títulos detectados nos anexos
+          <select id="mailDeskArticleTitleSuggested"><option value="">Escolha um título detectado</option></select>
+        </label>
+        <label for="mailDeskArticleJournal">Revista a pesquisar
+          <select id="mailDeskArticleJournal"><option value="">Todas as três revistas</option><option value="REMUNOM">REMUNOM</option><option value="RJNM">RJNM</option><option value="RSV">RSV</option></select>
+        </label>
+      </div>
+      <div class="brain-article-input-actions">
+        <button type="button" class="btn primary small" id="mailDeskArticleTitleSearch" disabled>Pesquisar pelo título no Brain</button>
+        <button type="button" class="btn small" id="mailDeskArticleTitleCopy">Copiar título</button>
+      </div>
+      <div class="brain-article-lookup-links" aria-label="Páginas de consulta dos periódicos">
+        <a data-brain-journal-consultation href="https://remunom.ojsbr.com/multidisciplinar/declaracoes/consulta" target="_blank" rel="noopener noreferrer">Consultar REMUNOM</a>
+        <a data-brain-journal-consultation href="https://jrnm.ojsbr.com/juridica/declaracoes/consulta" target="_blank" rel="noopener noreferrer">Consultar RJNM</a>
+        <a data-brain-journal-consultation href="https://rsv.ojsbr.com/rsv/declaracoes/consulta" target="_blank" rel="noopener noreferrer">Consultar RSV</a>
+      </div>
+      <p class="hint">Os links abrem a consulta oficial de cada revista. Copie e cole o título no campo de pesquisa do site, se necessário. Nenhum artigo será vinculado automaticamente apenas pelo título digitado.</p>
+      <p class="hint" role="status" aria-live="polite" id="mailDeskArticleManualStatus">Selecione um título extraído dos anexos ou insira manualmente.</p>
+    </div>
+    <div id="mailDeskArticleEvidence" class="maildesk-docs"><p class="hint">Abra uma conversa para identificar o título, ID, DOI ou link do artigo nos anexos.</p></div>
+    <div id="mailDeskArticleIdentityPanel" style="margin-top:14px">
+      <div class="maildesk-links-head"><strong>Correspondências encontradas</strong><button type="button" class="btn small" id="mailDeskArticleIdentityRefresh" disabled>Atualizar busca no histórico</button></div>
+      <div id="mailDeskArticleIdentity" aria-live="polite"><p class="hint">Abra um e-mail para consultar os dados editoriais do artigo.</p></div>
+    </div>
    </section>
    <details class="maildesk-insight" id="mailDeskDetails"><summary class="maildesk-details-toggle">Documentos, métricas, análise IA e linha do tempo</summary><div class="maildesk-details-body">
    <section class="maildesk-links-panel" id="mailDeskArticlePanel">
@@ -4355,7 +4378,9 @@ function mailDeskMetric(root,name,value){
 function mailDeskRenderArticleEvidence(items){
  const root=$("mailDeskArticleEvidence");root.replaceChildren();
  if(!Array.isArray(items)||!items.length){
-  root.append(elem("p","Nenhum anexo armazenado identificado nesta conversa. Arquivos antigos só serão analisados após nova captura do conteúdo.","hint"));return;
+  root.append(elem("p","Nenhum anexo armazenado identificado nesta conversa. Arquivos antigos só serão analisados após nova captura do conteúdo.","hint"));
+  if(typeof window.brainMailArticleSuggestions==="function")window.brainMailArticleSuggestions([]);
+  return;
  }
  for(const item of items){
   const box=elem("div",undefined,"maildesk-doc"),body=elem("div");
@@ -4364,7 +4389,12 @@ function mailDeskRenderArticleEvidence(items){
   if(!item.extracted){
    body.append(elem("p","Texto indisponível para extração automática; PDF digitalizado e imagens podem exigir OCR.","hint"));
   }else{
-   if(item.title_candidate)body.append(elem("p","Possível título: "+item.title_candidate));
+   if(item.title_candidate){
+    const candidate=elem("p","Possível título: "+item.title_candidate);
+    const useTitle=elem("button","Usar este título","btn small");useTitle.type="button";useTitle.style.marginBottom="8px";
+    useTitle.onclick=()=>{if(typeof window.brainMailArticleUseTitle==="function")window.brainMailArticleUseTitle(item.title_candidate)};
+    body.append(candidate,useTitle);
+   }
    const ids=item.submission_id_candidates||[];
    body.append(elem("p","ID de submissão: "+(ids.length?ids.join(", ")+" (candidato)":"não encontrado no documento")));
    if(item.journal_hint)body.append(elem("p","Revista mencionada: "+item.journal_hint));
@@ -4391,6 +4421,7 @@ function mailDeskRenderArticleEvidence(items){
   box.append(body);root.append(box);
  }
  root.append(elem("p","A identificação é baseada no conteúdo extraído dos arquivos. IDs e links não comprovam autoria ou vínculo no OJS; confirme antes de associar um artigo.","hint"));
+ if(typeof window.brainMailArticleSuggestions==="function")window.brainMailArticleSuggestions(items);
 }
 async function mailDeskAnalyze(id){
  if(!id)return;
@@ -5152,4 +5183,4 @@ if("serviceWorker" in navigator&&location.protocol==="https:"){
  window.addEventListener("load",()=>{navigator.serviceWorker.register("./sw.js",{scope:"./"}).catch(()=>{})});
 }
 brainRestoreSession();
-</script><script src="./email-article-card.js?v=20261122" defer></script></body></html>
+</script><script src="./email-article-card.js?v=20261122b" defer></script></body></html>
