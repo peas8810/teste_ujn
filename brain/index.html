@@ -723,6 +723,27 @@ body > .maildesk-jump-nav .btn:hover{background:#dff4f1;border-color:#66b9b0}
     <div><div class="crm-next-eyebrow">CENTRAL EDITORIAL · WHATSAPP BUSINESS</div><h1>Mensagens e atendimento</h1><p>Histórico completo por autor e artigo, respostas e confirmações da Meta.</p></div>
     <div class="crm-next-header-actions"><span class="crm-next-live"><i></i> OJS conectado</span><span id="crmNextLastSync" style="font-size:11px;color:#657b8b">Sincronização pendente</span><button class="btn" id="crmNextRefresh">↻ Atualizar</button></div>
   </header>
+
+  <details id="waV2Panel" class="card" style="margin:14px 0;padding:16px;border:1px solid #d5e4e8;border-radius:12px">
+   <summary style="cursor:pointer;font-weight:750;color:#17394a">◈ WhatsApp Inteligente 2.0 · Interpretação e treinamento</summary>
+   <p class="hint">Nova camada integrada ao atendimento original. Acompanhamento, simulações e treinamento com respostas supervisionadas, sem envios durante os testes.</p>
+   <div class="row" style="gap:8px;align-items:center;flex-wrap:wrap">
+    <span id="waV2Status" class="hint">Carregue o diagnóstico do piloto.</span>
+    <button class="btn small" type="button" id="waV2Refresh">Atualizar IA</button>
+    <button class="btn small" type="button" id="waV2Off">Desativar nova camada</button>
+    <button class="btn small" type="button" id="waV2On">Ativar piloto de 10%</button>
+   </div>
+   <div id="waV2Metrics" class="hint" style="margin-top:10px"></div>
+   <div style="display:grid;gap:9px;margin-top:12px">
+    <label for="waV2Question"><strong>Simular uma pergunta fora do menu</strong></label>
+    <textarea id="waV2Question" maxlength="850" rows="2" placeholder="Ex.: Meu artigo já foi publicado? Não tenho o número da submissão."></textarea>
+    <div><button class="btn small" type="button" id="waV2Test">Testar sem enviar</button></div>
+    <pre id="waV2TestResult" style="white-space:pre-wrap;overflow-wrap:anywhere;font-family:inherit" aria-live="polite"></pre>
+   </div>
+   <div class="row" style="gap:8px;flex-wrap:wrap;align-items:center"><strong>Respostas para revisão humana</strong><button class="btn small" type="button" id="waV2LoadReviews">Ver análises</button></div>
+   <div id="waV2Reviews" style="display:grid;gap:10px;margin-top:10px"></div>
+   <p class="hint">Respostas aprovadas são exemplos supervisionados de estilo. Elas não comprovam aceite editorial, DOI, pagamento ou publicação.</p>
+  </details>
   <div class="crm-next-tabs">
     <button class="active" data-crm-view="inbox">Caixa de entrada</button>
     <button data-crm-view="report">Indicadores & SLA</button>
@@ -1711,6 +1732,80 @@ function crmNextExportAudit(){
  const url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="brain-ujn-auditoria-whatsapp-"+new Date().toISOString().slice(0,10)+".csv";
  document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
+
+async function waV2StatusRefresh(){
+ if(!role?.superuser){$("waV2Status").textContent="Disponível somente para superadministradores.";return}
+ try{
+  const d=await insight(INSIGHTS_AI,"wa_v2_status");
+  $("waV2Status").textContent=d.config?.automatic_reply_enabled?"Piloto ativo · "+d.config.sample_percent+"% das mensagens elegíveis":"Nova camada desligada · observação preservada";
+  $("waV2Metrics").textContent="Amostras: "+d.observations+" | Respostas da nova camada registradas: "+d.delivered_by_v2+
+   " | Avaliações humanas: "+d.reviewed+" | Aprovadas/corrigidas: "+d.approved+
+   " | Exemplos históricos somente por regras: "+d.historic_rule_seeds;
+  $("waV2Off").disabled=!d.config?.automatic_reply_enabled;
+  $("waV2On").disabled=!!d.config?.automatic_reply_enabled&&Number(d.config?.sample_percent)===10;
+ }catch(e){$("waV2Status").textContent="Não foi possível conferir o piloto: "+e.message}
+}
+async function waV2Switch(enabled){
+ if(!role?.superuser)return;
+ const description=enabled?"Ativar apenas 10% dos casos informativos elegíveis, mantendo o bot original?":"Desativar somente a nova camada, mantendo o bot original?";
+ if(!confirm(description))return;
+ $("waV2Off").disabled=true;$("waV2On").disabled=true;
+ try{
+  await insight(INSIGHTS_AI,"wa_v2_set",{enabled,percent:enabled?10:0});
+  await waV2StatusRefresh();
+  say("Configuração do WhatsApp Inteligente atualizada.");
+ }catch(e){say("Falha ao ajustar piloto: "+e.message,true);await waV2StatusRefresh()}
+}
+async function waV2Simulate(){
+ const t=$("waV2Question").value.trim();
+ if(t.length<2){$("waV2TestResult").textContent="Escreva uma pergunta para simular.";return}
+ $("waV2Test").disabled=true;$("waV2TestResult").textContent="Analisando em modo seguro, sem enviar mensagens…";
+ try{
+  const d=await insight(INSIGHTS_AI,"wa_v2_test",{text:t});
+  $("waV2TestResult").textContent="Intenção: "+d.intent+" · Confiança: "+Math.round(Number(d.confidence)*100)+"% · "+d.recommendation+
+   "\nResposta sugerida: "+d.answer+"\nNenhuma mensagem foi enviada.";
+ }catch(e){$("waV2TestResult").textContent="Falha na simulação: "+e.message}
+ finally{$("waV2Test").disabled=false}
+}
+async function waV2ReviewList(){
+ const root=$("waV2Reviews");root.replaceChildren(elem("p","Consultando análises…","hint"));
+ try{
+  const d=await insight(INSIGHTS_AI,"wa_v2_list");
+  root.replaceChildren();
+  if(!d.rows?.length){root.append(elem("p","Nenhuma análise disponível ainda.","hint"));return}
+  for(const a of d.rows){
+   const card=elem("div",undefined,"card");card.style.padding="12px";card.style.margin="0";
+   const header=elem("strong",a.intent+" · "+a.recommendation+" · "+Math.round(Number(a.confidence)*100)+"%");card.append(header);
+   card.append(elem("p",a.proposed_answer||"Sem sugestão.","hint"));
+   if(a.review){card.append(elem("p","Revisado: "+a.review,"hint"))}
+   else{
+    const actions=elem("div",undefined,"row");actions.style.gap="8px";actions.style.flexWrap="wrap";
+    for(const [name,verdict] of [["Aprovar","APPROVED"],["Corrigir","EDITED"],["Rejeitar","REJECTED"]]){
+     const button=elem("button",name,"btn small");button.type="button";
+     button.addEventListener("click",async()=>{
+      let answer=a.proposed_answer||"";
+      if(verdict==="EDITED"){const changed=prompt("Digite o modelo de resposta corrigida para treinamento, sem dados pessoais:",answer);if(changed===null)return;answer=changed.trim()}
+      if(verdict==="REJECTED")answer="";
+      if(!confirm("Salvar somente a avaliação humana? Nenhuma mensagem será enviada."))return;
+      button.disabled=true;
+      try{await insight(INSIGHTS_AI,"wa_v2_review",{id:a.id,verdict,answer});await waV2ReviewList()}
+      catch(e){say("Falha ao registrar revisão: "+e.message,true);button.disabled=false}
+     });
+     actions.append(button);
+    }
+    card.append(actions);
+   }
+   root.append(card);
+  }
+ }catch(e){root.replaceChildren(elem("p","Falha ao consultar análises: "+e.message,"notice error"))}
+}
+$("waV2Panel").addEventListener("toggle",()=>{if($("waV2Panel").open)waV2StatusRefresh()});
+$("waV2Refresh").addEventListener("click",waV2StatusRefresh);
+$("waV2Off").addEventListener("click",()=>waV2Switch(false));
+$("waV2On").addEventListener("click",()=>waV2Switch(true));
+$("waV2Test").addEventListener("click",waV2Simulate);
+$("waV2LoadReviews").addEventListener("click",waV2ReviewList);
+
 async function editorialWa(){
  const root=$("editorialStats");root.replaceChildren(elem("p","Consultando registros…"));
  try{
