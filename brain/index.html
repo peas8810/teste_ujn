@@ -530,6 +530,28 @@ body > .maildesk-jump-nav .btn:hover{background:#dff4f1;border-color:#66b9b0}
 .maildesk-auto-chip{margin-top:4px;display:block;font-size:11px;font-weight:750;color:#4c7180}
 .maildesk-auto-chip.ready{color:#07837c}.maildesk-auto-chip.review{color:#a67023}
 @media(max-width:820px){.maildesk-auto-preview{padding:10px}.maildesk-auto-preview .maildesk-auto-excerpt{max-height:125px}}
+
+.strategic-native{border:1px solid #cbdfe3;border-radius:14px;background:#f7fbfc;padding:16px;margin:16px 0}
+.strategic-native .strategic-native-head{display:flex;justify-content:space-between;align-items:start;gap:12px;flex-wrap:wrap}
+.strategic-native .strategic-native-head h2{margin:0;color:#163e51;font-size:20px}
+.strategic-native .strategic-native-head p{font-size:12px;color:#597784;margin:5px 0}
+.strategic-native-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin:14px 0}
+.strategic-native-summary .mini{border:1px solid #d7e7e9;border-radius:10px;padding:11px;background:white}
+.strategic-native-summary .mini strong{display:block;font-size:22px;color:#157777}
+.strategic-native-summary .mini span{font-size:11px;color:#587784}
+.strategic-native-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:12px 0}
+.strategic-native-panel{background:white;border:1px solid #d7e7e9;border-radius:10px;padding:12px;min-width:0}
+.strategic-native-panel h3{margin:0 0 9px;color:#164255;font-size:15px}
+.strategic-native-panel p{font-size:12px;line-height:1.55;color:#587784}
+.strategic-native-scroll{max-width:100%;overflow:auto}
+.strategic-native-table{width:100%;border-collapse:collapse;font-size:12px}
+.strategic-native-table th,.strategic-native-table td{border-bottom:1px solid #e6eef0;text-align:left;padding:7px 8px;white-space:nowrap}
+.strategic-native-table th{color:#426578;background:#f4f9fa;font-size:11px}
+.strategic-native-table td.num{text-align:right;font-variant-numeric:tabular-nums}
+.strategic-native-panel select{max-width:100%;border:1px solid #cbdfe3;border-radius:7px;padding:7px;font-size:13px}
+.strategic-native-chip{padding:4px 9px;border-radius:20px;font-size:11px;background:#e7f3f4;color:#217377;font-weight:700}
+.strategic-native-note{font-size:12px;line-height:1.6;color:#587784;border-top:1px solid #dbe8e9;padding-top:10px;margin-top:12px}
+@media(max-width:850px){.strategic-native-grid{grid-template-columns:1fr}.strategic-native{padding:11px}}
 </style>
 <style id="crm-pagination-style">
 .crm-contact-tools{display:flex;flex-wrap:wrap;gap:12px;align-items:end;justify-content:space-between;margin:14px 0}
@@ -872,6 +894,20 @@ body > .maildesk-jump-nav .btn:hover{background:#dff4f1;border-color:#66b9b0}
  <div class="head"><div><h1>Strategic Brain</h1><p class="lead">Inteligência geográfica, demanda editorial e oportunidades para aquisição de submissões.</p></div><div class="actions"><button type="button" class="btn" id="strategicRefresh">Atualizar indicadores</button></div></div>
  <div class="strategic-toolbar card"><label>De <input type="date" id="strategicFrom"/></label><label>Até <input type="date" id="strategicTo"/></label><button class="btn primary" type="button" id="strategicApply">Aplicar período</button><span class="hint" id="strategicStatus" aria-live="polite">Carregando fontes agregadas...</span></div>
  <div class="notice">Indicadores por DDD são estimativas da área original do número, não localização comprovada. O Strategic Brain mostra apenas dados agregados e nunca identifica sexo ou gênero de pessoas a partir de nomes ou telefones.</div>
+
+ <section class="strategic-native" id="strategicNative" aria-label="Inteligência para campanhas baseada no Brain UJN">
+  <div class="strategic-native-head"><div><h2>Pesquisa para campanhas · dados verificados</h2><p>Histórico publicado via OJS, temas por revista e mapa acadêmico IBGE. Sem disparos de mensagens nem métricas de retorno.</p></div><span id="strategicNativeStatus" class="strategic-native-chip" aria-live="polite">Preparando consulta</span></div>
+  <div class="strategic-native-summary" id="strategicNativeSummary"></div>
+  <div class="strategic-native-grid">
+   <div class="strategic-native-panel"><h3>Acervo publicado nas cinco revistas</h3><div id="strategicNativeOjs" class="strategic-native-scroll"></div></div>
+   <div class="strategic-native-panel"><h3>Assuntos observados no OJS</h3><div id="strategicNativeTopics" class="strategic-native-scroll"></div></div>
+   <div class="strategic-native-panel"><h3>Calendário de publicações</h3><p>Mapa de calor mensal calculado apenas com artigos publicados no período selecionado.</p><div id="strategicNativeCalendar" class="strategic-native-scroll"></div></div>
+   <div class="strategic-native-panel"><h3>IBGE · formação superior por região</h3><label class="hint" for="strategicNativeArea">Área de formação (Censo 2022)</label><select id="strategicNativeArea"></select><div id="strategicNativeAreaResult" class="strategic-native-scroll"></div></div>
+   <div class="strategic-native-panel"><h3>Crossref · fonte complementar</h3><div id="strategicNativeCrossref" class="strategic-native-scroll"></div></div>
+   <div class="strategic-native-panel"><h3>Qualidade dos dados e autorizações</h3><div id="strategicNativeQuality"></div></div>
+  </div>
+  <p class="strategic-native-note">Fontes principais: APIs autenticadas das revistas e dados internos do Brain UJN. IBGE: Censo 2022 e estimativas 2026, com metodologias separadas. Os números por área representam pessoas com formação concluída, não autores identificados. A classificação de títulos é exploratória. Consentimento editorial não autoriza marketing.</p>
+ </section>
  <div id="strategicMetrics" class="grid strategic-metrics"></div>
  <div class="card"><h2>Relacionamento validado entre canais</h2><p class="hint">Contagens agregadas de associações documentadas. Nenhum telefone, e-mail ou nome individual é exibido neste painel.</p><div id="strategicLinkages" class="grid"></div></div>
  <div class="strategic-columns">
@@ -907,8 +943,8 @@ body > .maildesk-jump-nav .btn:hover{background:#dff4f1;border-color:#66b9b0}
      <div><strong>E-mails e conversas</strong><span>Disponível — volumes sem atribuição geográfica</span></div>
      <div><strong>IES / artigos publicados</strong><span>Parcial — falta validar afiliação das cinco revistas</span></div>
      <div><strong>MEC / INEP</strong><span>Pendente — matrículas por curso, UF, município, ano e sexo agregado</span></div>
-     <div><strong>IBGE / SIDRA</strong><span>Pendente — população por UF, município e sexo agregado</span></div>
-     <div><strong>ArticleRun / OJS</strong><span>Pendente — funil real de submissões e conversões</span></div>
+     <div><strong>IBGE / SIDRA</strong><span>Disponível no novo painel: população 2022/2026 e áreas de formação 2022. Sexo por município não consolidado.</span></div>
+     <div><strong>APIs OJS</strong><span>Histórico de artigos publicados coletado nas cinco revistas; funil privado de submissões não integra pesquisa de campanhas.</span></div>
      <div><strong>Meta Ads / campanhas de e-mail</strong><span>Pendente — gastos, cliques, UTMs e resultados</span></div>
    </div>
  </div>
@@ -3535,6 +3571,7 @@ async function strategicBrainLoad(){
  if(!from.value||!to.value){const now=new Date(),start=new Date(now);start.setDate(start.getDate()-89);from.value=strategicDate(start);to.value=strategicDate(now)}
  if(from.value>to.value||(Date.parse(to.value)-Date.parse(from.value))/86400000>366)return $("strategicStatus").textContent="Intervalo inválido ou superior a 366 dias.";
  const id=++STRATEGIC.sequence;
+ void strategicNativeLoad(from.value,to.value,id);
  $("strategicStatus").textContent="Consultando fontes internas...";
  $("strategicAnalyze").disabled=true;
  try{
@@ -3589,6 +3626,121 @@ async function strategicBrainLoad(){
   $("strategicInsights").replaceChildren(elem("p","Indicadores carregados. Gere hipóteses e prioridades, sem assumir dados ausentes do MEC ou de campanhas.","hint"));
  }catch(err){if(id===STRATEGIC.sequence){$("strategicStatus").textContent="Erro ao consultar a inteligência: "+err.message;$("strategicAnalyze").disabled=true}}
 }
+
+const STRATEGIC_NATIVE_API="https://leytqsyfrmzhectatcqm.supabase.co/functions/v1/ujn-strategic-brain-v2";
+const STRATEGIC_NATIVE_PUB="sb_publishable_d4F4MVCCYDMNZw0VzOsCKQ_q7pHO7JH";
+function strategicNativeTable(root,headers,records){
+ root.replaceChildren();
+ if(!records?.length){root.append(elem("p","Sem dados verificados para este recorte.","hint"));return}
+ const table=elem("table",undefined,"strategic-native-table"),thead=elem("thead"),tr=elem("tr");
+ headers.forEach(h=>tr.append(elem("th",h)));
+ thead.append(tr);table.append(thead);
+ const tbody=elem("tbody");
+ for(const record of records){
+  const row=elem("tr");
+  for(const [i,value] of record.entries()){
+   const td=elem("td",value===null||value===undefined?"—":String(value));
+   if(i>0 && typeof value==="number")td.classList.add("num");
+   row.append(td);
+  }
+  tbody.append(row);
+ }
+ table.append(tbody);root.append(table);
+}
+const strategicNativeNumber=x=>Number.isFinite(Number(x))?Number(x).toLocaleString("pt-BR"):"—";
+function strategicNativeAreaRender(data){
+ const sel=$("strategicNativeArea"),root=$("strategicNativeAreaResult");if(!sel||!root)return;
+ const code=sel.value;
+ const all=(data.audience_matrix?.leading_municipalities_by_area||[]).filter(x=>x.area_code===code).slice(0,12);
+ const states=(data.audience_matrix?.uf_areas||[]).filter(x=>x.code===code).sort((a,b)=>Number(b.graduates_area||0)-Number(a.graduates_area||0)).slice(0,8);
+ const block=elem("div");
+ block.append(elem("h4","Estados com mais pessoas formadas na área"));
+ const stateRoot=elem("div",undefined,"strategic-native-scroll");
+ strategicNativeTable(stateRoot,["UF","Graduados"],states.map(x=>[x.uf,Number(x.graduates_area||0)]));
+ block.append(stateRoot,elem("h4","Municípios com mais pessoas formadas na área"));
+ const cityRoot=elem("div",undefined,"strategic-native-scroll");
+ strategicNativeTable(cityRoot,["Município","UF","Graduados"],all.map(x=>[x.municipality,x.uf,Number(x.graduates_area||0)]));
+ block.append(cityRoot,elem("p","Censo IBGE 2022. Contagens oficiais; ausências não são tratadas como zero.","hint"));root.replaceChildren(block);
+}
+function strategicNativeRender(data){
+ STRATEGIC.nativeReport=data;
+ const native=data.native_signals||{},coverage=native.source_coverage||{},
+       progress=data.ojs_history_progress||[],academic=data.audience_matrix||{},
+       marketing=native.marketing_permissions||{};
+ const summary=$("strategicNativeSummary");summary.replaceChildren();
+ for(const [label,value] of [
+  ["Artigos OJS verificados",coverage.verified_publications],
+  ["Revistas com histórico completo",progress.filter(x=>x.completed===true).length+"/5"],
+  ["Áreas de formação IBGE",(academic.area_catalog||[]).length],
+  ["Municípios na base IBGE",data.campaign_research?.source_coverage?.municipality_name_rows],
+  ["Metadados Crossref",data.crossref_themes?.total_sample],
+  ["Temas sem classificação específica",coverage.without_specific_theme]
+ ]){
+  const card=elem("div",undefined,"mini");
+  card.append(elem("strong",typeof value==="number"?strategicNativeNumber(value):String(value??"—")),elem("span",label));summary.append(card);
+ }
+ const names={REMUNOM:"REMUNOM",RSV:"RSV",RJNM:"RJNM",JIRRS:"JIRRS",NEXUS:"NEXUS"};
+ const pubs=(native.journal_publications||[]).reduce((o,x)=>(o[x.journal_code]=x,o),{});
+ strategicNativeTable($("strategicNativeOjs"),["Revista","Publicados no período","Histórico"],Object.keys(names).map(j=>[
+  j,Number(pubs[j]?.publications||0),progress.find(x=>x.journal_code===j)?.completed?"Completo":"Em coleta"
+ ]));
+ const topics=(native.journal_topics||[]).filter(x=>x.theme&&x.theme!=="NÃO_CLASSIFICADO"&&x.theme!=="Outros temas / classificação insuficiente")
+  .sort((a,b)=>Number(b.publications||0)-Number(a.publications||0)).slice(0,18);
+ strategicNativeTable($("strategicNativeTopics"),["Revista","Tema","Artigos"],topics.map(x=>[x.journal_code,x.theme,Number(x.publications||0)]));
+ const series=native.publication_months||[], months=[...new Set(series.map(x=>x.month_label))].sort(), journals=Object.keys(names);
+ const grid=$("strategicNativeCalendar");grid.replaceChildren();
+ if(months.length){
+  const peak=Math.max(1,...series.map(x=>Number(x.publications||0)));
+  const t=elem("table",undefined,"strategic-native-table"),h=elem("tr");h.append(elem("th","Mês"));journals.forEach(j=>h.append(elem("th",j)));t.append(h);
+  months.forEach(month=>{
+   const tr=elem("tr");tr.append(elem("td",month));
+   journals.forEach(j=>{
+    const value=Number(series.find(x=>x.month_label===month&&x.journal_code===j)?.publications||0);
+    const td=elem("td",value);td.classList.add("num");
+    td.style.background="rgba(19,139,134,"+(0.05+0.75*value/peak).toFixed(3)+")";
+    td.title=j+" · "+month+" · "+value+" publicações";tr.append(td);
+   });t.append(tr);
+  });
+  grid.append(t);
+ }else grid.append(elem("p","Sem publicações para o período.","hint"));
+ const areaSel=$("strategicNativeArea"),previous=areaSel.value;areaSel.replaceChildren();
+ (academic.area_catalog||[]).forEach(x=>{const option=elem("option",x.area_name);option.value=x.code;areaSel.append(option)});
+ if([...areaSel.options].some(x=>x.value===previous))areaSel.value=previous;
+ areaSel.onchange=()=>strategicNativeAreaRender(STRATEGIC.nativeReport);
+ strategicNativeAreaRender(data);
+ strategicNativeTable($("strategicNativeCrossref"),["Revista","Registros por ISSN"],(data.crossref_journals||[])
+  .sort((a,b)=>Number(b.indexed_works)-Number(a.indexed_works)).map(x=>[x.journal_code,Number(x.indexed_works||0)]));
+ const quality=$("strategicNativeQuality");quality.replaceChildren();
+ for(const line of [
+  "Cadastros no universo do WhatsApp: "+strategicNativeNumber(marketing.contact_universe),
+  "Autorizados para marketing nessa visão: "+strategicNativeNumber(marketing.marketing_authorized),
+  "Vínculos editoriais não contam como autorização comercial.",
+  "Sem classificação específica: "+strategicNativeNumber(coverage.without_specific_theme)+" títulos.",
+  "INEP por curso: "+(Number(data.campaign_research?.source_coverage?.inep_course_rows||0)>0?"registros importados":"ainda sem dados oficiais importados"),
+  "Esta seção é informativa; não envia campanhas nem altera consentimentos."
+ ])quality.append(elem("p",line));
+ $("strategicNativeStatus").textContent="Atualizado · "+new Date().toLocaleTimeString("pt-BR");
+}
+async function strategicNativeLoad(from,to,sequence){
+ const status=$("strategicNativeStatus");if(status)status.textContent="Consultando acervo OJS e IBGE...";
+ try{
+  await brainEnsureAccess();
+  const res=await fetch(STRATEGIC_NATIVE_API,{method:"POST",cache:"no-store",
+   headers:{"content-type":"application/json","apikey":STRATEGIC_NATIVE_PUB,"authorization":"Bearer "+token},
+   body:JSON.stringify({action:"strategic_snapshot",from,to})});
+  const data=await res.json().catch(()=>({}));
+  if(!res.ok||data.ok!==true)throw Error(data.error||"Erro HTTP "+res.status);
+  if(sequence!==STRATEGIC.sequence)return;
+  strategicNativeRender(data);
+ }catch(error){
+  if(sequence===STRATEGIC.sequence){
+   if(status)status.textContent="Fonte complementar indisponível";
+   const s=$("strategicNativeSummary");
+   if(s)s.replaceChildren(elem("p","Não foi possível consultar o catálogo ampliado: "+(error?.message||"erro não identificado")+". Os demais módulos do Brain UJN continuam disponíveis.","hint"));
+  }
+ }
+}
+
 async function strategicBrainAnalyze(){
  if(!STRATEGIC.report)return;
  const button=$("strategicAnalyze"),root=$("strategicInsights");button.disabled=true;root.replaceChildren(elem("p","Analisando dados agregados e incertezas…","hint"));
