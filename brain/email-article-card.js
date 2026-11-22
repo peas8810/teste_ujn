@@ -35,7 +35,7 @@ function render(items,notice="",kind="info") {
  base.replaceChildren();
  if(notice)base.append(child("p",notice,kind==="warning"?"brain-article-note":"brain-article-muted"));
  if(!items?.length) {
-  if(!notice)base.append(child("p","Nenhum artigo identificado nesta conversa. A busca automática será iniciada ao abrir o e-mail.","brain-article-muted"));
+  if(!notice)base.append(child("p","Nenhuma correspondência confirmada ainda. Você pode pesquisar pelo título extraído do anexo.","brain-article-muted"));
   return;
  }
  const list=child("div",undefined,"brain-article-list");
@@ -67,44 +67,130 @@ function render(items,notice="",kind="info") {
  }
  base.append(list);
 }
-async function resolve(threadId,cached=[],force=false) {
- if(!threadId || busy.has(threadId) || (!force && checked.has(threadId)))return;
- checked.add(threadId);busy.add(threadId);
- if(window.MAILDESK?.selected===threadId || (typeof MAILDESK!=="undefined"&&MAILDESK.selected===threadId)){
-  refresh.disabled=true;
-  render(cached,"Pesquisando título, revista e vínculo editorial no OJS…");
+
+const titleInput=document.getElementById("mailDeskArticleTitleInput");
+const suggestions=document.getElementById("mailDeskArticleTitleSuggested");
+const journalInput=document.getElementById("mailDeskArticleJournal");
+const searchButton=document.getElementById("mailDeskArticleTitleSearch");
+const copyButton=document.getElementById("mailDeskArticleTitleCopy");
+const manualStatus=document.getElementById("mailDeskArticleManualStatus");
+if(!titleInput||!suggestions||!journalInput||!searchButton||!copyButton||!manualStatus)return;
+style.textContent += ".brain-article-manual{padding:15px;margin-top:12px;background:#f8fbfc;border:1px solid #dce9ef;border-radius:10px}.brain-article-manual textarea{display:block;width:100%;min-height:72px;max-height:155px;padding:10px;border:1px solid #c7d9e2;border-radius:8px;resize:vertical;font-size:13px;line-height:1.5}.brain-article-search-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(180px,250px);gap:10px;margin-top:10px}.brain-article-search-row label{display:block;font-size:12px;font-weight:650}.brain-article-search-row select{display:block;width:100%;min-width:0;margin-top:4px;padding:9px;border:1px solid #c7d9e2;border-radius:8px;background:#fff}.brain-article-lookup-links{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.brain-article-lookup-links a{padding:7px 10px;border:1px solid #b9d6df;border-radius:7px;text-decoration:none;font-weight:650;font-size:12px}.brain-article-lookup-links a:hover{background:#e7f3f6}.brain-article-input-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.brain-article-input-actions button{max-width:100%}@media(max-width:650px){.brain-article-search-row{grid-template-columns:1fr}}";
+function note(message){manualStatus.textContent=message;}
+function normalizedTitle(value){
+ return String(value||"").replace(/^(?:t[ií]tulo da pesquisa|poss[ií]vel t[ií]tulo|t[ií]tulo)\s*[:\-]\s*/i,"").replace(/\s+/g," ").trim().slice(0,250);
+}
+window.brainMailArticleUseTitle = value => {
+ const title=normalizedTitle(value);
+ if(!title)return;
+ titleInput.value=title;
+ note("Título carregado do anexo. Confira se está completo e clique em “Pesquisar pelo título”.");
+ titleInput.focus();
+};
+window.brainMailArticleSuggestions = items => {
+ const current=titleInput.value.trim(),selected=suggestions.value;
+ suggestions.replaceChildren();
+ const blank=document.createElement("option");blank.value="";blank.textContent="Escolha um título detectado";suggestions.append(blank);
+ const seen=new Set();let count=0;
+ for(const item of Array.isArray(items)?items:[]){
+  const title=normalizedTitle(item?.title_candidate);
+  if(!item?.extracted||title.length<12||seen.has(title.toLowerCase()))continue;
+  seen.add(title.toLowerCase());
+  const option=document.createElement("option");option.value=title;
+  option.textContent=(title.length>110?title.slice(0,107)+"…":title)+(item.filename?" · "+String(item.filename).slice(0,45):"");
+  suggestions.append(option);count++;if(count>=25)break;
  }
+ if(selected&&[...suggestions.options].some(x=>x.value===selected))suggestions.value=selected;
+ if(!current && count===1){
+  // A single attachment title is proposed but never silently treated as confirmed.
+  titleInput.placeholder="Selecione o título sugerido ou escreva o título completo";
+ }else{
+  titleInput.placeholder="Cole ou digite o título completo do artigo (pode corrigir o texto extraído do anexo)";
+ }
+ if(count && !current)note(count+" título(s) detectado(s) nos anexos. Escolha o correto ou digite outro título para pesquisar.");
+ else if(!count && !current)note("Não há título aproveitável nos anexos analisados. Insira o título do artigo para consultar as revistas.");
+};
+suggestions.addEventListener("change",()=>{if(suggestions.value)window.brainMailArticleUseTitle(suggestions.value)});
+async function copyTitle(){
+ const title=titleInput.value.trim();
+ if(!title){note("Digite ou selecione um título antes de copiar.");return;}
+ try{
+  if(!navigator.clipboard?.writeText)throw Error("clipboard_unavailable");
+  await navigator.clipboard.writeText(title);note("Título copiado. Cole-o na página da revista.");
+ }catch{
+  titleInput.focus();titleInput.select();note("Selecione o texto e use Ctrl+C para copiar o título.");
+ }
+}
+copyButton.addEventListener("click",()=>{void copyTitle()});
+document.querySelectorAll("[data-brain-journal-consultation]").forEach(anchor=>{
+ anchor.addEventListener("click",()=>{
+  const title=titleInput.value.trim();
+  if(title&&navigator.clipboard?.writeText)navigator.clipboard.writeText(title).catch(()=>{});
+  note(title?"Página de consulta aberta. Cole o título no campo de busca do periódico (Ctrl+V).":"Página de consulta aberta. Informe o título na busca do periódico.");
+ });
+});
+async function resolve(threadId,cached=[],force=false,titleOverride="",journalOverride=""){
+ const manual=Boolean(titleOverride);
+ if(!threadId||busy.has(threadId)||(!manual&&!force&&checked.has(threadId))){
+  if(busy.has(threadId)&&manual)note("Outra consulta está em andamento. Tente pesquisar novamente após a conclusão.");
+  return;
+ }
+ if(!manual)checked.add(threadId);
+ busy.add(threadId);refresh.disabled=true;searchButton.disabled=true;
+ if(!manual)render(cached,"Consultando possíveis vínculos pelo histórico do e-mail…");
+ else note("Pesquisando título no catálogo e nas APIs OJS autorizadas…");
  try {
-  const result=await mailDeskCall("article_resolve",{thread_id:threadId});
-  if(typeof MAILDESK!=="undefined" && MAILDESK.selected!==threadId)return;
+  const payload={thread_id:threadId};
+  if(manual){payload.title_override=titleOverride;payload.journal_override=journalOverride;}
+  const result=await mailDeskCall("article_resolve",payload);
+  if(typeof MAILDESK==="undefined"||MAILDESK.selected!==threadId)return;
   const matches=Array.isArray(result.matches)?result.matches:[];
   const rows=merge(cached,matches);
   if(MAILDESK.currentThreadData)MAILDESK.currentThreadData.article_identifications=rows;
+  const failed=(result.lookups_attempted||[]).filter(x=>x.state!=="ok");
   let message="";
-  if(result.matching_status==="review")message="Foram encontrados possíveis artigos. Confira a correspondência antes de utilizá-la.";
-  else if(!rows.length)message="Não foi possível confirmar um artigo com os dados disponíveis nesta conversa. Use “Adicionar artigo” para vincular manualmente.";
-  else if(result.lookups_attempted?.some(x=>x.state!=="ok"))message="Os dados identificados estão disponíveis, mas algumas consultas OJS não foram concluídas.";
+  if(result.matching_status==="review")message="Possíveis correspondências encontradas; confirme título e ID no OJS antes de vincular.";
+  else if(!matches.length && manual)message="A pesquisa desse título não retornou uma correspondência confirmada. Verifique a grafia e consulte os links oficiais acima.";
+  else if(!rows.length)message="Nenhuma correspondência confirmada apenas pelo histórico. Use um dos títulos extraídos do anexo acima.";
+  else if(failed.length)message="Algumas consultas ao OJS ficaram indisponíveis; os resultados exibidos podem estar incompletos.";
   render(rows,message,message?"warning":"info");
- } catch(error) {
-  if(typeof MAILDESK!=="undefined" && MAILDESK.selected!==threadId)return;
-  render(cached,"A consulta automática não foi concluída. Você pode tentar novamente ou usar “Adicionar artigo”.","warning");
+  if(manual)note(matches.length?
+    matches.length+" correspondência(s) encontrada(s) para o título informado. Confira o periódico antes de associar ao autor.":
+    "Nenhum resultado confirmado para esse título. Você pode copiar o título e consultar diretamente a REMUNOM, RJNM ou RSV.");
+ } catch(error){
+  if(typeof MAILDESK!=="undefined"&&MAILDESK.selected!==threadId)return;
+  render(cached,"A pesquisa editorial não foi concluída. Os títulos já extraídos dos anexos continuam disponíveis.","warning");
+  if(manual)note("Não foi possível consultar o OJS agora. Copie o título e use os links das revistas.");
  } finally {
   busy.delete(threadId);
-  if(typeof MAILDESK!=="undefined" && MAILDESK.selected===threadId)refresh.disabled=false;
+  if(typeof MAILDESK!=="undefined"&&MAILDESK.selected===threadId){
+   refresh.disabled=false;searchButton.disabled=false;
+  }
  }
 }
-window.brainMailArticleOpen = (threadId,data) => {
+window.brainMailArticleOpen=(threadId,data)=>{
  const cached=Array.isArray(data?.article_identifications)?data.article_identifications:[];
- refresh.disabled=false;
- render(cached);
+ refresh.disabled=false;searchButton.disabled=false;
+ render(cached,cached.length?"":"Buscando correspondências pelo histórico. A identificação por anexos aparece acima.");
  if(!cached.length)void resolve(threadId,cached,false);
 };
-window.brainMailArticleClear = () => {
- refresh.disabled=true;
- render([],"Carregando informações editoriais da conversa…");
+window.brainMailArticleClear=()=>{
+ refresh.disabled=true;searchButton.disabled=true;
+ titleInput.value="";journalInput.value="";suggestions.replaceChildren();
+ const option=document.createElement("option");option.value="";option.textContent="Escolha um título detectado";suggestions.append(option);
+ note("Selecione um título extraído dos anexos ou insira manualmente.");
+ render([],"Aguardando a conversa…");
 };
+searchButton.addEventListener("click",()=>{
+ if(typeof MAILDESK==="undefined"||!MAILDESK.selected){note("Selecione uma conversa primeiro.");return;}
+ const title=normalizedTitle(titleInput.value);
+ if(title.length<12){note("Informe ao menos 12 caracteres do título do artigo.");titleInput.focus();return;}
+ titleInput.value=title;
+ const cached=MAILDESK.currentThreadData?.article_identifications||[];
+ void resolve(MAILDESK.selected,cached,true,title,journalInput.value);
+});
 refresh.addEventListener("click",()=>{
- if(typeof MAILDESK==="undefined" || !MAILDESK.selected)return;
+ if(typeof MAILDESK==="undefined"||!MAILDESK.selected)return;
  const cached=MAILDESK.currentThreadData?.article_identifications||[];
  void resolve(MAILDESK.selected,cached,true);
 });
