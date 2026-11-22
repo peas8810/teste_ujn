@@ -2317,7 +2317,7 @@ function mktAudience(root,d){
  panel.append(mktEl("div","Para autorizar marketing, o contato deve enviar UJN MARKETING SIM pelo próprio WhatsApp. O Brain registra a prova da Meta. Para cancelar apenas marketing: UJN MARKETING PARAR. O comando PARAR cancela também notificações editoriais.","mkt-notice"));
  panel.append(mktTable(["Selecionar","Contato","WhatsApp","Origem","Marketing","Ações"],d.contacts.map(x=>{
   const action=mktEl("div");action.style.display="flex";action.style.gap="5px";
-  action.append(mktBtn("Conferir individualmente","consent_contact",x.id));action.append(mktBtn("Editar perfil","edit_contact",x.id));
+  action.append(mktBtn(x.marketing_opt_in?"Ver autorização":"Autorizar marketing","consent_contact",x.id));action.append(mktBtn("Editar perfil","edit_contact",x.id));
   const cb=mktEl("input");cb.type="checkbox";cb.dataset.mktSelectContact=x.id;cb.checked=mktSelectedContactIds.has(x.id);
   cb.setAttribute("aria-label","Selecionar "+(x.display_name||x.email||x.phone||"contato"));cb.style.width="18px";cb.style.height="18px";
   return [cb,x.display_name||x.email||"Contato",x.phone||"Somente e-mail",x.origin,x.marketing_opt_in?mktBadge("AUTORIZADO","ok"):mktBadge("SEM AUTORIZAÇÃO","warn"),action];
@@ -2365,20 +2365,27 @@ function mktAudience(root,d){
 }
 function mktConsentDetail(id){
  const d=marketingData,c=d?.contacts.find(x=>x.id===id),host=$("mktConsentDetail");if(!c||!host)return;
- host.replaceChildren(mktEl("h3","Conferência individual · "+(c.display_name||c.phone)));
- host.append(mktEl("p","Telefone: "+c.phone+" · "+(c.marketing_opt_in?"Marketing autorizado":"Marketing não autorizado")));
+ host.replaceChildren(mktEl("h3","Autorização individual · "+(c.display_name||c.email||c.phone)));
+ host.append(mktEl("p","WhatsApp: "+(c.phone||"Não cadastrado"),"hint"));
+ host.append(mktEl("p","Situação: "+(c.marketing_opt_in?"AUTORIZADO PARA MARKETING":"AGUARDANDO AUTORIZAÇÃO COMERCIAL"),
+   c.marketing_opt_in?"mkt-notice":"mkt-notice warn"));
+ host.append(mktEl("p","Registre a autorização comercial apenas quando houver prova do aceite específico do contato. O cadastro editorial, por si só, não comprova esse aceite.","hint"));
  const form=mktEl("form",undefined,"mkt-form");form.dataset.mktForm="record_consent";
  const hid=mktEl("input");hid.type="hidden";hid.name="contact_id";hid.value=id;form.append(hid);
  for(const field of [
- {name:"decision",label:"Ação",options:[["OPT_OUT","Registrar saída / PARAR"],["OPT_IN","Registrar autorização comprovada"]]},
- {name:"origin",label:"Origem da autorização",placeholder:"Ex.: formulário específico UJN"},
- {name:"evidence_ref",label:"Referência da prova (obrigatória para opt-in)",placeholder:"ID do formulário, protocolo ou registro de aceite"}
+  {name:"decision",label:"Decisão para este contato",options:c.marketing_opt_in?[["OPT_OUT","Revogar autorização de marketing"],["OPT_IN","Registrar novo aceite comprovado"]]:[["OPT_IN","Autorizar marketing (aceite comprovado)"],["OPT_OUT","Registrar recusa de marketing"]]},
+  {name:"origin",label:"Origem do consentimento",placeholder:"Ex.: formulário comercial ou resposta UJN MARKETING SIM"},
+  {name:"evidence_ref",label:"Referência da comprovação",placeholder:"Ex.: ID do formulário ou mensagem de aceite (mín. 12 caracteres)"}
  ]){
   const label=mktEl("label",field.label,"wide"),input=field.options?mktEl("select"):mktEl("input");
-  input.name=field.name;if(field.options)for(const [value,text] of field.options){const option=mktEl("option",text);option.value=value;input.append(option)}
-  else input.placeholder=field.placeholder||"";label.append(input);form.append(label);
+  input.name=field.name;if(field.options)for(const [value,title] of field.options){const option=mktEl("option",title);option.value=value;input.append(option)}
+  else {input.placeholder=field.placeholder||"";input.required=true;}
+  label.append(input);form.append(label);
  }
- const submit=mktEl("button","Registrar decisão","btn");submit.type="submit";form.append(submit);host.append(form);
+ const button=mktEl("button",c.marketing_opt_in?"Salvar decisão":"Registrar autorização individual","btn primary");
+ button.type="submit";form.append(button);host.append(form);
+ const end=mktEl("p","Após salvar, o status do contato será atualizado. Você pode continuar com os demais quando desejar.","hint");host.append(end);
+ host.scrollIntoView({behavior:"smooth",block:"nearest"});
 }
 function mktEditContact(id){
  const d=marketingData,c=d?.contacts.find(x=>x.id===id),host=$("mktConsentDetail");if(!c||!host)return;
