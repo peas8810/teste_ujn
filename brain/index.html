@@ -2369,13 +2369,13 @@ function mktConsentDetail(id){
  host.append(mktEl("p","WhatsApp: "+(c.phone||"Não cadastrado"),"hint"));
  host.append(mktEl("p","Situação: "+(c.marketing_opt_in?"AUTORIZADO PARA MARKETING":"AGUARDANDO AUTORIZAÇÃO COMERCIAL"),
    c.marketing_opt_in?"mkt-notice":"mkt-notice warn"));
- host.append(mktEl("p","Para salvar o andamento da conferência, use o botão Salvar conferência. Para permitir marketing, é necessário um aceite comercial específico.","hint"));
+ host.append(mktEl("p","Você pode marcar o cadastro como conferido com um clique, deixando a autorização comercial pendente até existir aceite específico.","hint"));
  const review=mktEl("form",undefined,"mkt-form");review.dataset.mktForm="save_marketing_review";
  const reviewId=mktEl("input");reviewId.type="hidden";reviewId.name="contact_id";reviewId.value=id;review.append(reviewId);
  const reviewLabel=mktEl("label","Observação da conferência (não autoriza marketing)","wide");
- const reviewInput=mktEl("textarea");reviewInput.name="review_notes";reviewInput.value=c.marketing_review_notes||"";reviewInput.placeholder="Ex.: Cadastro revisado; aguardando confirmação de aceite promocional.";reviewInput.rows=2;reviewInput.required=true;
+ const reviewInput=mktEl("textarea");reviewInput.name="review_notes";reviewInput.value=c.marketing_review_notes||"";reviewInput.placeholder="Ex.: Cadastro revisado; aguardando confirmação de aceite promocional.";reviewInput.rows=2;reviewInput.required=false;
  reviewLabel.append(reviewInput);review.append(reviewLabel);
- const reviewButton=mktEl("button","Salvar conferência sem autorizar","btn");
+ const reviewButton=mktEl("button","Marcar como conferido (sem autorizar marketing)","btn");
  reviewButton.type="submit";review.append(reviewButton);
  host.append(review);
  const reviewStatus=mktEl("p",c.marketing_review_status==="PENDING_EVIDENCE"?"Conferência anterior salva. Autorização comercial pendente.":"Ainda não conferido.","hint");
@@ -2386,7 +2386,7 @@ function mktConsentDetail(id){
  for(const field of [
   {name:"decision",label:"Decisão para este contato",options:c.marketing_opt_in?[["OPT_OUT","Revogar autorização de marketing"],["OPT_IN","Registrar novo aceite comprovado"]]:[["OPT_IN","Autorizar marketing (aceite comprovado)"],["OPT_OUT","Registrar recusa de marketing"]]},
   {name:"origin",label:"Origem do consentimento",placeholder:"Ex.: formulário comercial ou resposta UJN MARKETING SIM"},
-  {name:"evidence_ref",label:"Referência da comprovação",placeholder:"Ex.: marketing-form-2026-11-22-protocolo123 (identificador específico)"}
+  {name:"evidence_ref",label:"Referência da comprovação",placeholder:"ID da resposta ou protocolo do aceite específico para marketing"}
  ]){
   const label=mktEl("label",field.label,"wide"),input=field.options?mktEl("select"):mktEl("input");
   input.name=field.name;if(field.options)for(const [value,title] of field.options){const option=mktEl("option",title);option.value=value;input.append(option)}
@@ -2825,6 +2825,15 @@ $("mktViewBody").addEventListener("submit",e=>{
    return;
  }
  if(action==="record_consent"&&values.decision==="OPT_IN"){
+  const evidence=String(values.evidence_ref||"").trim();
+  if(!/[0-9]/.test(evidence)||/^(formul[aá]rio de (cadastro|coleta)|registro de aceite|contato de confirma[çc][ãa]o)/i.test(evidence)){
+   const msg="Essa descrição identifica um tipo de formulário, mas não o aceite comercial específico deste contato. A autorização não foi salva; utilize 'Marcar como conferido' para preservar sua análise enquanto aguarda a prova.";
+   let notice=$("mktConsentStatus");
+   const host=$("mktConsentDetail");
+   if(host){if(!notice){notice=mktEl("p",undefined,"mkt-notice warn");notice.id="mktConsentStatus";host.append(notice)}notice.textContent=msg;}
+   return;
+  }
+
   if(!confirm("Você conferiu uma autorização específica de Marketing para este telefone, com prova registrada? O aceite editorial sozinho não autoriza campanhas."))return;
   values.confirmed=true;
  }
