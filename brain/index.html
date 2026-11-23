@@ -662,9 +662,12 @@ body > .maildesk-jump-nav .btn:hover{background:#dff4f1;border-color:#66b9b0}
    <section class="maildesk-links-panel" style="margin:16px 0" id="mailDeskArticleEvidencePanel">
     <div class="maildesk-links-head"><strong>IA — identificação do artigo pelo anexo</strong><span class="hint">Títulos extraídos + pesquisa nas revistas</span></div>
     <div class="brain-article-manual">
-      <label for="mailDeskArticleTitleInput"><strong>Título do artigo para consulta</strong></label>
-      <textarea id="mailDeskArticleTitleInput" maxlength="250" rows="2" placeholder="Cole ou digite o título completo do artigo (pode corrigir o texto extraído do anexo)" aria-describedby="mailDeskArticleManualStatus"></textarea>
+      <label for="mailDeskArticleTitleInput"><strong>Título do artigo ou nome do autor</strong></label>
+      <textarea id="mailDeskArticleTitleInput" maxlength="250" rows="2" placeholder="Cole o título extraído do anexo ou digite o nome completo do autor" aria-describedby="mailDeskArticleManualStatus"></textarea>
       <div class="brain-article-search-row">
+        <label for="mailDeskArticleMode">Buscar por
+          <select id="mailDeskArticleMode"><option value="titulo">Título</option><option value="autor">Autor</option></select>
+        </label>
         <label for="mailDeskArticleTitleSuggested">Títulos detectados nos anexos
           <select id="mailDeskArticleTitleSuggested"><option value="">Escolha um título detectado</option></select>
         </label>
@@ -673,7 +676,7 @@ body > .maildesk-jump-nav .btn:hover{background:#dff4f1;border-color:#66b9b0}
         </label>
       </div>
       <div class="brain-article-input-actions">
-        <button type="button" class="btn primary small" id="mailDeskArticleTitleSearch" disabled>Pesquisar pelo título no Brain</button>
+        <button type="button" class="btn primary small" id="mailDeskArticleTitleSearch" disabled>Consultar bot nas revistas</button>
         <button type="button" class="btn small" id="mailDeskArticleTitleCopy">Copiar título</button>
       </div>
       <div class="brain-article-lookup-links" aria-label="Páginas de consulta dos periódicos">
@@ -681,12 +684,12 @@ body > .maildesk-jump-nav .btn:hover{background:#dff4f1;border-color:#66b9b0}
         <a data-brain-journal-consultation href="https://jrnm.ojsbr.com/juridica/declaracoes/consulta" target="_blank" rel="noopener noreferrer">Consultar RJNM</a>
         <a data-brain-journal-consultation href="https://rsv.ojsbr.com/rsv/declaracoes/consulta" target="_blank" rel="noopener noreferrer">Consultar RSV</a>
       </div>
-      <p class="hint">Os links abrem a consulta oficial de cada revista. Copie e cole o título no campo de pesquisa do site, se necessário. Nenhum artigo será vinculado automaticamente apenas pelo título digitado.</p>
+      <p class="hint">O bot pesquisa as páginas públicas pelos mesmos campos do formulário (título ou autor) e devolve os links encontrados. Não vincula autores ou artigos automaticamente sem confirmação.</p>
       <p class="hint" role="status" aria-live="polite" id="mailDeskArticleManualStatus">Selecione um título extraído dos anexos ou insira manualmente.</p>
     </div>
     <div id="mailDeskArticleEvidence" class="maildesk-docs"><p class="hint">Abra uma conversa para identificar o título, ID, DOI ou link do artigo nos anexos.</p></div>
     <div id="mailDeskArticleIdentityPanel" style="margin-top:14px">
-      <div class="maildesk-links-head"><strong>Correspondências encontradas</strong><button type="button" class="btn small" id="mailDeskArticleIdentityRefresh" disabled>Atualizar busca no histórico</button></div>
+      <div class="maildesk-links-head"><strong>Resultados do bot · links dos artigos</strong><button type="button" class="btn small" id="mailDeskArticleIdentityRefresh" disabled>Pesquisar novamente</button></div>
       <div id="mailDeskArticleIdentity" aria-live="polite"><p class="hint">Abra um e-mail para consultar os dados editoriais do artigo.</p></div>
     </div>
    </section>
@@ -5183,4 +5186,4 @@ if("serviceWorker" in navigator&&location.protocol==="https:"){
  window.addEventListener("load",()=>{navigator.serviceWorker.register("./sw.js",{scope:"./"}).catch(()=>{})});
 }
 brainRestoreSession();
-</script><script src="./email-article-card.js?v=20261122b" defer></script></body></html>
+</script><script src="./email-article-card.js?v=20261123-bot1" defer></script></body></html>
