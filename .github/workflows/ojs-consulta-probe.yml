@@ -51,3 +51,34 @@ jobs:
                   page.close()
               browser.close()
           PY
+      - name: Probe result query and available links
+        run: |
+          python - <<'PY'
+          import urllib.request,urllib.parse,html.parser,re
+          class Rows(html.parser.HTMLParser):
+              def __init__(self): super().__init__();self.links=[];self.tables=0;self.divs=[];self.texts=[];self.collect=""
+              def handle_starttag(self,tag,attrs):
+                  d=dict(attrs)
+                  if tag=="a":self.collect="a";self.current=d.get("href","")
+                  if tag=="table":self.tables+=1
+                  if tag=="div" and "result" in d.get("class","").lower():self.divs.append(d.get("class",""))
+              def handle_data(self,data):
+                  if self.collect=="a":self.texts.append(data.strip())
+              def handle_endtag(self,tag):
+                  if tag=="a":
+                      self.links.append((self.current,(self.texts[-1] if self.texts else "")[:100]));self.collect=""
+          samples=[("REMUNOM","https://remunom.ojsbr.com/multidisciplinar/declaracoes/consulta"),("RJNM","https://jrnm.ojsbr.com/juridica/declaracoes/consulta"),("RSV","https://rsv.ojsbr.com/rsv/declaracoes/consulta")]
+          examples=[("titulo","Governança institucional e inovação pedagógica na formação continuada docente de uma escola judicial"),("autor","Bruna Balthazar")]
+          for name,base in samples:
+              for kind,value in examples:
+                  url=base+"?"+urllib.parse.urlencode({"query":value,"tipo":kind})
+                  try:
+                      with urllib.request.urlopen(urllib.request.Request(url,headers={"User-Agent":"Mozilla/5.0"}),timeout=15) as resp:
+                          raw=resp.read(350000).decode("utf-8","replace");code=resp.status
+                      p=Rows();p.feed(raw)
+                      print("QUERY_RESULT",name,kind,code,"bytes",len(raw),"tables",p.tables,"links",p.links[-24:])
+                      for key in ["8388","Governança institucional","record(s) found","encontrado","Nenhum resultado"]:
+                          if key.lower() in raw.lower():
+                              pos=raw.lower().find(key.lower());print("MATCH_TEXT",name,kind,key,re.sub("<[^>]+>"," ",raw[max(0,pos-160):pos+350]).replace("\n"," ")[:450])
+                  except Exception as e:print("QUERY_ERROR",name,kind,str(e)[:200])
+          PY
