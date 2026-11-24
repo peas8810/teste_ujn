@@ -952,7 +952,9 @@ body > .maildesk-jump-nav .btn:hover{background:#dff4f1;border-color:#66b9b0}
     <div class="strategic-native-panel"><h3>Grafo de relações confirmadas</h3><p>Revistas conectadas a instituições identificadas em metadados HTML públicos; nomes ainda sujeitos a normalização.</p><div id="strategicGraphNetwork" class="strategic-native-scroll"></div></div>
     <div class="strategic-native-panel"><h3>Radar de tendências científicas</h3><p>Contagem de temas publicados nos últimos 90 dias versus 90 dias anteriores; sem alegação de previsão.</p><div id="strategicRadarTrends" class="strategic-native-scroll"></div></div>
     <div class="strategic-native-panel"><h3>Mapa de oportunidades por UF</h3><p>Regiões com maior número de pessoas graduadas na área relacionada, segundo Censo IBGE 2022.</p><label for="strategicOpportunityTheme" class="hint">Revista e tema <select id="strategicOpportunityTheme"></select></label><div id="strategicOpportunityRegions" class="strategic-native-scroll"></div></div>
-    <div class="strategic-native-panel"><h3>Recomendações fundamentadas</h3><div id="strategicOpportunityRules"></div><h4>Qualidade da coleta</h4><div id="strategicOpportunityCoverage"></div></div>
+    <div class="strategic-native-panel"><h3>Recomendações fundamentadas</h3><div id="strategicOpportunityRules"></div><h4>Planos sugeridos (somente rascunhos)</h4><div id="strategicCampaignPlans" class="strategic-native-scroll"></div>
+    <p class="hint">Cada proposta inclui evidências editoriais e, quando houver, UFs com dados acadêmicos. Nenhuma campanha é disparada automaticamente.</p>
+    <h4>Qualidade da coleta</h4><div id="strategicOpportunityCoverage"></div></div>
    </div>
    <p class="strategic-native-note">Este painel não cria lista de marketing a partir de visitantes anônimos. As regiões representam dados agregados e não identificam onde vivem autores ou contatos. A coleta pública respeita robots.txt e utiliza solicitações espaçadas; páginas bloqueadas não são contornadas.</p>
   </section>
@@ -3757,6 +3759,20 @@ function strategicArticleTrafficRender(data){
 
 
 
+
+function strategicCampaignPlansRender(data){
+ const root=$("strategicCampaignPlans");if(!root)return;
+ const planner=data.campaign_planner||{},plans=planner.proposed_campaigns||[];
+ strategicNativeTable(root,["Revista","Tema sugerido","Artigos recentes","UFs para investigar","Assunto de e-mail (rascunho)"],
+ plans.map(x=>[
+  x.journal,x.theme,Number(x.published_recent||0),
+  (x.research_ufs||[]).map(y=>y.uf).join(", ")||"Sem correspondência validada",
+  x.proposed_subject||""
+ ]));
+ const permission=planner.contact_readiness||{};
+ root.append(elem("p","Planejamento somente: "+strategicNativeNumber(permission.marketing_eligible_in_wa_view||0)+" contatos com autorização comercial identificada nessa visão de WhatsApp. Não representa a situação de todos os serviços de e-mail.","hint"));
+}
+
 function strategicKnowledgeRender(data){
  const target=$("strategicKnowledgeCenter");if(!target)return;
  const graph=data.knowledge_graph||{},radar=data.opportunity_radar||{};
@@ -3990,6 +4006,7 @@ function strategicNativeRender(data){
  strategicArticleTrafficRender(data);
  strategicMatrixRender(data);
  strategicKnowledgeRender(data);
+ strategicCampaignPlansRender(data);
  $("strategicNativeStatus").textContent="Atualizado · "+new Date().toLocaleTimeString("pt-BR");
 }
 async function strategicNativeLoad(from,to,sequence){
