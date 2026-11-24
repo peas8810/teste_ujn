@@ -945,6 +945,24 @@ body > .maildesk-jump-nav .btn:hover{background:#dff4f1;border-color:#66b9b0}
 
   
   
+  
+  <section class="strategic-native-panel" id="strategicDecisionLab" style="grid-column:1/-1" aria-label="Inteligência de Decisão">
+    <div class="strategic-native-head"><div><h3>Inteligência de Decisão · Evidências e estratégias</h3><p>Qualidade dos dados, anomalias, coortes, correlações temporais e revisão de hipóteses.</p></div><span class="strategic-native-chip" id="strategicDecisionStatus">Análise em preparação</span></div>
+    <div class="strategic-native-summary" id="strategicDecisionSummary"></div>
+    <div class="strategic-native-grid">
+      <div class="strategic-native-panel"><h3>Qualidade e cobertura das fontes</h3><div id="strategicDecisionQuality" class="strategic-native-scroll"></div></div>
+      <div class="strategic-native-panel"><h3>Detecção de tráfego atípico</h3><div id="strategicDecisionAnomalies" class="strategic-native-scroll"></div></div>
+      <div class="strategic-native-panel"><h3>Correlação com defasagem temporal</h3><label class="hint" for="strategicDecisionJournal">Revista <select id="strategicDecisionJournal"></select></label><div id="strategicDecisionLags" class="strategic-native-scroll"></div></div>
+      <div class="strategic-native-panel"><h3>Coortes institucionais</h3><p>Primeira participação e recorrência de instituições observadas no HTML público.</p><div id="strategicDecisionCohorts" class="strategic-native-scroll"></div></div>
+      <div class="strategic-native-panel"><h3>Diagnóstico de e-mails e entregabilidade</h3><div id="strategicDecisionEmail" class="strategic-native-scroll"></div></div>
+      <div class="strategic-native-panel"><h3>Hipóteses e explicações alternativas</h3><div id="strategicDecisionHypotheses" class="strategic-native-scroll"></div></div>
+    </div>
+    <h3>Registro histórico de decisões estratégicas</h3>
+    <p class="hint">As propostas mantêm evidências e limitações originais. Alterações são feitas somente após ação do administrador.</p>
+    <div id="strategicDecisionRegister" class="strategic-native-scroll"></div>
+    <div id="strategicDecisionFeedback" class="hint" aria-live="polite"></div>
+    <p class="strategic-native-note">Os indicadores são descritivos. Não há reidentificação de visitantes do GA4, inferência de consentimento de marketing, decisão automatizada sobre indivíduos ou disparo de mensagens. A interpretação de correlações exige revisão humana.</p>
+  </section>
   <section class="strategic-native-panel" id="strategicKnowledgeCenter" style="grid-column:1/-1" aria-label="Centro integrado de inteligência editorial e marketing">
    <div class="strategic-native-head"><div><h3>Centro de Inteligência Editorial e Marketing</h3><p>Rede de instituições, radar de tendências, oportunidades acadêmicas e diretrizes de campanhas. Fontes internas + HTML público das revistas.</p></div><span class="strategic-native-chip" id="strategicScrapeStatus">Metadados em coleta</span></div>
    <div class="strategic-native-summary" id="strategicKnowledgeSummary"></div>
@@ -3773,6 +3791,111 @@ function strategicCampaignPlansRender(data){
  root.append(elem("p","Planejamento somente: "+strategicNativeNumber(permission.marketing_eligible_in_wa_view||0)+" contatos com autorização comercial identificada nessa visão de WhatsApp. Não representa a situação de todos os serviços de e-mail.","hint"));
 }
 
+
+const STRATEGIC_DECISION_STATES={PROPOSED:"Proposta",UNDER_REVIEW:"Em análise",APPROVED:"Aprovada",REJECTED:"Rejeitada",TESTING:"Em teste",COMPLETED:"Concluída"};
+function strategicDecisionRender(data){
+ const quality=data.decision_quality||{},anom=data.decision_anomalies||{},lags=data.decision_lags||{},
+ cohorts=data.decision_cohorts||{},email=data.decision_email||{},hyp=data.decision_hypotheses||{},
+ reg=data.decision_register||{};
+ const summary=$("strategicDecisionSummary");if(!summary)return;
+ summary.replaceChildren();
+ for(const [name,val] of [
+  ["Fontes auditadas",(quality.sources||[]).length],
+  ["Alertas geográficos",(anom.geography_review||[]).length],
+  ["Correlação com defasagens",(lags.lags||[]).length],
+  ["Decisões registradas",reg.total||0]
+ ]){
+  const box=elem("div",undefined,"mini");box.append(elem("strong",strategicNativeNumber(val)),elem("span",name));summary.append(box);
+ }
+ $("strategicDecisionStatus").textContent="Atualizado · "+new Date().toLocaleTimeString("pt-BR");
+ strategicNativeTable($("strategicDecisionQuality"),["Fonte","Registros","Cobertura","Situação"],
+ (quality.sources||[]).map(x=>[x.source,Number(x.records||0),x.coverage_pct===null||x.coverage_pct===undefined?"N/D":Number(x.coverage_pct).toLocaleString("pt-BR")+"%",x.status]));
+ const flags=(anom.geography_review||[]).slice(0,12);
+ const daily=(anom.daily_outliers||[]).slice(0,12);
+ const alerts=$("strategicDecisionAnomalies");alerts.replaceChildren();
+ alerts.append(elem("p","Localizações que merecem revisão (não são prova de bots):","hint"));
+ const alertTable=elem("div",undefined,"strategic-native-scroll");
+ strategicNativeTable(alertTable,["Revista","Localidade","Usuários","% cidades amostradas"],
+ flags.map(x=>[x.journal_code,x.geo_label,Number(x.active_users||0),x.share_of_visible_cities===null?"—":String(x.share_of_visible_cities)+"%"]));
+ alerts.append(alertTable,elem("p","Dias com sessões fora da faixa exploratória (|z| ≥ 2):","hint"));
+ const spikes=elem("div",undefined,"strategic-native-scroll");
+ strategicNativeTable(spikes,["Revista","Data","Sessões","Desvio z"],
+ daily.map(x=>[x.journal_code,x.report_day,Number(x.sessions||0),x.z_score]));
+ alerts.append(spikes);
+ const lagSelector=$("strategicDecisionJournal"),lagRows=lags.lags||[],jn=[...new Set(lagRows.map(x=>x.journal_code))].sort();
+ const old=lagSelector.value;lagSelector.replaceChildren();
+ for(const j of jn){const opt=elem("option",j);opt.value=j;lagSelector.append(opt)}
+ if(jn.includes(old))lagSelector.value=old;
+ const drawLag=()=>{
+  const chosen=lagRows.filter(x=>x.journal_code===lagSelector.value);
+  strategicNativeTable($("strategicDecisionLags"),["Defasagem","Dias","Pearson","Condição"],chosen.map(x=>[Number(x.lag_days),Number(x.n),x.pearson==null?"N/D":Number(x.pearson).toFixed(3),x.status]));
+ };
+ lagSelector.onchange=drawLag;drawLag();
+ strategicNativeTable($("strategicDecisionCohorts"),["Revista","Primeira aparição","Instituições","Recorrentes"],
+ (cohorts.cohorts||[]).slice(-30).map(x=>[x.journal_code,x.first_seen_month,Number(x.institutions||0),Number(x.recurring_institutions||0)]));
+ const mail=email.metrics||{},links=email.linkage||{},readiness=email.monitoring_readiness||{};
+ const diag=$("strategicDecisionEmail");diag.replaceChildren();
+ for(const line of [
+  "Mensagens recebidas: "+strategicNativeNumber(mail.inbound),
+  "Mensagens enviadas (atendimento): "+strategicNativeNumber(mail.outbound),
+  "Assuntos potencialmente relacionados a devolução: "+strategicNativeNumber(mail.potential_bounce_subjects),
+  "Conversas com revista + artigo vinculados: "+strategicNativeNumber(links.with_article)+" / "+strategicNativeNumber(links.total_threads),
+  "Taxa verificada de reclamações: "+(readiness.complaint_rate_available?"Disponível":"Indisponível"),
+  "Taxa verificada de entrega: "+(readiness.smtp_deliverability_verified?"Disponível":"Indisponível"),
+  "Não considerar os horários de recebimento como horário ótimo para campanhas."
+ ])diag.append(elem("p",line,"hint"));
+ const ideas=$("strategicDecisionHypotheses");ideas.replaceChildren();
+ const editorial=(hyp.editorial_hypotheses||[]).slice(0,12);
+ strategicNativeTable(ideas,["Revista","Tema","Hipótese","Evidência"],
+ editorial.map(x=>[x.journal_code,x.topic_label,x.hypothesis,x.evidence_level]));
+ const geography=(hyp.geography_hypotheses||[]).slice(0,5);
+ if(geography.length){
+  ideas.append(elem("p","Explicações alternativas para tráfego geograficamente concentrado: público real, VPN/proxy ou infraestrutura automatizada. Ainda não há conclusão.","hint"));
+ }
+ strategicDecisionRegisterRender(reg);
+}
+function strategicDecisionRegisterRender(reg){
+ const root=$("strategicDecisionRegister");if(!root)return;
+ root.replaceChildren();
+ const entries=(reg.items||[]);
+ if(!entries.length){root.append(elem("p","Nenhuma proposta registrada.","hint"));return}
+ const table=elem("table",undefined,"strategic-native-table"),header=elem("tr");
+ for(const label of ["Revista","Hipótese","Evidência","Situação","Observação","Ação"])header.append(elem("th",label));
+ table.append(header);
+ for(const item of entries){
+  const row=elem("tr");
+  row.append(elem("td",item.journal_code||"—"),elem("td",item.hypothesis||"—"));
+  const evidence=item.evidence||{};
+  row.append(elem("td",[evidence.topic, evidence.recent_90d==null?"":("Últimos 90 dias: "+evidence.recent_90d)].filter(Boolean).join(" · ")));
+  const sel=elem("select");sel.setAttribute("aria-label","Situação da proposta "+item.id);
+  for(const [status,label] of Object.entries(STRATEGIC_DECISION_STATES)){
+   const option=elem("option",label);option.value=status;sel.append(option);
+  }
+  sel.value=item.status||"PROPOSED";const statusCell=elem("td");statusCell.append(sel);row.append(statusCell);
+  const note=elem("input");note.type="text";note.maxLength=2000;note.value=item.observation||"";note.placeholder="Justificativa ou resultado";note.style.minWidth="185px";
+  note.setAttribute("aria-label","Observação da proposta "+item.id);
+  const noteCell=elem("td");noteCell.append(note);row.append(noteCell);
+  const save=elem("button","Salvar","btn btn-primary");save.type="button";
+  save.setAttribute("aria-label","Salvar decisão "+item.id);
+  save.addEventListener("click",async()=>{
+   const feedback=$("strategicDecisionFeedback");save.disabled=true;feedback.textContent="Salvando decisão...";
+   try{
+    await brainEnsureAccess();
+    const res=await fetch(STRATEGIC_NATIVE_API,{method:"POST",cache:"no-store",
+     headers:{"content-type":"application/json","apikey":STRATEGIC_NATIVE_PUB,"authorization":"Bearer "+token},
+     body:JSON.stringify({action:"decision_status",id:item.id,status:sel.value,observation:note.value})});
+    const result=await res.json().catch(()=>({}));
+    if(!res.ok||result.ok!==true)throw Error(result.error||"Falha HTTP "+res.status);
+    item.status=sel.value;item.observation=note.value;
+    feedback.textContent="Decisão "+item.id+" atualizada no registro.";
+   }catch(e){feedback.textContent="Não foi possível registrar a alteração: "+(e?.message||"erro");sel.value=item.status||"PROPOSED"}
+   finally{save.disabled=false}
+  });
+  const action=elem("td");action.append(save);row.append(action);table.append(row);
+ }
+ root.append(table);
+}
+
 function strategicKnowledgeRender(data){
  const target=$("strategicKnowledgeCenter");if(!target)return;
  const graph=data.knowledge_graph||{},radar=data.opportunity_radar||{};
@@ -4007,6 +4130,7 @@ function strategicNativeRender(data){
  strategicMatrixRender(data);
  strategicKnowledgeRender(data);
  strategicCampaignPlansRender(data);
+ strategicDecisionRender(data);
  $("strategicNativeStatus").textContent="Atualizado · "+new Date().toLocaleTimeString("pt-BR");
 }
 async function strategicNativeLoad(from,to,sequence){
