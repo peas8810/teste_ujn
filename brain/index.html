@@ -944,6 +944,18 @@ body > .maildesk-jump-nav .btn:hover{background:#dff4f1;border-color:#66b9b0}
   <div class="strategic-native-grid">
 
   
+  
+  <section class="strategic-native-panel" id="strategicKnowledgeCenter" style="grid-column:1/-1" aria-label="Centro integrado de inteligência editorial e marketing">
+   <div class="strategic-native-head"><div><h3>Centro de Inteligência Editorial e Marketing</h3><p>Rede de instituições, radar de tendências, oportunidades acadêmicas e diretrizes de campanhas. Fontes internas + HTML público das revistas.</p></div><span class="strategic-native-chip" id="strategicScrapeStatus">Metadados em coleta</span></div>
+   <div class="strategic-native-summary" id="strategicKnowledgeSummary"></div>
+   <div class="strategic-native-grid">
+    <div class="strategic-native-panel"><h3>Grafo de relações confirmadas</h3><p>Revistas conectadas a instituições identificadas em metadados HTML públicos; nomes ainda sujeitos a normalização.</p><div id="strategicGraphNetwork" class="strategic-native-scroll"></div></div>
+    <div class="strategic-native-panel"><h3>Radar de tendências científicas</h3><p>Contagem de temas publicados nos últimos 90 dias versus 90 dias anteriores; sem alegação de previsão.</p><div id="strategicRadarTrends" class="strategic-native-scroll"></div></div>
+    <div class="strategic-native-panel"><h3>Mapa de oportunidades por UF</h3><p>Regiões com maior número de pessoas graduadas na área relacionada, segundo Censo IBGE 2022.</p><label for="strategicOpportunityTheme" class="hint">Revista e tema <select id="strategicOpportunityTheme"></select></label><div id="strategicOpportunityRegions" class="strategic-native-scroll"></div></div>
+    <div class="strategic-native-panel"><h3>Recomendações fundamentadas</h3><div id="strategicOpportunityRules"></div><h4>Qualidade da coleta</h4><div id="strategicOpportunityCoverage"></div></div>
+   </div>
+   <p class="strategic-native-note">Este painel não cria lista de marketing a partir de visitantes anônimos. As regiões representam dados agregados e não identificam onde vivem autores ou contatos. A coleta pública respeita robots.txt e utiliza solicitações espaçadas; páginas bloqueadas não são contornadas.</p>
+  </section>
   <div class="strategic-native-panel" id="strategicMatrixHeatmap" style="grid-column:1/-1">
     <div class="strategic-native-head"><div><h3>Matriz geral de correlações e relacionamento de fontes</h3><p>Correlação Pearson diária, por revista, com evidências e limitações explícitas.</p></div><label class="hint" for="strategicMatrixJournal">Revista <select id="strategicMatrixJournal"></select></label></div>
     <div id="strategicMatrixQuality" class="hint" aria-live="polite"></div>
@@ -3744,6 +3756,72 @@ function strategicArticleTrafficRender(data){
 }
 
 
+
+function strategicKnowledgeRender(data){
+ const target=$("strategicKnowledgeCenter");if(!target)return;
+ const graph=data.knowledge_graph||{},radar=data.opportunity_radar||{};
+ const counts=graph.coverage||{},meta=radar.metadata_quality||{},sum=$("strategicKnowledgeSummary");
+ sum.replaceChildren();
+ for(const [label,value] of [
+  ["Artigos com instituição extraída",counts.publications_with_institutions],
+  ["Nomes institucionais observados",counts.institutions_found],
+  ["DOIs verificados por HTML",meta.with_doi],
+  ["Tendências revista × tema",(radar.editorial_theme_trends||[]).length]
+ ]){
+  const card=elem("div",undefined,"mini");card.append(elem("strong",strategicNativeNumber(value)),elem("span",label));sum.append(card);
+ }
+ $("strategicScrapeStatus").textContent="HTML público processado: "+strategicNativeNumber(meta.pages_scraped||0);
+ const edges=(graph.journal_institution_edges||[]).filter(x=>Number(x.publications)>0).slice(0,23);
+ const graphArea=$("strategicGraphNetwork");graphArea.replaceChildren();
+ if(edges.length){
+  const journals=[...new Set(edges.map(x=>x.journal_code))].sort();
+  const institutions=[...new Set(edges.map(x=>x.institution))].slice(0,20);
+  const width=720,height=Math.max(320,institutions.length*30+40);
+  const ns="http://www.w3.org/2000/svg",svg=document.createElementNS(ns,"svg");
+  svg.setAttribute("viewBox","0 0 "+width+" "+height);svg.style.cssText="max-width:100%;min-width:620px;height:auto;background:#f7fbfc;border-radius:9px";
+  const coords=new Map(institutions.map((n,i)=>[n,25+i*30]));
+  const jY=new Map(journals.map((n,i)=>[n,35+(height-65)*i/Math.max(1,journals.length-1)]));
+  const append=(tag,attrs,label)=>{
+   const e=document.createElementNS(ns,tag);
+   Object.entries(attrs).forEach(([k,v])=>e.setAttribute(k,String(v)));
+   if(label!==undefined)e.textContent=String(label);svg.append(e);return e;
+  };
+  for(const edge of edges){
+   const y1=jY.get(edge.journal_code),y2=coords.get(edge.institution);
+   if(y1==null||y2==null)continue;
+   append("line",{x1:115,y1,x2:360,y2,stroke:"#8cb5b4","stroke-width":Math.min(5,1+Number(edge.publications)),opacity:0.6});
+  }
+  for(const j of journals){const y=jY.get(j);append("rect",{x:12,y:y-13,width:102,height:26,rx:8,fill:"#176f72"});append("text",{x:63,y:y+4,"font-size":12,"text-anchor":"middle",fill:"white"},j)}
+  for(const n of institutions){const y=coords.get(n);append("circle",{cx:359,cy:y,r:5,fill:"#319c98"});const t=append("text",{x:375,y:y+4,"font-size":11,fill:"#254a58"},n.length>52?n.slice(0,49)+"…":n);t.setAttribute("aria-label",n)}
+  graphArea.append(svg);
+ }else graphArea.append(elem("p","A coleta de instituições públicas está no início. A rede surgirá conforme os metadados forem verificados.","hint"));
+ const trends=(radar.editorial_theme_trends||[]).slice().sort((a,b)=>Number(b.recent_90d)-Number(a.recent_90d)).slice(0,25);
+ const fmtTrend=x=>x.trend==="GROWING"?"Em alta":x.trend==="DECLINING"?"Em queda":x.trend==="STABLE"?"Estável":"Sem base anterior";
+ strategicNativeTable($("strategicRadarTrends"),["Revista","Tema","90 dias","90 dias anteriores","Evolução"],trends.map(x=>[x.journal_code,x.topic_label,Number(x.recent_90d),Number(x.prior_90d),fmtTrend(x)]));
+ const opportunity=(radar.academic_region_opportunities||[]),sel=$("strategicOpportunityTheme");
+ const options=[...new Map(opportunity.map(x=>[x.journal_code+" / "+x.topic_label,{key:x.journal_code+" / "+x.topic_label,topic:x.topic_label,journal:x.journal_code}])).values()];
+ const prev=sel.value;sel.replaceChildren();for(const item of options){const o=elem("option",item.key);o.value=item.key;sel.append(o)}
+ if(options.some(x=>x.key===prev))sel.value=prev;
+ const draw=()=>{
+  const item=options.find(x=>x.key===sel.value);
+  const filtered=item?opportunity.filter(x=>x.journal_code===item.journal&&x.topic_label===item.topic):[];
+  strategicNativeTable($("strategicOpportunityRegions"),["UF","Área IBGE relacionada","Graduados (2022)"],filtered.map(x=>[x.uf,x.education_area,Number(x.people_in_area)]));
+ };
+ sel.onchange=draw;draw();
+ const advice=$("strategicOpportunityRules");advice.replaceChildren();
+ for(const r of radar.recommendations||[]){
+  const p=elem("p",(r.priority||"")+" · "+(r.action||""),"hint");
+  advice.append(p);
+ }
+ const quality=$("strategicOpportunityCoverage");quality.replaceChildren();
+ for(const t of [
+  "Artigos com DOI extraído: "+strategicNativeNumber(meta.with_doi),
+  "Artigos com palavras-chave: "+strategicNativeNumber(meta.with_keywords),
+  "Artigos com instituição: "+strategicNativeNumber(meta.with_institution),
+  "Afiliações formalmente normalizadas: "+strategicNativeNumber(counts.formally_verified_affiliations)
+ ])quality.append(elem("p",t,"hint"));
+}
+
 function strategicMatrixRender(data){
  const panel=$("strategicMatrixHeatmap");if(!panel)return;
  const mat=data.correlation_matrix||{},pairs=mat.correlations||[],selector=$("strategicMatrixJournal");
@@ -3911,6 +3989,7 @@ function strategicNativeRender(data){
  strategicCrossRender(data);
  strategicArticleTrafficRender(data);
  strategicMatrixRender(data);
+ strategicKnowledgeRender(data);
  $("strategicNativeStatus").textContent="Atualizado · "+new Date().toLocaleTimeString("pt-BR");
 }
 async function strategicNativeLoad(from,to,sequence){
