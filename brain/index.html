@@ -942,6 +942,22 @@ body > .maildesk-jump-nav .btn:hover{background:#dff4f1;border-color:#66b9b0}
    <p class="strategic-native-note">Fonte: Google Analytics Data API. Usuários não são deduplicados entre propriedades. Cidades indicam geolocalização aproximada do tráfego e não residência comprovada. As listas apresentam as principais linhas por propriedade; totais de canais e cidades não devem ser somados para calcular usuários únicos.</p>
   </div>
   <div class="strategic-native-grid">
+
+  <div class="strategic-native-panel" id="strategicCorrelationMarketing" style="margin:12px 0">
+   <h3>Correlação de dados e inteligência para campanhas</h3>
+   <p class="hint">GA4 × publicações OJS × atividades de e-mail × permissões. Dados agregados e análises exploratórias, sem associação de visitantes anônimos a contatos.</p>
+   <div class="strategic-native-grid">
+    <div><h4>Tráfego e publicações por revista</h4><div id="strategicCrossCorrelation" class="strategic-native-scroll"></div></div>
+    <div><h4>Como encontram as revistas</h4><div id="strategicCrossPages" class="strategic-native-scroll"></div></div>
+    <div><h4>Horários de maior atividade de e-mail</h4><div id="strategicCrossEmail" class="strategic-native-scroll"></div></div>
+    <div><h4>Confiabilidade e vínculos</h4><div id="strategicCrossQuality"></div></div>
+   </div>
+   <h4>Modelos estatísticos e Machine Learning — viabilidade com os dados existentes</h4>
+   <div id="strategicCrossModels" class="strategic-native-scroll"></div>
+   <h4>Diretrizes para campanhas e disparos de e-mail</h4>
+   <div id="strategicCrossAdvice"></div>
+   <p class="strategic-native-note">As correlações não demonstram causalidade. O GA4 não fornece dados pessoais, nem informa por si só o termo digitado na busca interna. E-mails de atendimento e contatos sem autorização não são listas de marketing.</p>
+  </div>
    <div class="strategic-native-panel"><h3>Acervo publicado nas cinco revistas</h3><div id="strategicNativeOjs" class="strategic-native-scroll"></div></div>
    <div class="strategic-native-panel"><h3>Assuntos observados no OJS</h3><div id="strategicNativeTopics" class="strategic-native-scroll"></div></div>
    <div class="strategic-native-panel"><h3>Calendário de publicações</h3><p>Mapa de calor mensal calculado apenas com artigos publicados no período selecionado.</p><div id="strategicNativeCalendar" class="strategic-native-scroll"></div></div>
@@ -3706,6 +3722,39 @@ function strategicNativeAreaRender(data){
  block.append(cityRoot,elem("p","Censo IBGE 2022. Contagens oficiais; ausências não são tratadas como zero.","hint"));root.replaceChildren(block);
 }
 
+
+function strategicCrossRender(data){
+ const report=data.marketing_intelligence||{};
+ const quality=report.quality||{},email=quality.email||{},ojs=quality.ojs||{},perms=quality.permissions||{};
+ if(!$("strategicCrossCorrelation"))return;
+ const correlations=report.traffic_vs_publications||[];
+ strategicNativeTable($("strategicCrossCorrelation"),["Revista","Dias","Correlação sessões × artigos","Tendência sessões/dia"],correlations.map(x=>[
+   x.journal_code,Number(x.days||0),x.correlation==null?"Indeterminada":Number(x.correlation).toFixed(3),
+   x.sessions_trend_day==null?"—":Number(x.sessions_trend_day).toLocaleString("pt-BR",{maximumFractionDigits:2})
+ ]));
+ strategicNativeTable($("strategicCrossPages"),["Revista","Página / busca","Visualizações*"],(report.visited_page_categories||[])
+ .filter(x=>x.page_category!=="OUTRAS_PAGINAS").sort((a,b)=>Number(b.sampled_views||0)-Number(a.sampled_views||0))
+ .slice(0,14).map(x=>[x.journal_code,String(x.page_category||"").replace(/_/g," ").toLowerCase(),Number(x.sampled_views||0)]));
+ const emailHours=(report.email_busy_hours||[]).slice(0,8);
+ strategicNativeTable($("strategicCrossEmail"),["Dia da semana","Hora (Brasília)","Recebidos"],emailHours.map(x=>[
+ ["","Seg","Ter","Qua","Qui","Sex","Sáb","Dom"][Number(x.weekday)]||"—",
+ String(x.hour_local).padStart(2,"0")+":00",Number(x.received||0)
+ ]));
+ const status=$("strategicCrossQuality");status.replaceChildren();
+ for(const line of [
+  "Artigos OJS: "+strategicNativeNumber(ojs.published)+". Metadados de DOI: "+strategicNativeNumber(ojs.with_doi)+".",
+  "Sem instituição verificada no catálogo: "+strategicNativeNumber(Number(ojs.published||0)-Number(ojs.with_affiliation||0))+".",
+  "Conversas de e-mail vinculadas a artigo: "+strategicNativeNumber(email.linked_articles)+" de "+strategicNativeNumber(email.active_threads)+".",
+  "Contatos de WhatsApp no universo comercial: "+strategicNativeNumber(perms.contacts)+"; com autorização comercial registrada: "+strategicNativeNumber(perms.marketing_ready)+".",
+  "GA4: "+strategicNativeNumber(quality.ga4_properties)+" propriedades; "+strategicNativeNumber(quality.ga4_daily_observations)+" observações diárias de revista."
+ ])status.append(elem("p",line,"hint"));
+ const statuses={EXPLORATORY:"Exploratório",NEEDS_LABELS:"Aguardando rótulos",NEEDS_VERIFIED_FEATURES:"Aguardando vínculos",NEEDS_LABELED_TEXT:"Aguardando classificação",RULES_ONLY:"Regras de decisão",AGGREGATE_FEASIBLE:"Viável com dados agregados",NEEDS_LONGER_SERIES:"Aguardando histórico",NOT_JUSTIFIED:"Não indicado agora",OPTIONAL_REVIEWED_TEXT:"Opcional supervisionado",CREATIVE_ONLY:"Produção visual"};
+ strategicNativeTable($("strategicCrossModels"),["Modelo","Estado","Justificativa"],(report.model_readiness||[]).map(x=>[x.name,statuses[x.state]||x.state,x.reason]));
+ const adv=$("strategicCrossAdvice");adv.replaceChildren();
+ for(const idea of report.recommendations||[])adv.append(elem("p","• "+idea,"hint"));
+ adv.append(elem("p","*Somente as páginas mais acessadas coletadas do GA4. Horários são de recebimento de mensagens, não uma previsão do melhor horário de abertura.","strategic-native-note"));
+}
+
 function strategicGA4Render(data){
  const report=data.ga4||{},properties=report.property_totals||[],rows=report.breakdowns||[];
  const selector=$("strategicGa4Journal"),status=$("strategicGa4Status"),summary=$("strategicGa4Summary");
@@ -3798,6 +3847,7 @@ function strategicNativeRender(data){
   "Esta seção é informativa; não envia campanhas nem altera consentimentos."
  ])quality.append(elem("p",line));
  strategicGA4Render(data);
+ strategicCrossRender(data);
  $("strategicNativeStatus").textContent="Atualizado · "+new Date().toLocaleTimeString("pt-BR");
 }
 async function strategicNativeLoad(from,to,sequence){
