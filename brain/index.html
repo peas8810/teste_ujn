@@ -943,6 +943,15 @@ body > .maildesk-jump-nav .btn:hover{background:#dff4f1;border-color:#66b9b0}
   </div>
   <div class="strategic-native-grid">
 
+  
+  <div class="strategic-native-panel" id="strategicMatrixHeatmap" style="grid-column:1/-1">
+    <div class="strategic-native-head"><div><h3>Matriz geral de correlações e relacionamento de fontes</h3><p>Correlação Pearson diária, por revista, com evidências e limitações explícitas.</p></div><label class="hint" for="strategicMatrixJournal">Revista <select id="strategicMatrixJournal"></select></label></div>
+    <div id="strategicMatrixQuality" class="hint" aria-live="polite"></div>
+    <div id="strategicMatrixCells" class="strategic-native-scroll"></div>
+    <h4>Quais fontes podem realmente ser conectadas?</h4>
+    <div id="strategicMatrixSources" class="strategic-native-scroll"></div>
+    <p class="strategic-native-note">A matriz mostra associações temporais exploratórias, não causalidade. Células cinzas indicam dados insuficientes ou ausência de variação. Forte correlação entre sessões e visualizações GA4 é esperada por construção. GA4 não identifica e-mail, telefone ou pessoa.</p>
+  </div>
   <div class="strategic-native-panel" id="strategicCorrelationMarketing" style="margin:12px 0">
    <h3>Correlação de dados e inteligência para campanhas</h3>
    <p class="hint">GA4 × publicações OJS × atividades de e-mail × permissões. Dados agregados e análises exploratórias, sem associação de visitantes anônimos a contatos.</p>
@@ -3734,6 +3743,47 @@ function strategicArticleTrafficRender(data){
   articles.map(x=>[x.journal_code,x.article_title,x.topic_label||"Não classificado",Number(x.views_in_sample||0)]));
 }
 
+
+function strategicMatrixRender(data){
+ const panel=$("strategicMatrixHeatmap");if(!panel)return;
+ const mat=data.correlation_matrix||{},pairs=mat.correlations||[],selector=$("strategicMatrixJournal");
+ const journals=[...new Set(pairs.map(x=>x.journal_code))].sort();
+ const previous=selector.value;selector.replaceChildren();
+ for(const name of journals){const opt=elem("option",name);opt.value=name;selector.append(opt)}
+ if(journals.includes(previous))selector.value=previous;
+ const links=(mat.source_links||[]);
+ const linkMap={"DETERMINISTIC_PUBLIC_CONTENT":"Vínculo verificável","SPARSE_VERIFIED":"Vínculos escassos","EDITORIAL_LINK":"Vínculo editorial","AGGREGATE_ONLY":"Somente agregado","NOT_LINKABLE":"Não relacionável","PENDING_AFFILIATION":"Faltam dados"};
+ strategicNativeTable($("strategicMatrixSources"),["Fontes","Chave / critério","Confiabilidade","Registros observados"],
+ links.map(x=>[x.relation,x.verified_key,linkMap[x.status]||x.status,Number(x.records||0)]));
+ const draw=()=>{
+  const journal=selector.value,records=pairs.filter(x=>x.journal_code===journal);
+  const metricLabels=["Artigos OJS","Eventos WhatsApp","Sessões GA4","Usuários GA4","Visualizações GA4"];
+  const map=new Map();
+  for(const x of records){map.set(x.metric_a+"|"+x.metric_b,x);map.set(x.metric_b+"|"+x.metric_a,x)}
+  const table=elem("table",undefined,"strategic-native-table"),head=elem("tr");
+  head.append(elem("th","Indicador"));
+  for(const metric of metricLabels)head.append(elem("th",metric));
+  table.append(head);
+  for(const m1 of metricLabels){
+   const tr=elem("tr");tr.append(elem("th",m1));
+   for(const m2 of metricLabels){
+    const cell=map.get(m1+"|"+m2),value=Number(cell?.pearson),valid=cell?.pearson!==null&&cell?.pearson!==undefined;
+    const td=elem("td",valid?value.toFixed(2):"N/D");td.style.textAlign="center";td.style.fontWeight="600";
+    if(valid){
+     const intensity=Math.min(1,Math.abs(value));
+     td.style.background=value>=0?("rgba(19,135,126,"+(0.08+0.68*intensity).toFixed(3)+")"):("rgba(198,94,66,"+(0.08+0.68*intensity).toFixed(3)+")");
+     td.title=(cell?.observations||0)+" dias · Pearson: "+value.toFixed(3)+" · associação exploratória";
+    }else{td.style.background="rgba(130,140,150,0.12)";td.title=cell?.status||"Sem dados"}
+    tr.append(td);
+   }table.append(tr);
+  }
+  $("strategicMatrixCells").replaceChildren(table);
+  const c=(mat.coverage||[]).find(x=>x.journal_code===journal);
+  $("strategicMatrixQuality").textContent=c?(c.observed_days+" dias comparáveis · "+c.period_published+" artigos publicados · "+c.period_wa_events+" eventos editoriais WhatsApp observados · "+c.start_date+" a "+c.end_date):"Sem série temporal comparável";
+ };
+ selector.onchange=draw;draw();
+}
+
 function strategicCrossRender(data){
  const report=data.marketing_intelligence||{};
  const quality=report.quality||{},email=quality.email||{},ojs=quality.ojs||{},perms=quality.permissions||{};
@@ -3860,6 +3910,7 @@ function strategicNativeRender(data){
  strategicGA4Render(data);
  strategicCrossRender(data);
  strategicArticleTrafficRender(data);
+ strategicMatrixRender(data);
  $("strategicNativeStatus").textContent="Atualizado · "+new Date().toLocaleTimeString("pt-BR");
 }
 async function strategicNativeLoad(from,to,sequence){
