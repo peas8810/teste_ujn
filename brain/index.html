@@ -928,6 +928,19 @@ body > .maildesk-jump-nav .btn:hover{background:#dff4f1;border-color:#66b9b0}
  <section class="strategic-native" id="strategicNative" aria-label="Inteligência para campanhas baseada no Brain UJN">
   <div class="strategic-native-head"><div><h2>Pesquisa para campanhas · dados verificados</h2><p>Histórico publicado via OJS, temas por revista e mapa acadêmico IBGE. Sem disparos de mensagens nem métricas de retorno.</p></div><span id="strategicNativeStatus" class="strategic-native-chip" aria-live="polite">Preparando consulta</span></div>
   <div class="strategic-native-summary" id="strategicNativeSummary"></div>
+
+  <div id="strategicGa4Panel" class="strategic-native-panel" style="margin-top:14px">
+   <div class="strategic-native-head"><div><h3>Google Analytics 4 · tráfego das cinco revistas</h3><p>Usuários, sessões, visualizações, cidades, páginas e canais. Últimos 30 dias completos, atualizados pelo Supabase.</p></div><label class="hint" for="strategicGa4Journal">Revista <select id="strategicGa4Journal" aria-label="Selecionar revista para detalhar o tráfego"></select></label></div>
+   <div id="strategicGa4Status" class="hint" aria-live="polite"></div>
+   <div class="strategic-native-summary" id="strategicGa4Summary"></div>
+   <div class="strategic-native-grid">
+    <div class="strategic-native-panel"><h3>Cidades com mais visitantes</h3><div id="strategicGa4Cities" class="strategic-native-scroll"></div></div>
+    <div class="strategic-native-panel"><h3>Páginas mais acessadas</h3><div id="strategicGa4Pages" class="strategic-native-scroll"></div></div>
+    <div class="strategic-native-panel"><h3>Origem do tráfego</h3><div id="strategicGa4Channels" class="strategic-native-scroll"></div></div>
+    <div class="strategic-native-panel"><h3>Visitas por dia</h3><div id="strategicGa4Daily" class="strategic-native-scroll"></div></div>
+   </div>
+   <p class="strategic-native-note">Fonte: Google Analytics Data API. Usuários não são deduplicados entre propriedades. Cidades indicam geolocalização aproximada do tráfego e não residência comprovada. As listas apresentam as principais linhas por propriedade; totais de canais e cidades não devem ser somados para calcular usuários únicos.</p>
+  </div>
   <div class="strategic-native-grid">
    <div class="strategic-native-panel"><h3>Acervo publicado nas cinco revistas</h3><div id="strategicNativeOjs" class="strategic-native-scroll"></div></div>
    <div class="strategic-native-panel"><h3>Assuntos observados no OJS</h3><div id="strategicNativeTopics" class="strategic-native-scroll"></div></div>
@@ -3692,6 +3705,41 @@ function strategicNativeAreaRender(data){
  strategicNativeTable(cityRoot,["Município","UF","Graduados"],all.map(x=>[x.municipality,x.uf,Number(x.graduates_area||0)]));
  block.append(cityRoot,elem("p","Censo IBGE 2022. Contagens oficiais; ausências não são tratadas como zero.","hint"));root.replaceChildren(block);
 }
+
+function strategicGA4Render(data){
+ const report=data.ga4||{},properties=report.property_totals||[],rows=report.breakdowns||[];
+ const selector=$("strategicGa4Journal"),status=$("strategicGa4Status"),summary=$("strategicGa4Summary");
+ if(!selector||!summary)return;
+ if(!properties.length){
+  status.textContent="Ainda sem dados GA4 importados. A sincronização está configurada no servidor.";
+  summary.replaceChildren();
+  ["strategicGa4Cities","strategicGa4Pages","strategicGa4Channels","strategicGa4Daily"].forEach(id=>$(id)?.replaceChildren(elem("p","Sem dados GA4 disponíveis.","hint")));
+  return;
+ }
+ const prior=selector.value;selector.replaceChildren();
+ for(const item of properties){
+  const option=elem("option",item.journal_code);option.value=item.journal_code;selector.append(option);
+ }
+ if(properties.some(x=>x.journal_code===prior))selector.value=prior;
+ const draw=()=>{
+  const journal=selector.value,prop=properties.find(x=>x.journal_code===journal);
+  if(!prop)return;
+  const start=prop.range_start||"",end=prop.range_end||"";
+  status.textContent="Período GA4: "+start+" a "+end+" · atualizado "+(prop.fetched_at?new Date(prop.fetched_at).toLocaleString("pt-BR"):"—");
+  summary.replaceChildren();
+  for(const [title,val] of [["Usuários ativos",prop.active_users],["Sessões",prop.sessions],["Visualizações",prop.page_views]]){
+   const mini=elem("div",undefined,"mini");mini.append(elem("strong",strategicNativeNumber(val)),elem("span",title));summary.append(mini);
+  }
+  const selected=type=>rows.filter(x=>x.journal_code===journal&&x.dimension_type===type);
+  strategicNativeTable($("strategicGa4Cities"),["País / região / cidade","Usuários"],selected("city").map(x=>[x.label,Number(x.active_users||0)]));
+  strategicNativeTable($("strategicGa4Pages"),["Caminho da página","Visualizações"],selected("page").map(x=>[x.label,Number(x.page_views||0)]));
+  strategicNativeTable($("strategicGa4Channels"),["Canal","Sessões"],selected("channel").map(x=>[x.label,Number(x.sessions||0)]));
+  const daily=selected("daily").sort((a,b)=>String(a.label).localeCompare(String(b.label)));
+  strategicNativeTable($("strategicGa4Daily"),["Data","Usuários","Sessões","Visualizações"],daily.map(x=>[x.label,Number(x.active_users||0),Number(x.sessions||0),Number(x.page_views||0)]));
+ };
+ selector.onchange=draw;draw();
+}
+
 function strategicNativeRender(data){
  STRATEGIC.nativeReport=data;
  const native=data.native_signals||{},coverage=native.source_coverage||{},
@@ -3749,6 +3797,7 @@ function strategicNativeRender(data){
   "INEP por curso: "+(Number(data.campaign_research?.source_coverage?.inep_course_rows||0)>0?"registros importados":"ainda sem dados oficiais importados"),
   "Esta seção é informativa; não envia campanhas nem altera consentimentos."
  ])quality.append(elem("p",line));
+ strategicGA4Render(data);
  $("strategicNativeStatus").textContent="Atualizado · "+new Date().toLocaleTimeString("pt-BR");
 }
 async function strategicNativeLoad(from,to,sequence){
