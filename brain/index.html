@@ -961,6 +961,7 @@ body > .maildesk-jump-nav .btn:hover{background:#dff4f1;border-color:#66b9b0}
     <p class="hint">As propostas mantêm evidências e limitações originais. Alterações são feitas somente após ação do administrador.</p>
     <div id="strategicDecisionRegister" class="strategic-native-scroll"></div>
     <div id="strategicDecisionFeedback" class="hint" aria-live="polite"></div>
+    <h4>Histórico de alterações das decisões</h4><div id="strategicDecisionAudit" class="strategic-native-scroll"></div>
     <p class="strategic-native-note">Os indicadores são descritivos. Não há reidentificação de visitantes do GA4, inferência de consentimento de marketing, decisão automatizada sobre indivíduos ou disparo de mensagens. A interpretação de correlações exige revisão humana.</p>
   </section>
   <section class="strategic-native-panel" id="strategicKnowledgeCenter" style="grid-column:1/-1" aria-label="Centro integrado de inteligência editorial e marketing">
@@ -3853,6 +3854,13 @@ function strategicDecisionRender(data){
   ideas.append(elem("p","Explicações alternativas para tráfego geograficamente concentrado: público real, VPN/proxy ou infraestrutura automatizada. Ainda não há conclusão.","hint"));
  }
  strategicDecisionRegisterRender(reg);
+ const audit=data.decision_audit||{};
+ strategicNativeTable($("strategicDecisionAudit"),["Decisão","Situação anterior","Nova situação","Data","Origem"],(audit.events||[]).slice(0,30).map(x=>[
+ Number(x.decision_id),STRATEGIC_DECISION_STATES[x.old_status]||x.old_status||"Criação",
+ STRATEGIC_DECISION_STATES[x.new_status]||x.new_status,
+ x.changed_at?new Date(x.changed_at).toLocaleString("pt-BR"):"—",x.source
+ ]));
+
 }
 function strategicDecisionRegisterRender(reg){
  const root=$("strategicDecisionRegister");if(!root)return;
