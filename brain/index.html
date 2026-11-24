@@ -954,6 +954,9 @@ body > .maildesk-jump-nav .btn:hover{background:#dff4f1;border-color:#66b9b0}
    </div>
    <h4>Modelos estatísticos e Machine Learning — viabilidade com os dados existentes</h4>
    <div id="strategicCrossModels" class="strategic-native-scroll"></div>
+   <h4>Artigos mais acessados — vínculo verificado GA4 × OJS</h4>
+   <div id="strategicArticleTraffic" class="strategic-native-scroll"></div>
+   <p class="hint">O cruzamento utiliza apenas a revista e o ID do artigo presente na URL; não associa visitantes a nomes ou telefones. A lista cobre as principais páginas capturadas pelo GA4.</p>
    <h4>Diretrizes para campanhas e disparos de e-mail</h4>
    <div id="strategicCrossAdvice"></div>
    <p class="strategic-native-note">As correlações não demonstram causalidade. O GA4 não fornece dados pessoais, nem informa por si só o termo digitado na busca interna. E-mails de atendimento e contatos sem autorização não são listas de marketing.</p>
@@ -3723,6 +3726,14 @@ function strategicNativeAreaRender(data){
 }
 
 
+
+function strategicArticleTrafficRender(data){
+ const root=$("strategicArticleTraffic");if(!root)return;
+ const articles=(data.ga4_article_interest?.top_articles||[]).sort((a,b)=>Number(b.views_in_sample||0)-Number(a.views_in_sample||0)).slice(0,35);
+ strategicNativeTable(root,["Revista","Título do artigo","Tema exploratório","Visualizações amostradas"],
+  articles.map(x=>[x.journal_code,x.article_title,x.topic_label||"Não classificado",Number(x.views_in_sample||0)]));
+}
+
 function strategicCrossRender(data){
  const report=data.marketing_intelligence||{};
  const quality=report.quality||{},email=quality.email||{},ojs=quality.ojs||{},perms=quality.permissions||{};
@@ -3848,6 +3859,7 @@ function strategicNativeRender(data){
  ])quality.append(elem("p",line));
  strategicGA4Render(data);
  strategicCrossRender(data);
+ strategicArticleTrafficRender(data);
  $("strategicNativeStatus").textContent="Atualizado · "+new Date().toLocaleTimeString("pt-BR");
 }
 async function strategicNativeLoad(from,to,sequence){
