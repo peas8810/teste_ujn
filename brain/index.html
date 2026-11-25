@@ -823,6 +823,12 @@ body > .maildesk-jump-nav .btn:hover{background:#dff4f1;border-color:#66b9b0}
   </div>
   <div id="crmNextReports" class="hidden"></div>
   <div id="crmNextRecords" class="hidden">
+<div class="crm-manual-panel" style="margin-bottom:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+ <div style="flex:1;min-width:240px"><strong>Exportação completa de cadastros</strong><p class="hint" style="margin:5px 0 0">Inclui todos os registros de contatos e vínculos carregados, independentemente da pesquisa e paginação. Exportação local, sem disparos.</p></div>
+ <button class="btn" type="button" id="crmExportAllCsv">Exportar todos · CSV</button>
+ <button class="btn" type="button" id="crmExportAllXls">Exportar todos · Excel (.xls)</button>
+ <span class="hint" id="crmExportAllInfo" role="status" aria-live="polite"></span>
+</div>
 <section class="crm-manual-panel"><h3>Cadastrar contato editorial</h3><p>Cadastre e-mail e WhatsApp. O registro não ativa o envio nem comprova autoria.</p>
 <form id="crmManualContactForm" class="crm-manual-form">
 <label>E-mail do contato<input id="crmManualEmail" type="email" required maxlength="254" autocomplete="off" placeholder="autor@instituicao.br"></label>
@@ -1521,6 +1527,84 @@ function crmAllContactDirectory(d,query){
  for(const x of d.central_contacts||[])add(x,"Central de atendimento");
  for(const x of d.recipients||[])add(x,"Destinatário OJS");
  return records;
+}
+
+// Export only fields needed for editorial contact management (no auth hashes, tokens or chat bodies).
+// Each row retains its source and journal/submission combination instead of merging distinct articles.
+const crmExportHeaders=[
+ "Origem do registro","ID do registro","Nome","E-mail","WhatsApp","Revista",
+ "ID do artigo","Status do cadastro","Autorização editorial","Pedido do autor",
+ "Data do cadastro","Aceite editorial em","Verificação em","Revogação em",
+ "Última atualização"
+];
+function crmAllRegisteredRows(d){
+ const rows=[],seen=new Set();
+ function add(x,source){
+  const phone=String(x.phone_e164||x.phone||"").trim();
+  const email=String(x.email||"").trim();
+  if(!phone&&!email)return;
+  const journal=x.journal_code||x.journal_hint||"";
+  const submission=x.submission_id||x.submission_hint||"";
+  const id=String(x.id||"");
+  const key=source+"|"+(id||email+"|"+phone+"|"+journal+"|"+submission);
+  if(seen.has(key))return;seen.add(key);
+  const status=x.status||(
+   source==="Destinatário OJS"?(x.revoked_at?"REVOGADO":x.consent_at&&x.verified_at?"ATIVO":"PENDENTE"):
+   x.requested_by_author?"PEDIDO REGISTRADO":"CADASTRADO");
+  rows.push([
+   source,id,x.display_name||x.full_name||x.name||"",email,phone,journal,
+   submission?String(submission):"",status,
+   x.consent_editorial===true||!!(x.consent_at&&x.verified_at&&!x.revoked_at)?"SIM":
+    x.consent_editorial===false?"NÃO":"NÃO CONFIRMADA",
+   x.requested_by_author===true?"SIM":x.requested_by_author===false?"NÃO":"",
+   x.created_at||"",x.accepted_at||x.consent_at||"",x.verified_at||"",
+   x.revoked_at||"",x.updated_at||""
+  ]);
+ }
+ for(const x of d.manual_contacts||[])add(x,"Cadastro manual");
+ for(const x of d.requests||[])add(x,"Ativação editorial");
+ for(const x of d.recipients||[])add(x,"Destinatário OJS");
+ for(const x of d.central_contacts||[])add(x,"Central de atendimento");
+ return rows;
+}
+function crmExportSafeCell(value){
+ const text=String(value??"").replace(/\u0000/g,"");
+ // Prevent formulas from running in spreadsheet applications when opening exported user data.
+ return /^[\s\uFEFF]*[=+\-@\t\r]/.test(text)?"'"+text:text;
+}
+function crmExportCsvCell(value){
+ return '"'+crmExportSafeCell(value).replace(/"/g,'""')+'"';
+}
+function crmExportXmlCell(value){
+ return crmExportSafeCell(value).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+   .replace(/"/g,"&quot;").replace(/'/g,"&apos;");
+}
+function crmDownloadAllRegistered(format){
+ const status=$("crmExportAllInfo");
+ if(!crmNextData){if(status)status.textContent="Atualize os dados antes de exportar.";return;}
+ const rows=crmAllRegisteredRows(crmNextData);
+ if(!rows.length){if(status)status.textContent="Nenhum cadastro carregado para exportação.";return;}
+ const values=[crmExportHeaders,...rows];
+ const date=new Date().toLocaleDateString("sv-SE",{timeZone:"America/Sao_Paulo"});
+ let content,type,ext;
+ if(format==="csv"){
+  content="\uFEFF"+values.map(row=>row.map(crmExportCsvCell).join(";")).join("\r\n");
+  type="text/csv;charset=utf-8";ext="csv";
+ }else{
+  // Excel 2003 SpreadsheetML workbook, not HTML disguised as an XLS workbook.
+  const cells=values.map((row,i)=>"<Row>"+row.map(v=>"<Cell"+(i===0?' ss:StyleID="head"':"")+"><Data ss:Type=\"String\">"+crmExportXmlCell(v)+"</Data></Cell>").join("")+"</Row>").join("");
+  content='<?xml version="1.0" encoding="UTF-8"?>'+
+   '<?mso-application progid="Excel.Sheet"?>'+
+   '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">'+
+   '<Styles><Style ss:ID="head"><Font ss:Bold="1"/></Style></Styles>'+
+   '<Worksheet ss:Name="Cadastros e envios"><Table>'+cells+'</Table></Worksheet></Workbook>';
+  type="application/vnd.ms-excel;charset=utf-8";ext="xls";
+ }
+ const blob=new Blob([content],{type}),url=URL.createObjectURL(blob),a=document.createElement("a");
+ a.href=url;a.download="brain_ujn_cadastros_envios_"+date+"."+ext;
+ document.body.append(a);a.click();a.remove();
+ setTimeout(()=>URL.revokeObjectURL(url),30000);
+ if(status)status.textContent=rows.length+" registros exportados em "+ext.toUpperCase()+".";
 }
 
 let crmManualRows=[];
@@ -5601,6 +5685,8 @@ $("crmNextStartCare").addEventListener("click",crmNextOpenCare);
 $("crmNextProfile").addEventListener("click",e=>{if(e.target.closest("button[data-crmnextcare]"))crmNextOpenCare()});
 $("crmNextExport").addEventListener("click",crmNextExportAudit);
 $("crmManualContactForm").addEventListener("submit",crmManualSave);
+$("crmExportAllCsv").addEventListener("click",()=>crmDownloadAllRegistered("csv"));
+$("crmExportAllXls").addEventListener("click",()=>crmDownloadAllRegistered("xls"));
 
 
 document.querySelector(".crm-next-tabs").addEventListener("click",e=>{const tab=e.target.closest("button[data-crm-view]");if(tab)crmNextSwitchTab(tab.dataset.crmView)});
