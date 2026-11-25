@@ -1641,8 +1641,13 @@ async function crmManualSave(e){
   const msg=requested?"Pedido do autor registrado. Vínculo e autoria ainda aguardam conferência no OJS.":
       result.created?"Contato administrativo cadastrado.":"Contato existente, sem duplicação.";
   $("crmManualContactForm").reset();
-  await editorialWa();
-  $("crmManualFeedback").textContent=msg;
+  feedback.textContent=msg+" Atualizando a lista em segundo plano…";
+  // The contact is already saved. Do not block the form on full CRM/Meta refresh.
+  Promise.resolve().then(()=>editorialWa()).then(()=>{
+   if($("crmManualFeedback"))$("crmManualFeedback").textContent=msg;
+  }).catch(()=>{
+   if($("crmManualFeedback"))$("crmManualFeedback").textContent=msg+" A atualização visual falhou; use Atualizar para consultar os dados.";
+  });
  }catch(err){feedback.textContent=err.message||"Não foi possível salvar o contato."}
  finally{button.disabled=false}
 }
@@ -1971,11 +1976,30 @@ $("waV2On").addEventListener("click",()=>waV2Switch(true));
 $("waV2Test").addEventListener("click",waV2Simulate);
 $("waV2LoadReviews").addEventListener("click",waV2ReviewList);
 
+let editorialWaInFlight=null;
 async function editorialWa(){
- const root=$("editorialStats");root.replaceChildren(elem("p","Consultando registros…"));
- try{
-  const d=await editorialCall("?data=1");editorialCache=d;renderEditorial(d);crmNextRender(d);
- }catch(e){root.replaceChildren(elem("p",e.message,"notice error"));$("editorialContacts").replaceChildren();$("editorialDeliveries").replaceChildren();$("editorialReplies").replaceChildren()}
+ // Reuse a single in-flight request; prevents 30-second polling from overlapping a save or manual refresh.
+ if(editorialWaInFlight)return editorialWaInFlight;
+ editorialWaInFlight=(async()=>{
+  const root=$("editorialStats");
+  if(!editorialCache)root.replaceChildren(elem("p","Consultando registros…"));
+  try{
+   const d=await editorialCall("?data=1");
+   editorialCache=d;
+   renderEditorial(d);
+   crmNextRender(d);
+   return d;
+  }catch(e){
+   // Keep the last successful data visible instead of clearing the entire screen.
+   if(!editorialCache){
+    root.replaceChildren(elem("p",e.message,"notice error"));
+   }else{
+    const notice=$("crmManualFeedback");if(notice)notice.textContent="A atualização não foi concluída. Os dados anteriores permanecem disponíveis.";
+   }
+   throw e;
+  }
+ })();
+ try{return await editorialWaInFlight}finally{editorialWaInFlight=null}
 }
 function editorialActivationEditClose(){
  const root=$("editorialActivationEdit");if(root){root.replaceChildren();root.classList.add("hidden")}
@@ -5581,7 +5605,9 @@ $("crmManualContactForm").addEventListener("submit",crmManualSave);
 
 document.querySelector(".crm-next-tabs").addEventListener("click",e=>{const tab=e.target.closest("button[data-crm-view]");if(tab)crmNextSwitchTab(tab.dataset.crmView)});
 
-setInterval(()=>{if(!document.hidden&&document.querySelector('[data-page="editorialwa"]:not(.hidden)')&&token)editorialWa()},30000);
+setInterval(()=>{if(!document.hidden&&document.querySelector('[data-page="editorialwa"]:not(.hidden)')&&token)
+ editorialWa().catch(()=>{});
+},30000);
 
 /* Installable PWA: preserve online-only authenticated operations. */
 let brainInstallEvent=null;
