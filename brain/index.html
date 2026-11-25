@@ -2865,7 +2865,7 @@ function mktConsentDetail(id){
  const reviewStatus=mktEl("p",c.marketing_review_status==="PENDING_EVIDENCE"?"Conferência anterior salva. Autorização comercial pendente.":"Ainda não conferido.","hint");
 
  host.append(reviewStatus);
- host.append(mktEl("h4","Registrar autorização obtida em conversa pessoal"));
+ host.append(mktEl("h4","Autorizar contato para marketing — aceite individual comprovado"));
  host.append(mktEl("p","Utilize esta opção somente se você falou com a pessoa e ela concordou expressamente em receber notícias institucionais, felicitações e divulgações científicas ou promocionais da UJN. Não basta ter conversado nem ter cadastro editorial.","hint"));
  const personal=mktEl("form",undefined,"mkt-form");personal.dataset.mktForm="register_personal_marketing_authorization";
  const contactInput=mktEl("input");contactInput.type="hidden";contactInput.name="contact_id";contactInput.value=id;personal.append(contactInput);
@@ -2889,7 +2889,7 @@ function mktConsentDetail(id){
  const agreement=mktEl("input");agreement.type="checkbox";agreement.name="confirmed";agreement.value="yes";agreement.required=true;agreement.style.width="auto";agreement.style.marginTop="3px";
  const agreementText=mktEl("span","Confirmo que a própria pessoa autorizou, livre e expressamente, receber pelo WhatsApp notícias institucionais, datas comemorativas e campanhas acadêmicas/promocionais da Editora UJN. Sei que a autorização pode ser cancelada a qualquer momento.");
  agreementLabel.append(agreement,agreementText);personal.append(agreementLabel);
- const personalButton=mktEl("button","Salvar autorização confirmada (sem enviar mensagem)","btn primary");personalButton.type="submit";personal.append(personalButton);
+ const personalButton=mktEl("button","Confirmar autorização deste contato","btn primary");personalButton.type="submit";personal.append(personalButton);
  host.append(personal);
  host.append(mktEl("p","A comprovação, o responsável e o horário serão registrados no histórico. Este procedimento não dispara mensagens automaticamente e não autoriza contatos sem aceite.","hint"));
 
@@ -2915,7 +2915,10 @@ function mktConsentDetail(id){
  });
  host.append(historyTrigger,historyPanel);
 
- host.append(mktEl("h4","Autorizar recebimento de marketing (somente com aceite comprovado)"));
+ const documented=mktEl("details");documented.style.marginTop="12px";
+ const documentedHeading=mktEl("summary","Autorização por formulário específico de marketing (opção alternativa)");
+ documentedHeading.style.cursor="pointer";documentedHeading.style.fontWeight="600";
+ documented.append(documentedHeading,mktEl("p","Use somente quando o formulário registrar claramente o aceite comercial deste contato. Identifique a resposta ou protocolo do formulário, não apenas o nome do documento.","hint"));
  const form=mktEl("form",undefined,"mkt-form");form.dataset.mktForm="record_consent";
  const hid=mktEl("input");hid.type="hidden";hid.name="contact_id";hid.value=id;form.append(hid);
  for(const field of [
@@ -2929,8 +2932,8 @@ function mktConsentDetail(id){
   label.append(input);form.append(label);
  }
  const button=mktEl("button",c.marketing_opt_in?"Salvar decisão":"Registrar autorização individual","btn primary");
- button.type="submit";form.append(button);host.append(form);
- const end=mktEl("p","O contato só será considerado autorizado após o registro bem-sucedido de um aceite comercial específico.","hint");host.append(end);
+ button.type="submit";form.append(button);documented.append(form);host.append(documented);
+ const end=mktEl("p","O status AUTORIZADO é atualizado somente após o registro efetivo de um aceite comercial. Conferir cadastro e acompanhar artigo não autoriza publicidade.","hint");host.append(end);
  host.scrollIntoView({behavior:"smooth",block:"nearest"});
 }
 function mktEditContact(id){
