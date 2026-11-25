@@ -1672,7 +1672,9 @@ function crmNextSwitchTab(tab){
  $("crmNextLegacyReports").classList.add("hidden");
  if(tab==="report"&&crmNextData)crmRender(crmNextData);
 }
+let crmNextIndexedData=null,crmNextIndexedContacts=[];
 function crmNextContacts(d){
+ if(d===crmNextIndexedData)return crmNextIndexedContacts;
  const map=new Map();
  const join=(p)=>{const key=crmNextPhone(p);if(!key)return null;if(!map.has(key))map.set(key,{phone:key,requests:[],recipients:[],messages:[],inbound:[],chats:[],crm:[]});return map.get(key)};
  for(const x of d.requests||[]){const o=join(x.phone_e164);if(o)o.requests.push(x)}
@@ -1691,13 +1693,29 @@ function crmNextContacts(d){
  for(const x of d.crm||[]){const o=join(x.phone);if(o)o.crm.push(x)}
  const byRecipient=new Map((d.recipients||[]).map(x=>[x.id,crmNextPhone(x.phone_e164)]));
  for(const x of d.deliveries||[]){const key=byRecipient.get(x.recipient_id);if(key){const o=map.get(key);if(o)o.messages.push(x)}}
- return [...map.values()].map(o=>{
+ const manualByPhone=new Map();
+ for(const x of d.manual_contacts||[]){const phone=crmNextPhone(x.phone_e164);if(phone&&!manualByPhone.has(phone))manualByPhone.set(phone,x)}
+ const centralByPhone=new Map();
+ for(const x of d.central_contacts||[]){const phone=crmNextPhone(x.phone_e164||x.phone);if(phone&&!centralByPhone.has(phone))centralByPhone.set(phone,x)}
+ const contacts=[...map.values()].map(o=>{
   o.active=o.recipients.some(r=>r.consent_at&&r.verified_at&&!r.revoked_at);
   o.latest=Math.max(0,...o.messages.map(x=>Date.parse(x.created_at||0)||0),...o.inbound.map(x=>Date.parse(x.time||0)||0),...(o.central_messages||[]).map(x=>Date.parse(x.created_at||0)||0),...o.requests.map(x=>Date.parse(x.accepted_at||x.created_at||0)||0));
   o.error=o.messages.some(x=>["FAILED","BLOCKED"].includes(x.state));
-  o.author=o.requests.find(x=>x.source==="ojs-submission")?.email||o.requests[0]?.email||"Contato registrado";
+  const manual=manualByPhone.get(o.phone),central=centralByPhone.get(o.phone);
+  o.author=o.requests.find(x=>x.source==="ojs-submission")?.email||
+    o.requests[0]?.email||manual?.email||central?.email||"Contato registrado";
+  o.displayName=central?.display_name||central?.name||manual?.display_name||manual?.name||"";
+  const articles=new Map();
+  for(const x of [...o.recipients,...o.requests,...(manual?[manual]:[])]){
+   const journal=x.journal_code||x.journal_hint,submission=x.submission_id||x.submission_hint;
+   if(journal&&submission)articles.set(journal+":"+submission,{journal,id:String(submission)});
+  }
+  o.linkedArticles=[...articles.values()];
+  o.searchIndex=crmNormalize([o.author,o.displayName,o.phone,...o.linkedArticles.map(x=>x.journal+" "+x.id)].join(" "));
   return o;
  }).sort((a,b)=>b.latest-a.latest);
+ crmNextIndexedData=d;crmNextIndexedContacts=contacts;
+ return contacts;
 }
 function crmNextRender(d){
  crmNextData=d;crmNextSetupSections();crmManualDisplay(d);
@@ -1721,21 +1739,28 @@ function crmNextRender(d){
  crmNextDrawAudit(d);
 }
 function crmNextDrawContacts(contacts){
- const root=$("crmNextContacts"),q=$("crmNextSearch").value.toLowerCase().trim(),filter=$("crmNextStatus").value;root.replaceChildren();
- const list=contacts.filter(x=>(!q||[x.author,x.phone,...x.requests.map(r=>r.submission_id||"")].join(" ").toLowerCase().includes(q))&&
+ const root=$("crmNextContacts"),q=crmNormalize($("crmNextSearch").value.trim()),filter=$("crmNextStatus").value;
+ const list=contacts.filter(x=>(!q||x.searchIndex.includes(q)||crmNormalizePhone(q).length>=4&&x.phone.includes(crmNormalizePhone(q)))&&
  (!filter||filter==="active"&&x.active||filter==="pending"&&!x.active||filter==="reply"&&x.inbound.length>0||filter==="issue"&&x.error));
  $("crmNextCount").textContent=list.length+" registros";
- if(!list.length){root.append(crmNextNode("div","Nenhum contato corresponde à pesquisa.","crm-next-empty"));return;}
- for(const x of list){
+ const fragment=document.createDocumentFragment();
+ if(!list.length)fragment.append(crmNextNode("div","Nenhum contato corresponde à pesquisa.","crm-next-empty"));
+ // Render only the first 100; continue searching across the complete indexed list.
+ for(const x of list.slice(0,100)){
   const btn=crmNextNode("button",null,"crm-next-contact"+(x.phone===crmNextSelectedPhone?" selected":""));btn.dataset.crmnextphone=x.phone;
-  const avatar=crmNextNode("div",(x.author.includes("@")?x.author[0]:x.author.slice(0,2)).toUpperCase(),"crm-next-circle");
+  const shown=x.displayName||x.author;
+  const avatar=crmNextNode("div",(shown.includes("@")?shown[0]:shown.slice(0,2)).toUpperCase(),"crm-next-circle");
   const info=crmNextNode("div");
-  info.append(crmNextNode("div",x.author,"name"),crmNextNode("div","+"+x.phone+" · "+(x.recipients[0]?.journal_code||x.requests[0]?.journal_code||"Não vinculado"),"sub"));
+  const detail=x.linkedArticles.length?x.linkedArticles.slice(0,2).map(a=>a.journal+" #"+a.id).join(" · "):
+    (x.recipients[0]?.journal_code||x.requests[0]?.journal_code||"Não vinculado");
+  info.append(crmNextNode("div",shown,"name"),crmNextNode("div",(shown!==x.author?x.author+" · ":"")+"+"+x.phone+" · "+detail,"sub"));
   const bottom=crmNextNode("div",null,"bottom");
   bottom.append(crmNextNode("span",x.error?"Falha":x.active?"Acompanhamento ativo":"Aguardando vínculo","crm-next-tag "+(x.error?"bad":x.active?"good":"warn")));
   bottom.append(crmNextNode("span",x.latest?crmNextDate(x.latest):"","latest"));
-  info.append(bottom);btn.append(avatar,info);root.append(btn);
+  info.append(bottom);btn.append(avatar,info);fragment.append(btn);
  }
+ if(list.length>100)fragment.append(crmNextNode("div","Exibindo os 100 primeiros de "+list.length+". Refine a busca por e-mail, telefone, revista ou ID do artigo.","crm-next-empty"));
+ root.replaceChildren(fragment);
 }
 function crmNextDeliveryDetails(d,e){
  const state=crmNextStatus(d),label=crmNextLabels[e.event_type]||e.event_type||"Atualização editorial";
@@ -5528,7 +5553,10 @@ $("crmExport").addEventListener("click",crmCsv);
 $("crmSaveSla").addEventListener("click",crmSaveSla);
 $("crmSaveContact").addEventListener("click",crmSaveContact);
 $("crmNextRefresh").addEventListener("click",editorialWa);
-$("crmNextSearch").addEventListener("input",()=>{if(crmNextData)crmNextDrawContacts(crmNextContacts(crmNextData))});
+let crmNextSearchDelay=null;
+$("crmNextSearch").addEventListener("input",()=>{clearTimeout(crmNextSearchDelay);crmNextSearchDelay=setTimeout(()=>{
+ if(crmNextData)crmNextDrawContacts(crmNextContacts(crmNextData));
+},150)});
 $("crmNextStatus").addEventListener("change",()=>{if(crmNextData)crmNextDrawContacts(crmNextContacts(crmNextData))});
 $("crmNextContacts").addEventListener("click",e=>{
  const b=e.target.closest("button[data-crmnextphone]");if(!b||!crmNextData)return;
