@@ -2620,6 +2620,38 @@ async function mktCheckEditorialSelection(){
   }
  }catch(e){if(area)area.textContent="Falha na conferência: "+e.message;say(e.message,true)}
 }
+async function mktMeetMarketingBatch(form){
+ const ids=[...mktSelectedContactIds];
+ if(!ids.length||ids.length>100){say("Selecione entre 1 e 100 contatos.",true);return}
+ const values=Object.fromEntries(new FormData(form).entries());
+ if(values.attest_individual_optins!=="yes"){say("Confirme que todos os selecionados autorizaram individualmente o marketing.",true);return}
+ const date=new Date(String(values.meeting_at||""));
+ if(!Number.isFinite(date.getTime())||date.getTime()>Date.now()){
+  say("A data da reunião deve ser válida e não pode estar no futuro.",true);return;
+ }
+ const payload={
+  contact_ids:ids,meeting_at:date.toISOString(),
+  meeting_reference:String(values.meeting_reference||"").trim(),
+  evidence_reference:String(values.evidence_reference||"").trim(),
+  consent_statement:String(values.consent_statement||"").trim(),
+  attest_individual_optins:true
+ };
+ const button=form.querySelector('button[type="submit"]');if(button)button.disabled=true;
+ try{
+  const preview=await mktCall("register_meet_marketing_batch",{...payload,preview:true});
+  if(!confirm("Reunião Google Meet: "+preview.meeting_reference+"\\nSelecionados: "+preview.selected+
+   "\\nJá autorizados: "+preview.already_authorized+
+   "\\nNovas autorizações: "+preview.new_authorizations+
+   "\\nBloqueados por revogação posterior: "+preview.blocked_due_to_later_optout+
+   "\\n\\nConfirma que cada pessoa selecionada aceitou expressamente receber marketing e consta na evidência indicada? Nenhuma mensagem será enviada."))return;
+  const result=await mktCall("register_meet_marketing_batch",{...payload,confirmed:true});
+  const message="Google Meet: "+result.saved+" autorizações salvas, "+result.already_authorized+
+   " já autorizados, "+result.blocked_due_to_later_optout+
+   " revogações posteriores respeitadas e "+result.failed+" falhas. Nenhuma mensagem enviada.";
+  say(message,!!result.failed);mktSelectedContactIds.clear();await marketing();
+ }catch(e){say("Não foi possível salvar o lote de Google Meet: "+e.message,true)}
+ finally{if(button)button.disabled=false;mktSelectionSummary()}
+}
 async function mktCollectiveMarketingOptin(form){
  const ids=[...mktSelectedContactIds];if(!ids.length||ids.length>100)return say("Selecione de 1 a 100 contatos.",true);
  const origin=String(form.elements.collective_origin.value||"").trim();
@@ -2812,6 +2844,31 @@ function mktAudience(root,d){
  batch.append(mktEl("p","Autorizar marketing continua exigindo prova específica por contato. Esta ferramenta não envia mensagens.","hint"));
 
  right.append(batch);
+ const meet=mktPanel("Autorizações de marketing — Google Meet","Selecione até 100 contatos que confirmaram pessoalmente o aceite durante a reunião. Não selecione quem apenas participou, ficou em silêncio ou recusou.");
+ const meetForm=mktEl("form",undefined,"mkt-form");meetForm.dataset.mktForm="register_meet_marketing_batch";
+ const meetFields=[
+  ["meeting_at","Data e hora da reunião","datetime-local",""],
+  ["meeting_reference","Identificação ou link da reunião","text","Ex.: Meet-UJN-2026-11-25-turma-A"],
+  ["evidence_reference","Local da evidência dos aceites individuais","text","Ex.: registro do chat / gravação / ata com os nomes e respostas"],
+  ["consent_statement","Qual autorização foi solicitada e aceita","textarea","Ex.: Os participantes selecionados concordaram expressamente em receber WhatsApp de divulgação das revistas, chamadas e campanhas institucionais da Editora UJN."]
+ ];
+ for(const [name,title,kind,hint] of meetFields){
+  const label=mktEl("label",title,"wide");
+  const input=mktEl(kind==="textarea"?"textarea":"input");
+  if(kind!=="textarea")input.type=kind;
+  if(kind==="textarea")input.rows=3;
+  input.name=name;input.placeholder=hint;input.required=true;
+  if(name==="meeting_at"){input.max=new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,16)}
+  label.append(input);meetForm.append(label);
+ }
+ const meetCheckLabel=mktEl("label",undefined,"wide"),meetCheck=mktEl("input");
+ meetCheck.type="checkbox";meetCheck.name="attest_individual_optins";meetCheck.value="yes";meetCheck.required=true;
+ meetCheckLabel.append(meetCheck,document.createTextNode(" Confirmo que TODOS os contatos selecionados aceitaram expressamente marketing nesta reunião e que consigo identificar cada aceite na evidência indicada."));
+ meetForm.append(meetCheckLabel);
+ const meetSave=mktEl("button","Conferir e registrar lote do Google Meet","btn primary");meetSave.type="submit";meetForm.append(meetSave);
+ meet.append(meetForm);
+ meet.append(mktEl("p","É possível registrar lotes sucessivos de até 100 contatos. A participação no Meet não equivale a consentimento. O registro não envia mensagens nem interfere nas notificações editoriais.","hint"));
+ right.append(meet);
  const collective=mktPanel("Autorizar marketing em lote","Selecione até 100 contatos. Use apenas quando possuir uma comprovação coletiva que identifique o aceite promocional de todos os selecionados.");
  const collForm=mktEl("form",undefined,"mkt-form");collForm.dataset.mktForm="bulk_apply_verified_marketing_consent";
  for(const [name,title,hint] of [
@@ -3336,6 +3393,7 @@ $("mktViewBody").addEventListener("submit",e=>{
  if(action==="bulk_update_contacts"){mktSubmitBulkUpdate(form);return}
  if(action==="update_notice_permission"){mktChangeNoticePermissions("APPROVED",form);return}
  if(action==="bulk_apply_verified_marketing_consent"){mktCollectiveMarketingOptin(form);return}
+ if(action==="register_meet_marketing_batch"){mktMeetMarketingBatch(form);return}
  if(action==="save_marketing_review"){
    mktCall("save_marketing_review",values).then(async(result)=>{
      say(result.message||"Conferência salva. Autorização comercial pendente.");
