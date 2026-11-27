@@ -777,7 +777,7 @@ body > .maildesk-jump-nav .btn:hover{background:#dff4f1;border-color:#66b9b0}
   </header>
 
   <details id="waV2Panel" class="card" style="margin:14px 0;padding:16px;border:1px solid #d5e4e8;border-radius:12px">
-   <summary style="cursor:pointer;font-weight:750;color:#17394a">◈ WhatsApp Inteligente 2.0 · Interpretação e treinamento</summary>
+   <summary style="cursor:pointer;font-weight:750;color:#17394a">◈ WhatsApp Inteligente 3.0 · Interpretação, treinamento e revisão</summary>
    <p class="hint">Nova camada integrada ao atendimento original. Acompanhamento, simulações e treinamento com respostas supervisionadas, sem envios durante os testes.</p>
    <div class="row" style="gap:8px;align-items:center;flex-wrap:wrap">
     <span id="waV2Status" class="hint">Carregue o diagnóstico do piloto.</span>
@@ -792,7 +792,7 @@ body > .maildesk-jump-nav .btn:hover{background:#dff4f1;border-color:#66b9b0}
     <div><button class="btn small" type="button" id="waV2Test">Testar sem enviar</button></div>
     <pre id="waV2TestResult" style="white-space:pre-wrap;overflow-wrap:anywhere;font-family:inherit" aria-live="polite"></pre>
    </div>
-   <div class="row" style="gap:8px;flex-wrap:wrap;align-items:center"><strong>Respostas para revisão humana</strong><button class="btn small" type="button" id="waV2LoadReviews">Ver análises</button></div>
+   <div class="row" style="gap:8px;flex-wrap:wrap;align-items:center"><strong>Respostas para revisão humana</strong><button class="btn small" type="button" id="waV2LoadReviews">Ver análises</button></div><div class="row" style="gap:8px;flex-wrap:wrap;align-items:center;margin-top:9px"><button class="btn small" type="button" id="waTrainingOpen">Abrir treinamento humano no Strategic Brain</button><span class="hint">Revisar as respostas humanas antes de utilizá-las como conhecimento institucional.</span></div>
    <div id="waV2Reviews" style="display:grid;gap:10px;margin-top:10px"></div>
    <p class="hint">Respostas aprovadas são exemplos supervisionados de estilo. Elas não comprovam aceite editorial, DOI, pagamento ou publicação.</p>
   </details>
@@ -2058,6 +2058,7 @@ $("waV2Refresh").addEventListener("click",waV2StatusRefresh);
 $("waV2Off").addEventListener("click",()=>waV2Switch(false));
 $("waV2On").addEventListener("click",()=>waV2Switch(true));
 $("waV2Test").addEventListener("click",waV2Simulate);
+$("waTrainingOpen").addEventListener("click",()=>{show("ai");setTimeout(()=>{const panel=$("aiHumanExamples");if(panel)panel.scrollIntoView({behavior:"smooth",block:"center"})},180)});
 $("waV2LoadReviews").addEventListener("click",waV2ReviewList);
 
 let editorialWaInFlight=null;
